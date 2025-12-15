@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the Erc7579Actions extension from the permissionless library, for the Dart programming language.">
+  <title>Erc7579Actions extension - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless.dart</a></li>
+    <li class="self-crumb">Erc7579Actions extension</li>
+  </ol>
+  <div class="self-name">Erc7579Actions</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content extension-page"
+    data-above-sidebar="permissionless&#47;permissionless-library-sidebar.html"
+    data-below-sidebar="permissionless&#47;Erc7579Actions-extension-sidebar.html">
+    <div>
+<h1><span class="kind-class">Erc7579Actions</span> extension 
+ 
+</h1></div>
+
+    
+<section class="desc markdown">
+  <p>Extension methods for ERC-7579 module management on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>.</p>
+<p>These methods allow you to install, uninstall, and manage modules
+on ERC-7579 compliant smart accounts like Kernel and Etherspot.</p>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">import 'package:permissionless/permissionless.dart';
+
+// Install a validator module
+final hash = await client.installModule(
+  type: Erc7579ModuleType.validator,
+  address: ecdsaValidatorAddress,
+  initData: encodedOwnerAddress,
+  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+);
+
+// Wait for confirmation
+final receipt = await client.waitForReceipt(hash);
+</code></pre>
+</section>
+
+    <section>
+      <dl class="dl-horizontal">
+        <dt>on</dt>
+        <dd>
+          <ul class="comma-separated clazz-relationships">
+            <li><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></li>
+          </ul>
+        </dd>
+      </dl>
+      
+
+
+    </section>
+    
+
+    
+  <section
+      class="summary offset-anchor"
+      id="instance-methods">
+    <h2>Methods</h2>
+    <dl class="callables">
+        <dt id="getAccountId" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/getAccountId.html">getAccountId</a></span><span class="signature">(<wbr>{<span class="parameter" id="getAccountId-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Gets the account's implementation identifier.
+  
+
+</dd>
+
+        <dt id="installModule" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/installModule.html">installModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="installModule-param-type"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span><span class="parameter" id="installModule-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="installModule-param-initData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initData</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="installModule-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="installModule-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="installModule-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Installs a single module on the smart account.
+  
+
+</dd>
+
+        <dt id="installModuleAndWait" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/installModuleAndWait.html">installModuleAndWait</a></span><span class="signature">(<wbr>{<span class="parameter" id="installModuleAndWait-param-type"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span><span class="parameter" id="installModuleAndWait-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="installModuleAndWait-param-initData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initData</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="installModuleAndWait-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="installModuleAndWait-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="installModuleAndWait-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="installModuleAndWait-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">timeout</span> = <span class="default-value">const Duration(seconds: 60)</span>, </span><span class="parameter" id="installModuleAndWait-param-pollingInterval"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">pollingInterval</span> = <span class="default-value">const Duration(seconds: 2)</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/UserOperationReceipt-class.html">UserOperationReceipt</a>?</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Installs a module and waits for the transaction to be confirmed.
+  
+
+</dd>
+
+        <dt id="installModules" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/installModules.html">installModules</a></span><span class="signature">(<wbr>{<span class="parameter" id="installModules-param-modules"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/InstallModuleConfig-class.html">InstallModuleConfig</a></span>&gt;</span></span> <span class="parameter-name">modules</span>, </span><span class="parameter" id="installModules-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="installModules-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="installModules-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Installs multiple modules in a single UserOperation.
+  
+
+</dd>
+
+        <dt id="isModuleInstalled" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/isModuleInstalled.html">isModuleInstalled</a></span><span class="signature">(<wbr>{<span class="parameter" id="isModuleInstalled-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="isModuleInstalled-param-type"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span><span class="parameter" id="isModuleInstalled-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="isModuleInstalled-param-additionalContext"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">additionalContext</span> = <span class="default-value">&#39;0x&#39;</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Checks if a specific module is installed on the account.
+  
+
+</dd>
+
+        <dt id="supportsExecutionMode" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/supportsExecutionMode.html">supportsExecutionMode</a></span><span class="signature">(<wbr>{<span class="parameter" id="supportsExecutionMode-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="supportsExecutionMode-param-mode"><span>required</span> <span class="type-annotation"><a href="../permissionless/ExecutionMode-class.html">ExecutionMode</a></span> <span class="parameter-name">mode</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Checks if the account supports a specific execution mode.
+  
+
+</dd>
+
+        <dt id="supportsModule" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/supportsModule.html">supportsModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="supportsModule-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="supportsModule-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Checks if the account supports a specific module type.
+  
+
+</dd>
+
+        <dt id="uninstallModule" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/uninstallModule.html">uninstallModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="uninstallModule-param-type"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span><span class="parameter" id="uninstallModule-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="uninstallModule-param-deInitData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">deInitData</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="uninstallModule-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="uninstallModule-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="uninstallModule-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Uninstalls a single module from the smart account.
+  
+
+</dd>
+
+        <dt id="uninstallModuleAndWait" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/uninstallModuleAndWait.html">uninstallModuleAndWait</a></span><span class="signature">(<wbr>{<span class="parameter" id="uninstallModuleAndWait-param-type"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-deInitData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">deInitData</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">timeout</span> = <span class="default-value">const Duration(seconds: 60)</span>, </span><span class="parameter" id="uninstallModuleAndWait-param-pollingInterval"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">pollingInterval</span> = <span class="default-value">const Duration(seconds: 2)</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/UserOperationReceipt-class.html">UserOperationReceipt</a>?</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Uninstalls a module and waits for the transaction to be confirmed.
+  
+
+</dd>
+
+        <dt id="uninstallModules" class="callable">
+  <span class="name"><a href="../permissionless/Erc7579Actions/uninstallModules.html">uninstallModules</a></span><span class="signature">(<wbr>{<span class="parameter" id="uninstallModules-param-modules"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/UninstallModuleConfig-class.html">UninstallModuleConfig</a></span>&gt;</span></span> <span class="parameter-name">modules</span>, </span><span class="parameter" id="uninstallModules-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="uninstallModules-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="uninstallModules-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a> extension</span>
+      </p>
+  Uninstalls multiple modules in a single UserOperation.
+  
+
+</dd>
+
+    </dl>
+  </section>
+    
+    
+    
+    
+
+</div> <!-- /.main-content -->
+<div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+  <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless</a></li>
+    <li class="self-crumb">Erc7579Actions extension</li>
+</ol>
+
+  <h5>permissionless library</h5>
+  <div id="dartdoc-sidebar-left-content"></div>
+</div>
+<div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+
+
+

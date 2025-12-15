@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the batch method from the JsonRpcClient class, for the Dart programming language.">
+  <title>batch method - JsonRpcClient class - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../../static-assets/styles.css?v1">
+  <link rel="icon" href="../../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../../index.html">permissionless</a></li>
+    <li><a href="../../permissionless/">permissionless.dart</a></li>
+    <li><a href="../../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></li>
+    <li class="self-crumb">batch method</li>
+  </ol>
+  <div class="self-name">batch</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="permissionless&#47;JsonRpcClient-class-sidebar.html"
+    data-below-sidebar="">
+    <div>
+<h1><span class="kind-method">batch</span> method 
+</h1></div>
+
+    <section class="multi-line-signature">
+      
+<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a></span>&gt;</span></span>
+<span class="name ">batch</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="batch-param-requests"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/RpcRequest-class.html">RpcRequest</a></span>&gt;</span></span> <span class="parameter-name">requests</span></span></li>
+</ol>)
+
+      
+
+    </section>
+    
+<section class="desc markdown">
+  <p>Sends multiple JSON-RPC requests in a batch.</p>
+<p>Returns results in the same order as requests.
+Throws if any request in the batch fails.</p>
+</section>
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">Future&lt;List&lt;dynamic&gt;&gt; batch(List&lt;RpcRequest&gt; requests) async {
+  if (requests.isEmpty) return [];
+
+  final batchBody = &lt;Map&lt;String, dynamic&gt;&gt;[];
+  final startId = _requestId + 1;
+
+  for (final request in requests) {
+    _requestId++;
+    batchBody.add({
+      &#39;jsonrpc&#39;: &#39;2.0&#39;,
+      &#39;method&#39;: request.method,
+      &#39;params&#39;: request.params ?? [],
+      &#39;id&#39;: _requestId,
+    });
+  }
+
+  final response = await _httpClient
+      .post(
+        url,
+        headers: {
+          &#39;Content-Type&#39;: &#39;application&#47;json&#39;,
+          ...headers,
+        },
+        body: jsonEncode(batchBody),
+      )
+      .timeout(timeout);
+
+  if (response.statusCode != 200) {
+    throw BundlerRpcError(
+      code: response.statusCode,
+      message: &#39;HTTP error: ${response.reasonPhrase}&#39;,
+      data: response.body,
+    );
+  }
+
+  final jsonList = jsonDecode(response.body) as List&lt;dynamic&gt;;
+  final results = &lt;int, dynamic&gt;{};
+
+  for (final json in jsonList) {
+    final responseMap = json as Map&lt;String, dynamic&gt;;
+    final id = responseMap[&#39;id&#39;] as int;
+
+    if (responseMap.containsKey(&#39;error&#39;)) {
+      final error = responseMap[&#39;error&#39;] as Map&lt;String, dynamic&gt;;
+      throw BundlerRpcError(
+        code: error[&#39;code&#39;] as int,
+        message: error[&#39;message&#39;] as String,
+        data: error[&#39;data&#39;],
+      );
+    }
+
+    results[id] = responseMap[&#39;result&#39;];
+  }
+
+  &#47;&#47; Return results in request order
+  return [
+    for (var i = startId; i &lt;= _requestId; i++) results[i],
+  ];
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../../index.html">permissionless</a></li>
+    <li><a href="../../permissionless/">permissionless</a></li>
+    <li><a href="../../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></li>
+    <li class="self-crumb">batch method</li>
+</ol>
+
+    <h5>JsonRpcClient class</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../../static-assets/highlight.pack.js?v1"></script>
+<script src="../../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

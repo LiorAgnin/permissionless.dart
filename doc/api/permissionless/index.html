@@ -1,0 +1,2485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="permissionless library API docs, for the Dart programming language.">
+  <title>permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">permissionless</a></li>
+    <li class="self-crumb">permissionless.dart</li>
+  </ol>
+  <div class="self-name">permissionless</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar=""
+    data-below-sidebar="permissionless&#47;permissionless-library-sidebar.html">
+  
+    <div>
+      
+
+      <h1>
+        <span class="kind-library">permissionless</span>
+        library 
+ 
+
+      </h1>
+    </div>
+
+    
+<section class="desc markdown">
+  <p>Dart implementation of permissionless.js for ERC-4337 smart accounts.</p>
+<p>This library provides tools for creating and managing ERC-4337 smart
+accounts, starting with Safe account support.</p>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">import 'package:permissionless/permissionless.dart';
+
+void main() async {
+  final owner = PrivateKeyOwner('0x...');
+  final account = createSafeSmartAccount(
+    owners: [owner],
+    chainId: BigInt.from(1),
+  );
+
+  final address = await account.getAddress();
+  print('Safe address: $address');
+}
+</code></pre>
+</section>
+
+
+    <section class="summary offset-anchor" id="classes">
+      <h2>Classes</h2>
+      <dl>
+          <dt id="AbiEncoder">
+  <span class="name "><a href="../permissionless/AbiEncoder-class.html">AbiEncoder</a></span> 
+
+</dt>
+<dd>
+  ABI encoding utilities for Ethereum smart contract interactions.
+</dd>
+
+          <dt id="AccountOwner">
+  <span class="name "><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> 
+
+</dt>
+<dd>
+  Base interface for all smart account owners.
+</dd>
+
+          <dt id="BiconomyAddresses">
+  <span class="name deprecated"><a class="deprecated" href="../permissionless/BiconomyAddresses-class.html">BiconomyAddresses</a></span> 
+
+</dt>
+<dd>
+  Biconomy Smart Account addresses (deprecated, v0.6 only).
+</dd>
+
+          <dt id="BiconomySelectors">
+  <span class="name deprecated"><a class="deprecated" href="../permissionless/BiconomySelectors-class.html">BiconomySelectors</a></span> 
+
+</dt>
+<dd>
+  Biconomy function selectors.
+</dd>
+
+          <dt id="BiconomySmartAccount">
+  <span class="name deprecated"><a class="deprecated" href="../permissionless/BiconomySmartAccount-class.html">BiconomySmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Biconomy smart account implementation for ERC-4337 v0.6.
+</dd>
+
+          <dt id="BiconomySmartAccountConfig">
+  <span class="name deprecated"><a class="deprecated" href="../permissionless/BiconomySmartAccountConfig-class.html">BiconomySmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Biconomy smart account.
+</dd>
+
+          <dt id="BundlerClient">
+  <span class="name "><a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span> 
+
+</dt>
+<dd>
+  Client for interacting with ERC-4337 bundlers.
+</dd>
+
+          <dt id="Call">
+  <span class="name "><a href="../permissionless/Call-class.html">Call</a></span> 
+
+</dt>
+<dd>
+  Represents a call to be executed by a smart account.
+</dd>
+
+          <dt id="CallReceipt">
+  <span class="name "><a href="../permissionless/CallReceipt-class.html">CallReceipt</a></span> 
+
+</dt>
+<dd>
+  Receipt for an individual call within a batch (ERC-5792).
+</dd>
+
+          <dt id="CallsStatus">
+  <span class="name "><a href="../permissionless/CallsStatus-class.html">CallsStatus</a></span> 
+
+</dt>
+<dd>
+  Response from getCallsStatus (ERC-5792).
+</dd>
+
+          <dt id="Decoded7579Calls">
+  <span class="name "><a href="../permissionless/Decoded7579Calls-class.html">Decoded7579Calls</a></span> 
+
+</dt>
+<dd>
+  Result of decoding ERC-7579 execute call data.
+</dd>
+
+          <dt id="DecodedNonce">
+  <span class="name "><a href="../permissionless/DecodedNonce-class.html">DecodedNonce</a></span> 
+
+</dt>
+<dd>
+  Result of decoding an ERC-4337 nonce.
+</dd>
+
+          <dt id="Eip7702Authorization">
+  <span class="name "><a href="../permissionless/Eip7702Authorization-class.html">Eip7702Authorization</a></span> 
+
+</dt>
+<dd>
+  EIP-7702 Authorization for EOA code delegation.
+</dd>
+
+          <dt id="Eip7702KernelOwner">
+  <span class="name "><a href="../permissionless/Eip7702KernelOwner-class.html">Eip7702KernelOwner</a></span> 
+
+</dt>
+<dd>
+  Owner abstraction for EIP-7702 Kernel accounts.
+</dd>
+
+          <dt id="Eip7702KernelSmartAccount">
+  <span class="name "><a href="../permissionless/Eip7702KernelSmartAccount-class.html">Eip7702KernelSmartAccount</a></span> 
+
+</dt>
+<dd>
+  An EIP-7702 Kernel smart account implementation.
+</dd>
+
+          <dt id="Eip7702KernelSmartAccountConfig">
+  <span class="name "><a href="../permissionless/Eip7702KernelSmartAccountConfig-class.html">Eip7702KernelSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating an EIP-7702 Kernel smart account.
+</dd>
+
+          <dt id="Eip7702SimpleAccountOwner">
+  <span class="name "><a href="../permissionless/Eip7702SimpleAccountOwner-class.html">Eip7702SimpleAccountOwner</a></span> 
+
+</dt>
+<dd>
+  Owner abstraction for EIP-7702 Simple accounts.
+</dd>
+
+          <dt id="Eip7702SimpleSmartAccount">
+  <span class="name "><a href="../permissionless/Eip7702SimpleSmartAccount-class.html">Eip7702SimpleSmartAccount</a></span> 
+
+</dt>
+<dd>
+  An EIP-7702 Simple smart account implementation.
+</dd>
+
+          <dt id="Eip7702SimpleSmartAccountConfig">
+  <span class="name "><a href="../permissionless/Eip7702SimpleSmartAccountConfig-class.html">Eip7702SimpleSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating an EIP-7702 Simple smart account.
+</dd>
+
+          <dt id="Eip7702SmartAccount">
+  <span class="name "><a href="../permissionless/Eip7702SmartAccount-class.html">Eip7702SmartAccount</a></span> 
+
+</dt>
+<dd>
+  Marker interface for EIP-7702 enabled smart accounts.
+</dd>
+
+          <dt id="EntryPointAddresses">
+  <span class="name "><a href="../permissionless/EntryPointAddresses-class.html">EntryPointAddresses</a></span> 
+
+</dt>
+<dd>
+  Default EntryPoint contract addresses for ERC-4337.
+</dd>
+
+          <dt id="Erc20CostEstimate">
+  <span class="name "><a href="../permissionless/Erc20CostEstimate-class.html">Erc20CostEstimate</a></span> 
+
+</dt>
+<dd>
+  Estimated cost of a UserOperation in ERC-20 tokens.
+</dd>
+
+          <dt id="Erc20PaymasterConfig">
+  <span class="name "><a href="../permissionless/Erc20PaymasterConfig-class.html">Erc20PaymasterConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for ERC-20 paymaster preparation.
+</dd>
+
+          <dt id="Erc20PaymasterResult">
+  <span class="name "><a href="../permissionless/Erc20PaymasterResult-class.html">Erc20PaymasterResult</a></span> 
+
+</dt>
+<dd>
+  Result of preparing a UserOperation for ERC-20 paymaster.
+</dd>
+
+          <dt id="Erc20Selectors">
+  <span class="name "><a href="../permissionless/Erc20Selectors-class.html">Erc20Selectors</a></span> 
+
+</dt>
+<dd>
+  ERC-20 function selectors for common operations.
+</dd>
+
+          <dt id="Erc20StorageSlots">
+  <span class="name "><a href="../permissionless/Erc20StorageSlots-class.html">Erc20StorageSlots</a></span> 
+
+</dt>
+<dd>
+  Common ERC-20 token storage slot indices.
+</dd>
+
+          <dt id="Erc7579CallType">
+  <span class="name "><a href="../permissionless/Erc7579CallType-class.html">Erc7579CallType</a></span> 
+
+</dt>
+<dd>
+  ERC-7579 call types for smart account execution.
+</dd>
+
+          <dt id="Erc7579ExecType">
+  <span class="name "><a href="../permissionless/Erc7579ExecType-class.html">Erc7579ExecType</a></span> 
+
+</dt>
+<dd>
+  ERC-7579 execution types.
+</dd>
+
+          <dt id="Erc7579Selectors">
+  <span class="name "><a href="../permissionless/Erc7579Selectors-class.html">Erc7579Selectors</a></span> 
+
+</dt>
+<dd>
+  ERC-7579 function selectors.
+</dd>
+
+          <dt id="EthAddress">
+  <span class="name "><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> 
+
+</dt>
+<dd>
+  Represents an Ethereum address (20 bytes).
+</dd>
+
+          <dt id="EtherspotAddresses">
+  <span class="name "><a href="../permissionless/EtherspotAddresses-class.html">EtherspotAddresses</a></span> 
+
+</dt>
+<dd>
+  Etherspot ModularEtherspotWallet contract addresses.
+</dd>
+
+          <dt id="EtherspotClient">
+  <span class="name "><a href="../permissionless/EtherspotClient-class.html">EtherspotClient</a></span> 
+
+</dt>
+<dd>
+  Etherspot-specific bundler client with Skandha extensions.
+</dd>
+
+          <dt id="EtherspotCustomAddresses">
+  <span class="name "><a href="../permissionless/EtherspotCustomAddresses-class.html">EtherspotCustomAddresses</a></span> 
+
+</dt>
+<dd>
+  Custom addresses for Etherspot contracts.
+</dd>
+
+          <dt id="EtherspotGasPrice">
+  <span class="name "><a href="../permissionless/EtherspotGasPrice-class.html">EtherspotGasPrice</a></span> 
+
+</dt>
+<dd>
+  Gas price response from Etherspot's Skandha bundler.
+</dd>
+
+          <dt id="EtherspotSelectors">
+  <span class="name "><a href="../permissionless/EtherspotSelectors-class.html">EtherspotSelectors</a></span> 
+
+</dt>
+<dd>
+  Function selectors for Etherspot contracts.
+</dd>
+
+          <dt id="EtherspotSmartAccount">
+  <span class="name "><a href="../permissionless/EtherspotSmartAccount-class.html">EtherspotSmartAccount</a></span> 
+
+</dt>
+<dd>
+  Etherspot ModularEtherspotWallet smart account implementation.
+</dd>
+
+          <dt id="EtherspotSmartAccountConfig">
+  <span class="name "><a href="../permissionless/EtherspotSmartAccountConfig-class.html">EtherspotSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating an Etherspot smart account.
+</dd>
+
+          <dt id="EthUnits">
+  <span class="name "><a href="../permissionless/EthUnits-class.html">EthUnits</a></span> 
+
+</dt>
+<dd>
+  Constants for unit conversion.
+</dd>
+
+          <dt id="ExecutionMode">
+  <span class="name "><a href="../permissionless/ExecutionMode-class.html">ExecutionMode</a></span> 
+
+</dt>
+<dd>
+  Execution mode configuration for ERC-7579 accounts.
+</dd>
+
+          <dt id="FeeData">
+  <span class="name "><a href="../permissionless/FeeData-class.html">FeeData</a></span> 
+
+</dt>
+<dd>
+  Fee data from the network.
+</dd>
+
+          <dt id="FeeEstimate">
+  <span class="name "><a href="../permissionless/FeeEstimate-class.html">FeeEstimate</a></span> 
+
+</dt>
+<dd>
+  Estimated gas fees for a transaction.
+</dd>
+
+          <dt id="GasCostEstimate">
+  <span class="name "><a href="../permissionless/GasCostEstimate-class.html">GasCostEstimate</a></span> 
+
+</dt>
+<dd>
+  Estimates the maximum cost of a UserOperation.
+</dd>
+
+          <dt id="GasMultipliers">
+  <span class="name "><a href="../permissionless/GasMultipliers-class.html">GasMultipliers</a></span> 
+
+</dt>
+<dd>
+  Multipliers to apply to gas estimates for safety margins.
+</dd>
+
+          <dt id="GasUnits">
+  <span class="name "><a href="../permissionless/GasUnits-class.html">GasUnits</a></span> 
+
+</dt>
+<dd>
+  Gas and value unit conversion utilities.
+</dd>
+
+          <dt id="Hex">
+  <span class="name "><a href="../permissionless/Hex-class.html">Hex</a></span> 
+
+</dt>
+<dd>
+  Utility class for handling hexadecimal strings in Ethereum.
+</dd>
+
+          <dt id="InstallModuleConfig">
+  <span class="name "><a href="../permissionless/InstallModuleConfig-class.html">InstallModuleConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for installing a module.
+</dd>
+
+          <dt id="JsonRpcClient">
+  <span class="name "><a href="../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></span> 
+
+</dt>
+<dd>
+  A JSON-RPC 2.0 client for HTTP transport.
+</dd>
+
+          <dt id="KernelAddresses">
+  <span class="name "><a href="../permissionless/KernelAddresses-class.html">KernelAddresses</a></span> 
+
+</dt>
+<dd>
+  Contract addresses for a Kernel deployment.
+</dd>
+
+          <dt id="KernelSelectors">
+  <span class="name "><a href="../permissionless/KernelSelectors-class.html">KernelSelectors</a></span> 
+
+</dt>
+<dd>
+  Function selectors for Kernel contracts.
+</dd>
+
+          <dt id="KernelSmartAccount">
+  <span class="name "><a href="../permissionless/KernelSmartAccount-class.html">KernelSmartAccount</a></span> 
+
+</dt>
+<dd>
+  Kernel smart account implementation.
+</dd>
+
+          <dt id="KernelSmartAccountConfig">
+  <span class="name "><a href="../permissionless/KernelSmartAccountConfig-class.html">KernelSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Kernel smart account.
+</dd>
+
+          <dt id="KernelValidatorMode">
+  <span class="name "><a href="../permissionless/KernelValidatorMode-class.html">KernelValidatorMode</a></span> 
+
+</dt>
+<dd>
+  Kernel validator modes (v0.3.x).
+</dd>
+
+          <dt id="KernelValidatorType">
+  <span class="name "><a href="../permissionless/KernelValidatorType-class.html">KernelValidatorType</a></span> 
+
+</dt>
+<dd>
+  Kernel validator types (v0.3.x).
+</dd>
+
+          <dt id="KernelVersionAddresses">
+  <span class="name "><a href="../permissionless/KernelVersionAddresses-class.html">KernelVersionAddresses</a></span> 
+
+</dt>
+<dd>
+  Version-specific Kernel addresses.
+</dd>
+
+          <dt id="LightAccountFactoryAddresses">
+  <span class="name "><a href="../permissionless/LightAccountFactoryAddresses-class.html">LightAccountFactoryAddresses</a></span> 
+
+</dt>
+<dd>
+  Light Account factory addresses by version.
+</dd>
+
+          <dt id="LightAccountSelectors">
+  <span class="name "><a href="../permissionless/LightAccountSelectors-class.html">LightAccountSelectors</a></span> 
+
+</dt>
+<dd>
+  Light Account function selectors.
+</dd>
+
+          <dt id="LightAccountSignatureType">
+  <span class="name "><a href="../permissionless/LightAccountSignatureType-class.html">LightAccountSignatureType</a></span> 
+
+</dt>
+<dd>
+  Light Account signature type prefixes (v2.0.0+).
+</dd>
+
+          <dt id="LightSmartAccount">
+  <span class="name "><a href="../permissionless/LightSmartAccount-class.html">LightSmartAccount</a></span> 
+
+</dt>
+<dd>
+  An Alchemy Light Account implementation for ERC-4337.
+</dd>
+
+          <dt id="LightSmartAccountConfig">
+  <span class="name "><a href="../permissionless/LightSmartAccountConfig-class.html">LightSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Light smart account.
+</dd>
+
+          <dt id="MultiSendCall">
+  <span class="name "><a href="../permissionless/MultiSendCall-class.html">MultiSendCall</a></span> 
+
+</dt>
+<dd>
+  A call with an explicit operation type for MultiSend.
+</dd>
+
+          <dt id="NexusAddresses">
+  <span class="name "><a href="../permissionless/NexusAddresses-class.html">NexusAddresses</a></span> 
+
+</dt>
+<dd>
+  Nexus Smart Account addresses (Biconomy's ERC-7579 account).
+</dd>
+
+          <dt id="NexusSelectors">
+  <span class="name "><a href="../permissionless/NexusSelectors-class.html">NexusSelectors</a></span> 
+
+</dt>
+<dd>
+  Nexus function selectors.
+</dd>
+
+          <dt id="NexusSmartAccount">
+  <span class="name "><a href="../permissionless/NexusSmartAccount-class.html">NexusSmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Nexus smart account implementation for ERC-4337 v0.7.
+</dd>
+
+          <dt id="NexusSmartAccountConfig">
+  <span class="name "><a href="../permissionless/NexusSmartAccountConfig-class.html">NexusSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Nexus smart account.
+</dd>
+
+          <dt id="PackedUserOperation">
+  <span class="name "><a href="../permissionless/PackedUserOperation-class.html">PackedUserOperation</a></span> 
+
+</dt>
+<dd>
+  Packed UserOperation format for EntryPoint v0.7.
+</dd>
+
+          <dt id="PaymasterClient">
+  <span class="name "><a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a></span> 
+
+</dt>
+<dd>
+  Client for interacting with ERC-4337 paymasters.
+</dd>
+
+          <dt id="PaymasterContext">
+  <span class="name "><a href="../permissionless/PaymasterContext-class.html">PaymasterContext</a></span> 
+
+</dt>
+<dd>
+  Context data for paymaster requests.
+</dd>
+
+          <dt id="PaymasterData">
+  <span class="name "><a href="../permissionless/PaymasterData-class.html">PaymasterData</a></span> 
+
+</dt>
+<dd>
+  Response from pm_getPaymasterData.
+</dd>
+
+          <dt id="PaymasterStubData">
+  <span class="name "><a href="../permissionless/PaymasterStubData-class.html">PaymasterStubData</a></span> 
+
+</dt>
+<dd>
+  Response from pm_getPaymasterStubData.
+</dd>
+
+          <dt id="PimlicoClient">
+  <span class="name "><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> 
+
+</dt>
+<dd>
+  Pimlico-specific bundler client with enhanced features.
+</dd>
+
+          <dt id="PimlicoErc20PaymasterCost">
+  <span class="name "><a href="../permissionless/PimlicoErc20PaymasterCost-class.html">PimlicoErc20PaymasterCost</a></span> 
+
+</dt>
+<dd>
+  ERC-20 paymaster cost estimate from Pimlico.
+</dd>
+
+          <dt id="PimlicoGasPrice">
+  <span class="name "><a href="../permissionless/PimlicoGasPrice-class.html">PimlicoGasPrice</a></span> 
+
+</dt>
+<dd>
+  Gas price tier from Pimlico's gas price oracle.
+</dd>
+
+          <dt id="PimlicoGasPrices">
+  <span class="name "><a href="../permissionless/PimlicoGasPrices-class.html">PimlicoGasPrices</a></span> 
+
+</dt>
+<dd>
+  Gas price recommendations from Pimlico.
+</dd>
+
+          <dt id="PimlicoSponsorshipPolicy">
+  <span class="name "><a href="../permissionless/PimlicoSponsorshipPolicy-class.html">PimlicoSponsorshipPolicy</a></span> 
+
+</dt>
+<dd>
+  Result of validating a sponsorship policy.
+</dd>
+
+          <dt id="PimlicoSponsorshipPolicyData">
+  <span class="name "><a href="../permissionless/PimlicoSponsorshipPolicyData-class.html">PimlicoSponsorshipPolicyData</a></span> 
+
+</dt>
+<dd>
+  Sponsorship policy metadata from Pimlico.
+</dd>
+
+          <dt id="PimlicoSupportedToken">
+  <span class="name "><a href="../permissionless/PimlicoSupportedToken-class.html">PimlicoSupportedToken</a></span> 
+
+</dt>
+<dd>
+  Supported token information from pimlico_getSupportedTokens.
+</dd>
+
+          <dt id="PimlicoTokenQuote">
+  <span class="name "><a href="../permissionless/PimlicoTokenQuote-class.html">PimlicoTokenQuote</a></span> 
+
+</dt>
+<dd>
+  Token quote from pimlico_getTokenQuotes.
+</dd>
+
+          <dt id="PimlicoUserOperationStatus">
+  <span class="name "><a href="../permissionless/PimlicoUserOperationStatus-class.html">PimlicoUserOperationStatus</a></span> 
+
+</dt>
+<dd>
+  Detailed status of a UserOperation from Pimlico.
+</dd>
+
+          <dt id="PreparedUserOperation">
+  <span class="name "><a href="../permissionless/PreparedUserOperation-class.html">PreparedUserOperation</a></span> 
+
+</dt>
+<dd>
+  A prepared UserOperation ready for signing and submission.
+</dd>
+
+          <dt id="PrivateKeyEip7702KernelOwner">
+  <span class="name "><a href="../permissionless/PrivateKeyEip7702KernelOwner-class.html">PrivateKeyEip7702KernelOwner</a></span> 
+
+</dt>
+<dd>
+  A local private key owner for EIP-7702 Kernel accounts.
+</dd>
+
+          <dt id="PrivateKeyEip7702Owner">
+  <span class="name "><a href="../permissionless/PrivateKeyEip7702Owner-class.html">PrivateKeyEip7702Owner</a></span> 
+
+</dt>
+<dd>
+  A local private key owner for EIP-7702 Simple accounts.
+</dd>
+
+          <dt id="PrivateKeyOwner">
+  <span class="name "><a href="../permissionless/PrivateKeyOwner-class.html">PrivateKeyOwner</a></span> 
+
+</dt>
+<dd>
+  Private key-based implementation of <a href="../permissionless/AccountOwner-class.html">AccountOwner</a>.
+</dd>
+
+          <dt id="PublicClient">
+  <span class="name "><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> 
+
+</dt>
+<dd>
+  Client for read-only Ethereum JSON-RPC operations.
+</dd>
+
+          <dt id="RpcRequest">
+  <span class="name "><a href="../permissionless/RpcRequest-class.html">RpcRequest</a></span> 
+
+</dt>
+<dd>
+  A single RPC request for batch operations.
+</dd>
+
+          <dt id="Safe7579Addresses">
+  <span class="name "><a href="../permissionless/Safe7579Addresses-class.html">Safe7579Addresses</a></span> 
+
+</dt>
+<dd>
+  ERC-7579 specific addresses for Safe modular accounts.
+</dd>
+
+          <dt id="Safe7579InitData">
+  <span class="name "><a href="../permissionless/Safe7579InitData-class.html">Safe7579InitData</a></span> 
+
+</dt>
+<dd>
+  Data structure for Safe 7579 initialization.
+</dd>
+
+          <dt id="Safe7579ModuleInit">
+  <span class="name "><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span> 
+
+</dt>
+<dd>
+  Module initialization configuration for ERC-7579 Safe accounts.
+</dd>
+
+          <dt id="Safe7579Selectors">
+  <span class="name "><a href="../permissionless/Safe7579Selectors-class.html">Safe7579Selectors</a></span> 
+
+</dt>
+<dd>
+  Function selectors for Safe 7579 contracts.
+</dd>
+
+          <dt id="SafeAddresses">
+  <span class="name "><a href="../permissionless/SafeAddresses-class.html">SafeAddresses</a></span> 
+
+</dt>
+<dd>
+  Contract addresses for Safe smart accounts.
+</dd>
+
+          <dt id="SafeSelectors">
+  <span class="name "><a href="../permissionless/SafeSelectors-class.html">SafeSelectors</a></span> 
+
+</dt>
+<dd>
+  Common function selectors for Safe contracts.
+</dd>
+
+          <dt id="SafeSmartAccount">
+  <span class="name "><a href="../permissionless/SafeSmartAccount-class.html">SafeSmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Safe smart account implementation for ERC-4337.
+</dd>
+
+          <dt id="SafeSmartAccountConfig">
+  <span class="name "><a href="../permissionless/SafeSmartAccountConfig-class.html">SafeSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration parameters for creating a Safe smart account.
+</dd>
+
+          <dt id="SafeVersionAddresses">
+  <span class="name "><a href="../permissionless/SafeVersionAddresses-class.html">SafeVersionAddresses</a></span> 
+
+</dt>
+<dd>
+  Safe version and EntryPoint version to addresses mapping.
+</dd>
+
+          <dt id="Simple7702AccountAddresses">
+  <span class="name "><a href="../permissionless/Simple7702AccountAddresses-class.html">Simple7702AccountAddresses</a></span> 
+
+</dt>
+<dd>
+  Default Simple7702Account logic address for EIP-7702 delegation.
+</dd>
+
+          <dt id="SimpleAccountFactoryAddresses">
+  <span class="name "><a href="../permissionless/SimpleAccountFactoryAddresses-class.html">SimpleAccountFactoryAddresses</a></span> 
+
+</dt>
+<dd>
+  Factory addresses for SimpleAccount deployment.
+</dd>
+
+          <dt id="SimpleAccountSelectors">
+  <span class="name "><a href="../permissionless/SimpleAccountSelectors-class.html">SimpleAccountSelectors</a></span> 
+
+</dt>
+<dd>
+  Function selectors for SimpleAccount contracts.
+</dd>
+
+          <dt id="SimpleSmartAccount">
+  <span class="name "><a href="../permissionless/SimpleSmartAccount-class.html">SimpleSmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Simple smart account implementation for ERC-4337.
+</dd>
+
+          <dt id="SimpleSmartAccountConfig">
+  <span class="name "><a href="../permissionless/SimpleSmartAccountConfig-class.html">SimpleSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Simple smart account.
+</dd>
+
+          <dt id="SmartAccount">
+  <span class="name "><a href="../permissionless/SmartAccount-class.html">SmartAccount</a></span> 
+
+</dt>
+<dd>
+  Abstract interface for ERC-4337 smart accounts.
+</dd>
+
+          <dt id="SmartAccountClient">
+  <span class="name "><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></span> 
+
+</dt>
+<dd>
+  Unified client for ERC-4337 smart account operations.
+</dd>
+
+          <dt id="SmartAccountV06">
+  <span class="name "><a href="../permissionless/SmartAccountV06-class.html">SmartAccountV06</a></span> 
+
+</dt>
+<dd>
+  Abstract interface for ERC-4337 v0.6 smart accounts.
+</dd>
+
+          <dt id="SponsorUserOperationResult">
+  <span class="name "><a href="../permissionless/SponsorUserOperationResult-class.html">SponsorUserOperationResult</a></span> 
+
+</dt>
+<dd>
+  Combined response from pm_sponsorUserOperation.
+</dd>
+
+          <dt id="StateDiff">
+  <span class="name "><a href="../permissionless/StateDiff-class.html">StateDiff</a></span> 
+
+</dt>
+<dd>
+  A single storage slot override.
+</dd>
+
+          <dt id="StateOverride">
+  <span class="name "><a href="../permissionless/StateOverride-class.html">StateOverride</a></span> 
+
+</dt>
+<dd>
+  State override for a single address.
+</dd>
+
+          <dt id="ThirdwebAddresses">
+  <span class="name "><a href="../permissionless/ThirdwebAddresses-class.html">ThirdwebAddresses</a></span> 
+
+</dt>
+<dd>
+  Thirdweb Smart Account addresses.
+</dd>
+
+          <dt id="ThirdwebSelectors">
+  <span class="name "><a href="../permissionless/ThirdwebSelectors-class.html">ThirdwebSelectors</a></span> 
+
+</dt>
+<dd>
+  Thirdweb function selectors.
+</dd>
+
+          <dt id="ThirdwebSmartAccount">
+  <span class="name "><a href="../permissionless/ThirdwebSmartAccount-class.html">ThirdwebSmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Thirdweb smart account implementation for ERC-4337.
+</dd>
+
+          <dt id="ThirdwebSmartAccountConfig">
+  <span class="name "><a href="../permissionless/ThirdwebSmartAccountConfig-class.html">ThirdwebSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Thirdweb smart account.
+</dd>
+
+          <dt id="TransactionReceipt">
+  <span class="name "><a href="../permissionless/TransactionReceipt-class.html">TransactionReceipt</a></span> 
+
+</dt>
+<dd>
+  Transaction receipt from the underlying bundle transaction.
+</dd>
+
+          <dt id="TrustAddresses">
+  <span class="name "><a href="../permissionless/TrustAddresses-class.html">TrustAddresses</a></span> 
+
+</dt>
+<dd>
+  Trust Smart Account (Barz) addresses.
+</dd>
+
+          <dt id="TrustSelectors">
+  <span class="name "><a href="../permissionless/TrustSelectors-class.html">TrustSelectors</a></span> 
+
+</dt>
+<dd>
+  Trust function selectors.
+</dd>
+
+          <dt id="TrustSmartAccount">
+  <span class="name "><a href="../permissionless/TrustSmartAccount-class.html">TrustSmartAccount</a></span> 
+
+</dt>
+<dd>
+  A Trust (Barz) smart account implementation for ERC-4337 v0.6.
+</dd>
+
+          <dt id="TrustSmartAccountConfig">
+  <span class="name "><a href="../permissionless/TrustSmartAccountConfig-class.html">TrustSmartAccountConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for creating a Trust smart account.
+</dd>
+
+          <dt id="TypedData">
+  <span class="name "><a href="../permissionless/TypedData-class.html">TypedData</a></span> 
+
+</dt>
+<dd>
+  Complete EIP-712 typed data structure for signing.
+</dd>
+
+          <dt id="TypedDataDomain">
+  <span class="name "><a href="../permissionless/TypedDataDomain-class.html">TypedDataDomain</a></span> 
+
+</dt>
+<dd>
+  EIP-712 typed data domain separator components.
+</dd>
+
+          <dt id="TypedDataField">
+  <span class="name "><a href="../permissionless/TypedDataField-class.html">TypedDataField</a></span> 
+
+</dt>
+<dd>
+  A single field definition in an EIP-712 type.
+</dd>
+
+          <dt id="UninstallModuleConfig">
+  <span class="name "><a href="../permissionless/UninstallModuleConfig-class.html">UninstallModuleConfig</a></span> 
+
+</dt>
+<dd>
+  Configuration for uninstalling a module.
+</dd>
+
+          <dt id="UnpackedAccountGasLimits">
+  <span class="name "><a href="../permissionless/UnpackedAccountGasLimits-class.html">UnpackedAccountGasLimits</a></span> 
+
+</dt>
+<dd>
+  Result of unpacking accountGasLimits.
+</dd>
+
+          <dt id="UnpackedGasFees">
+  <span class="name "><a href="../permissionless/UnpackedGasFees-class.html">UnpackedGasFees</a></span> 
+
+</dt>
+<dd>
+  Result of unpacking gasFees.
+</dd>
+
+          <dt id="UnpackedInitCode">
+  <span class="name "><a href="../permissionless/UnpackedInitCode-class.html">UnpackedInitCode</a></span> 
+
+</dt>
+<dd>
+  Result of unpacking initCode.
+</dd>
+
+          <dt id="UnpackedPaymasterAndData">
+  <span class="name "><a href="../permissionless/UnpackedPaymasterAndData-class.html">UnpackedPaymasterAndData</a></span> 
+
+</dt>
+<dd>
+  Result of unpacking paymasterAndData.
+</dd>
+
+          <dt id="UserOperation">
+  <span class="name "><a href="../permissionless/UserOperation-class.html">UserOperation</a></span> 
+
+</dt>
+<dd>
+  Base type for ERC-4337 User Operations.
+</dd>
+
+          <dt id="UserOperationByHashResponse">
+  <span class="name "><a href="../permissionless/UserOperationByHashResponse-class.html">UserOperationByHashResponse</a></span> 
+
+</dt>
+<dd>
+  Response from eth_getUserOperationByHash.
+</dd>
+
+          <dt id="UserOperationGasEstimate">
+  <span class="name "><a href="../permissionless/UserOperationGasEstimate-class.html">UserOperationGasEstimate</a></span> 
+
+</dt>
+<dd>
+  Gas estimation response from eth_estimateUserOperationGas.
+</dd>
+
+          <dt id="UserOperationLog">
+  <span class="name "><a href="../permissionless/UserOperationLog-class.html">UserOperationLog</a></span> 
+
+</dt>
+<dd>
+  A log entry from UserOperation execution.
+</dd>
+
+          <dt id="UserOperationReceipt">
+  <span class="name "><a href="../permissionless/UserOperationReceipt-class.html">UserOperationReceipt</a></span> 
+
+</dt>
+<dd>
+  Receipt returned after a UserOperation is mined.
+</dd>
+
+          <dt id="UserOperationV06">
+  <span class="name "><a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span> 
+
+</dt>
+<dd>
+  ERC-4337 User Operation for EntryPoint v0.6.
+</dd>
+
+          <dt id="UserOperationV07">
+  <span class="name "><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> 
+
+</dt>
+<dd>
+  ERC-4337 User Operation for EntryPoint v0.7.
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="enums">
+      <h2>Enums</h2>
+      <dl>
+          <dt id="CallsStatusType">
+  <span class="name "><a href="../permissionless/CallsStatusType.html">CallsStatusType</a></span> 
+
+</dt>
+<dd>
+  Status of a batch call operation (ERC-5792).
+</dd>
+
+          <dt id="EntryPointVersion">
+  <span class="name "><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> 
+
+</dt>
+<dd>
+  EntryPoint contract version for ERC-4337.
+</dd>
+
+          <dt id="Erc7579CallKind">
+  <span class="name "><a href="../permissionless/Erc7579CallKind.html">Erc7579CallKind</a></span> 
+
+</dt>
+<dd>
+  Call type for ERC-7579 execution.
+</dd>
+
+          <dt id="Erc7579ModuleType">
+  <span class="name "><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> 
+
+</dt>
+<dd>
+  ERC-7579 module types as defined in the specification.
+</dd>
+
+          <dt id="GasSpeed">
+  <span class="name "><a href="../permissionless/GasSpeed.html">GasSpeed</a></span> 
+
+</dt>
+<dd>
+  Speed tier for gas price estimation.
+</dd>
+
+          <dt id="KernelVersion">
+  <span class="name "><a href="../permissionless/KernelVersion.html">KernelVersion</a></span> 
+
+</dt>
+<dd>
+  Kernel smart account version.
+</dd>
+
+          <dt id="LightAccountVersion">
+  <span class="name "><a href="../permissionless/LightAccountVersion.html">LightAccountVersion</a></span> 
+
+</dt>
+<dd>
+  Light Account versions.
+</dd>
+
+          <dt id="OperationType">
+  <span class="name "><a href="../permissionless/OperationType.html">OperationType</a></span> 
+
+</dt>
+<dd>
+  Operation types for Safe transactions.
+</dd>
+
+          <dt id="SafeVersion">
+  <span class="name "><a href="../permissionless/SafeVersion.html">SafeVersion</a></span> 
+
+</dt>
+<dd>
+  Safe smart account version.
+</dd>
+
+      </dl>
+    </section>
+
+
+
+    <section class="summary offset-anchor" id="extensions">
+      <h2>Extensions</h2>
+      <dl>
+          <dt id="Erc7579Actions">
+  <span class="name "><a href="../permissionless/Erc7579Actions.html">Erc7579Actions</a></span>
+  on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>
+  
+
+</dt>
+<dd>
+  Extension methods for ERC-7579 module management on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>.
+</dd>
+
+          <dt id="GasEstimateMultipliers">
+  <span class="name "><a href="../permissionless/GasEstimateMultipliers.html">GasEstimateMultipliers</a></span>
+  on <a href="../permissionless/UserOperationGasEstimate-class.html">UserOperationGasEstimate</a>
+  
+
+</dt>
+<dd>
+  Extension to apply multipliers to gas estimates.
+</dd>
+
+          <dt id="PaymasterUserOperationExtension">
+  <span class="name "><a href="../permissionless/PaymasterUserOperationExtension.html">PaymasterUserOperationExtension</a></span>
+  on <a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a>
+  
+
+</dt>
+<dd>
+  Extension to apply paymaster data to UserOperations.
+</dd>
+
+          <dt id="PaymasterUserOperationV06Extension">
+  <span class="name "><a href="../permissionless/PaymasterUserOperationV06Extension.html">PaymasterUserOperationV06Extension</a></span>
+  on <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a>
+  
+
+</dt>
+<dd>
+  Extension to apply paymaster data to v0.6 UserOperations.
+</dd>
+
+          <dt id="SmartAccountActions">
+  <span class="name "><a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a></span>
+  on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>
+  
+
+</dt>
+<dd>
+  Extension methods for SmartAccountClient providing high-level actions.
+</dd>
+
+          <dt id="StringToAddress">
+  <span class="name "><a href="../permissionless/StringToAddress.html">StringToAddress</a></span>
+  on <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>
+  
+
+</dt>
+<dd>
+  Extension for converting strings to EthAddress.
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="constants">
+      <h2>Constants</h2>
+      <dl class="properties">
+          <dt id="erc20PaymasterGasBuffer" class="constant">
+    <span class="name "><a href="../permissionless/erc20PaymasterGasBuffer-constant.html">erc20PaymasterGasBuffer</a></span>
+  <span class="signature">&#8594; const <a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd>
+  Gas buffer for ERC-20 paymaster verification.
+  
+
+</dd>
+
+          <dt id="etherspotDummyEcdsaSignature" class="constant">
+    <span class="name "><a href="../permissionless/etherspotDummyEcdsaSignature-constant.html">etherspotDummyEcdsaSignature</a></span>
+  <span class="signature">&#8594; const <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  Dummy ECDSA signature for gas estimation.
+  
+
+</dd>
+
+          <dt id="kernelDummyEcdsaSignature" class="constant">
+    <span class="name "><a href="../permissionless/kernelDummyEcdsaSignature-constant.html">kernelDummyEcdsaSignature</a></span>
+  <span class="signature">&#8594; const <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  Dummy ECDSA signature for gas estimation.
+  
+
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="properties">
+      <h2>Properties</h2>
+      <dl class="properties">
+          <dt id="maxUint256" class="property">
+  <span class="name"><a href="../permissionless/maxUint256.html">maxUint256</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  Maximum uint256 value for unlimited token approvals.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+      </dl>
+    </section>
+
+    <section class="summary offset-anchor" id="functions">
+      <h2>Functions</h2>
+      <dl class="callables">
+          <dt id="computeDomainSeparator" class="callable">
+  <span class="name"><a href="../permissionless/computeDomainSeparator.html">computeDomainSeparator</a></span><span class="signature">(<wbr><span class="parameter" id="computeDomainSeparator-param-domain"><span class="type-annotation"><a href="../permissionless/TypedDataDomain-class.html">TypedDataDomain</a></span> <span class="parameter-name">domain</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Computes the EIP-712 domain separator.
+  
+
+</dd>
+
+          <dt id="createBiconomySmartAccount" class="callable">
+  <span class="name deprecated"><a class="deprecated" href="../permissionless/createBiconomySmartAccount.html">createBiconomySmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createBiconomySmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-customEcdsaModuleAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customEcdsaModuleAddress</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createBiconomySmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a class="deprecated" href="../permissionless/BiconomySmartAccount-class.html">BiconomySmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Biconomy smart account.
+  
+
+</dd>
+
+          <dt id="createBundlerClient" class="callable">
+  <span class="name"><a href="../permissionless/createBundlerClient.html">createBundlerClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createBundlerClient-param-url"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, </span><span class="parameter" id="createBundlerClient-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span>, </span><span class="parameter" id="createBundlerClient-param-httpClient"><span class="type-annotation"><a href="https://pub.dev/documentation/http/1.6.0/http/Client-class.html">Client</a>?</span> <span class="parameter-name">httpClient</span>, </span><span class="parameter" id="createBundlerClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createBundlerClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/BundlerClient-class.html">BundlerClient</a> from a URL and EntryPoint address.
+  
+
+</dd>
+
+          <dt id="createEip7702KernelSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createEip7702KernelSmartAccount.html">createEip7702KernelSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createEip7702KernelSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/Eip7702KernelOwner-class.html">Eip7702KernelOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createEip7702KernelSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createEip7702KernelSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/KernelVersion.html">KernelVersion</a></span> <span class="parameter-name">version</span> = <span class="default-value">KernelVersion.v0_3_3</span>, </span><span class="parameter" id="createEip7702KernelSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createEip7702KernelSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span>, </span><span class="parameter" id="createEip7702KernelSmartAccount-param-ecdsaValidatorAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">ecdsaValidatorAddress</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Eip7702KernelSmartAccount-class.html">Eip7702KernelSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an EIP-7702 Kernel smart account.
+  
+
+</dd>
+
+          <dt id="createEip7702SimpleSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createEip7702SimpleSmartAccount.html">createEip7702SimpleSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createEip7702SimpleSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/Eip7702SimpleAccountOwner-class.html">Eip7702SimpleAccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createEip7702SimpleSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createEip7702SimpleSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createEip7702SimpleSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Eip7702SimpleSmartAccount-class.html">Eip7702SimpleSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an EIP-7702 Simple smart account.
+  
+
+</dd>
+
+          <dt id="createEtherspotClient" class="callable">
+  <span class="name"><a href="../permissionless/createEtherspotClient.html">createEtherspotClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createEtherspotClient-param-url"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, </span><span class="parameter" id="createEtherspotClient-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span>, </span><span class="parameter" id="createEtherspotClient-param-httpClient"><span class="type-annotation"><a href="https://pub.dev/documentation/http/1.6.0/http/Client-class.html">Client</a>?</span> <span class="parameter-name">httpClient</span>, </span><span class="parameter" id="createEtherspotClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createEtherspotClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/EtherspotClient-class.html">EtherspotClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an <a href="../permissionless/EtherspotClient-class.html">EtherspotClient</a> from a URL and EntryPoint address.
+  
+
+</dd>
+
+          <dt id="createEtherspotSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createEtherspotSmartAccount.html">createEtherspotSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createEtherspotSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createEtherspotSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createEtherspotSmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span><span class="parameter" id="createEtherspotSmartAccount-param-customAddresses"><span class="type-annotation"><a href="../permissionless/EtherspotCustomAddresses-class.html">EtherspotCustomAddresses</a>?</span> <span class="parameter-name">customAddresses</span>, </span><span class="parameter" id="createEtherspotSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span><span class="parameter" id="createEtherspotSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/EtherspotSmartAccount-class.html">EtherspotSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an Etherspot smart account.
+  
+
+</dd>
+
+          <dt id="createKernelSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createKernelSmartAccount.html">createKernelSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createKernelSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createKernelSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createKernelSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/KernelVersion.html">KernelVersion</a></span> <span class="parameter-name">version</span> = <span class="default-value">KernelVersion.v0_3_1</span>, </span><span class="parameter" id="createKernelSmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span><span class="parameter" id="createKernelSmartAccount-param-customAddresses"><span class="type-annotation"><a href="../permissionless/KernelAddresses-class.html">KernelAddresses</a>?</span> <span class="parameter-name">customAddresses</span>, </span><span class="parameter" id="createKernelSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createKernelSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/KernelSmartAccount-class.html">KernelSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Kernel smart account.
+  
+
+</dd>
+
+          <dt id="createLightSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createLightSmartAccount.html">createLightSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createLightSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createLightSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createLightSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span><span class="parameter" id="createLightSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/LightAccountVersion.html">LightAccountVersion</a>?</span> <span class="parameter-name">version</span>, </span><span class="parameter" id="createLightSmartAccount-param-salt"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">salt</span>, </span><span class="parameter" id="createLightSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createLightSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createLightSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/LightSmartAccount-class.html">LightSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an Alchemy Light smart account.
+  
+
+</dd>
+
+          <dt id="createNexusSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createNexusSmartAccount.html">createNexusSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createNexusSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createNexusSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createNexusSmartAccount-param-version"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">version</span> = <span class="default-value">&#39;1.0.0&#39;</span>, </span><span class="parameter" id="createNexusSmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span><span class="parameter" id="createNexusSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createNexusSmartAccount-param-customValidatorAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customValidatorAddress</span>, </span><span class="parameter" id="createNexusSmartAccount-param-attesters"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">attesters</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createNexusSmartAccount-param-threshold"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">threshold</span> = <span class="default-value">0</span>, </span><span class="parameter" id="createNexusSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createNexusSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/NexusSmartAccount-class.html">NexusSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Nexus smart account.
+  
+
+</dd>
+
+          <dt id="createPaymasterApprovalCall" class="callable">
+  <span class="name"><a href="../permissionless/createPaymasterApprovalCall.html">createPaymasterApprovalCall</a></span><span class="signature">(<wbr>{<span class="parameter" id="createPaymasterApprovalCall-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="createPaymasterApprovalCall-param-paymaster"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">paymaster</span>, </span><span class="parameter" id="createPaymasterApprovalCall-param-amount"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">amount</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Call-class.html">Call</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates an approval call for the paymaster.
+  
+
+</dd>
+
+          <dt id="createPaymasterClient" class="callable">
+  <span class="name"><a href="../permissionless/createPaymasterClient.html">createPaymasterClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createPaymasterClient-param-url"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, </span><span class="parameter" id="createPaymasterClient-param-httpClient"><span class="type-annotation"><a href="https://pub.dev/documentation/http/1.6.0/http/Client-class.html">Client</a>?</span> <span class="parameter-name">httpClient</span>, </span><span class="parameter" id="createPaymasterClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createPaymasterClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a> from a URL.
+  
+
+</dd>
+
+          <dt id="createPimlicoClient" class="callable">
+  <span class="name"><a href="../permissionless/createPimlicoClient.html">createPimlicoClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createPimlicoClient-param-url"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, </span><span class="parameter" id="createPimlicoClient-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span>, </span><span class="parameter" id="createPimlicoClient-param-httpClient"><span class="type-annotation"><a href="https://pub.dev/documentation/http/1.6.0/http/Client-class.html">Client</a>?</span> <span class="parameter-name">httpClient</span>, </span><span class="parameter" id="createPimlicoClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createPimlicoClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a> from a URL and EntryPoint address.
+  
+
+</dd>
+
+          <dt id="createPublicClient" class="callable">
+  <span class="name"><a href="../permissionless/createPublicClient.html">createPublicClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createPublicClient-param-url"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, </span><span class="parameter" id="createPublicClient-param-httpClient"><span class="type-annotation"><a href="https://pub.dev/documentation/http/1.6.0/http/Client-class.html">Client</a>?</span> <span class="parameter-name">httpClient</span>, </span><span class="parameter" id="createPublicClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createPublicClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/PublicClient-class.html">PublicClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/PublicClient-class.html">PublicClient</a> from a URL.
+  
+
+</dd>
+
+          <dt id="createRpcClient" class="callable">
+  <span class="name"><a href="../permissionless/createRpcClient.html">createRpcClient</a></span><span class="signature">(<wbr><span class="parameter" id="createRpcClient-param-url"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">url</span>, {</span><span class="parameter" id="createRpcClient-param-headers"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span>?</span> <span class="parameter-name">headers</span>, </span><span class="parameter" id="createRpcClient-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a>?</span> <span class="parameter-name">timeout</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/JsonRpcClient-class.html">JsonRpcClient</a> from a URL string.
+  
+
+</dd>
+
+          <dt id="createSafeSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createSafeSmartAccount.html">createSafeSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createSafeSmartAccount-param-owners"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span>&gt;</span></span> <span class="parameter-name">owners</span>, </span><span class="parameter" id="createSafeSmartAccount-param-threshold"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">threshold</span>, </span><span class="parameter" id="createSafeSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/SafeVersion.html">SafeVersion</a></span> <span class="parameter-name">version</span> = <span class="default-value">SafeVersion.v1_4_1</span>, </span><span class="parameter" id="createSafeSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span><span class="parameter" id="createSafeSmartAccount-param-saltNonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">saltNonce</span>, </span><span class="parameter" id="createSafeSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createSafeSmartAccount-param-customAddresses"><span class="type-annotation"><a href="../permissionless/SafeAddresses-class.html">SafeAddresses</a>?</span> <span class="parameter-name">customAddresses</span>, </span><span class="parameter" id="createSafeSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createSafeSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span><span class="parameter" id="createSafeSmartAccount-param-erc7579LaunchpadAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">erc7579LaunchpadAddress</span>, </span><span class="parameter" id="createSafeSmartAccount-param-validators"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">validators</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createSafeSmartAccount-param-executors"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">executors</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createSafeSmartAccount-param-fallbacks"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">fallbacks</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createSafeSmartAccount-param-hooks"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">hooks</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createSafeSmartAccount-param-attesters"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">attesters</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="createSafeSmartAccount-param-attestersThreshold"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">attestersThreshold</span> = <span class="default-value">0</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/SafeSmartAccount-class.html">SafeSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Safe smart account.
+  
+
+</dd>
+
+          <dt id="createSimpleSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createSimpleSmartAccount.html">createSimpleSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createSimpleSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-salt"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">salt</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createSimpleSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/SimpleSmartAccount-class.html">SimpleSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Simple smart account.
+  
+
+</dd>
+
+          <dt id="createSmartAccountClient" class="callable">
+  <span class="name"><a href="../permissionless/createSmartAccountClient.html">createSmartAccountClient</a></span><span class="signature">(<wbr>{<span class="parameter" id="createSmartAccountClient-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccount-class.html">SmartAccount</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="createSmartAccountClient-param-bundler"><span>required</span> <span class="type-annotation"><a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span> <span class="parameter-name">bundler</span>, </span><span class="parameter" id="createSmartAccountClient-param-paymaster"><span class="type-annotation"><a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a>?</span> <span class="parameter-name">paymaster</span>, </span><span class="parameter" id="createSmartAccountClient-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a> with the given configuration.
+  
+
+</dd>
+
+          <dt id="createThirdwebSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createThirdwebSmartAccount.html">createThirdwebSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createThirdwebSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-salt"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">salt</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-nonceKey"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonceKey</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createThirdwebSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/ThirdwebSmartAccount-class.html">ThirdwebSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Thirdweb smart account.
+  
+
+</dd>
+
+          <dt id="createTrustSmartAccount" class="callable">
+  <span class="name"><a href="../permissionless/createTrustSmartAccount.html">createTrustSmartAccount</a></span><span class="signature">(<wbr>{<span class="parameter" id="createTrustSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/AccountOwner-class.html">AccountOwner</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="createTrustSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span><span class="parameter" id="createTrustSmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span><span class="parameter" id="createTrustSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span><span class="parameter" id="createTrustSmartAccount-param-customVerificationFacetAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customVerificationFacetAddress</span>, </span><span class="parameter" id="createTrustSmartAccount-param-nonceKey"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonceKey</span>, </span><span class="parameter" id="createTrustSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="createTrustSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/TrustSmartAccount-class.html">TrustSmartAccount</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a Trust (Barz) smart account.
+  
+
+</dd>
+
+          <dt id="decode7579BoolResult" class="callable">
+  <span class="name"><a href="../permissionless/decode7579BoolResult.html">decode7579BoolResult</a></span><span class="signature">(<wbr><span class="parameter" id="decode7579BoolResult-param-hexResult"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">hexResult</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes a boolean result from an eth_call response.
+  
+
+</dd>
+
+          <dt id="decode7579Calls" class="callable">
+  <span class="name"><a href="../permissionless/decode7579Calls.html">decode7579Calls</a></span><span class="signature">(<wbr><span class="parameter" id="decode7579Calls-param-callData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">callData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Decoded7579Calls-class.html">Decoded7579Calls</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes ERC-7579 execute call data back into mode and calls.
+  
+
+</dd>
+
+          <dt id="decode7579StringResult" class="callable">
+  <span class="name"><a href="../permissionless/decode7579StringResult.html">decode7579StringResult</a></span><span class="signature">(<wbr><span class="parameter" id="decode7579StringResult-param-hexResult"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">hexResult</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes a string result from an eth_call response.
+  
+
+</dd>
+
+          <dt id="decodeMultiSend" class="callable">
+  <span class="name"><a href="../permissionless/decodeMultiSend.html">decodeMultiSend</a></span><span class="signature">(<wbr><span class="parameter" id="decodeMultiSend-param-multiSendData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">multiSendData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes a MultiSend transaction back into individual calls.
+  
+
+</dd>
+
+          <dt id="decodeNonce" class="callable">
+  <span class="name"><a href="../permissionless/decodeNonce.html">decodeNonce</a></span><span class="signature">(<wbr><span class="parameter" id="decodeNonce-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">nonce</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/DecodedNonce-class.html">DecodedNonce</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes an ERC-4337 nonce into its key and sequence components.
+  
+
+</dd>
+
+          <dt id="decodeUint256Result" class="callable">
+  <span class="name"><a href="../permissionless/decodeUint256Result.html">decodeUint256Result</a></span><span class="signature">(<wbr><span class="parameter" id="decodeUint256Result-param-hexResult"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">hexResult</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Decodes a uint256 result from an eth_call response.
+  
+
+</dd>
+
+          <dt id="encode7579AccountId" class="callable">
+  <span class="name"><a href="../permissionless/encode7579AccountId.html">encode7579AccountId</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 accountId call for use with eth_call.
+  
+
+</dd>
+
+          <dt id="encode7579BatchCallData" class="callable">
+  <span class="name"><a href="../permissionless/encode7579BatchCallData.html">encode7579BatchCallData</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579BatchCallData-param-calls"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes multiple calls for ERC-7579 batch execution.
+  
+
+</dd>
+
+          <dt id="encode7579Execute" class="callable">
+  <span class="name"><a href="../permissionless/encode7579Execute.html">encode7579Execute</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579Execute-param-call"><span class="type-annotation"><a href="../permissionless/Call-class.html">Call</a></span> <span class="parameter-name">call</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a complete ERC-7579 execute call (single call).
+  
+
+</dd>
+
+          <dt id="encode7579ExecuteBatch" class="callable">
+  <span class="name"><a href="../permissionless/encode7579ExecuteBatch.html">encode7579ExecuteBatch</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579ExecuteBatch-param-calls"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a complete ERC-7579 execute call (batch calls).
+  
+
+</dd>
+
+          <dt id="encode7579ExecuteMode" class="callable">
+  <span class="name"><a href="../permissionless/encode7579ExecuteMode.html">encode7579ExecuteMode</a></span><span class="signature">(<wbr>{<span class="parameter" id="encode7579ExecuteMode-param-callType"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">callType</span> = <span class="default-value">Erc7579CallType.call</span>, </span><span class="parameter" id="encode7579ExecuteMode-param-execType"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">execType</span> = <span class="default-value">Erc7579ExecType.defaultExec</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 execution mode.
+  
+
+</dd>
+
+          <dt id="encode7579InstallModule" class="callable">
+  <span class="name"><a href="../permissionless/encode7579InstallModule.html">encode7579InstallModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="encode7579InstallModule-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span><span class="parameter" id="encode7579InstallModule-param-module"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">module</span>, </span><span class="parameter" id="encode7579InstallModule-param-initData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initData</span> = <span class="default-value">&#39;0x&#39;</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 installModule call.
+  
+
+</dd>
+
+          <dt id="encode7579IsModuleInstalled" class="callable">
+  <span class="name"><a href="../permissionless/encode7579IsModuleInstalled.html">encode7579IsModuleInstalled</a></span><span class="signature">(<wbr>{<span class="parameter" id="encode7579IsModuleInstalled-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span><span class="parameter" id="encode7579IsModuleInstalled-param-module"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">module</span>, </span><span class="parameter" id="encode7579IsModuleInstalled-param-additionalContext"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">additionalContext</span> = <span class="default-value">&#39;0x&#39;</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 isModuleInstalled call for use with eth_call.
+  
+
+</dd>
+
+          <dt id="encode7579SingleCallData" class="callable">
+  <span class="name"><a href="../permissionless/encode7579SingleCallData.html">encode7579SingleCallData</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579SingleCallData-param-call"><span class="type-annotation"><a href="../permissionless/Call-class.html">Call</a></span> <span class="parameter-name">call</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a single call for ERC-7579 execution.
+  
+
+</dd>
+
+          <dt id="encode7579SupportsExecutionMode" class="callable">
+  <span class="name"><a href="../permissionless/encode7579SupportsExecutionMode.html">encode7579SupportsExecutionMode</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579SupportsExecutionMode-param-mode"><span class="type-annotation"><a href="../permissionless/ExecutionMode-class.html">ExecutionMode</a></span> <span class="parameter-name">mode</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 supportsExecutionMode call for use with eth_call.
+  
+
+</dd>
+
+          <dt id="encode7579SupportsModule" class="callable">
+  <span class="name"><a href="../permissionless/encode7579SupportsModule.html">encode7579SupportsModule</a></span><span class="signature">(<wbr><span class="parameter" id="encode7579SupportsModule-param-moduleType"><span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 supportsModule call for use with eth_call.
+  
+
+</dd>
+
+          <dt id="encode7579UninstallModule" class="callable">
+  <span class="name"><a href="../permissionless/encode7579UninstallModule.html">encode7579UninstallModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="encode7579UninstallModule-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span><span class="parameter" id="encode7579UninstallModule-param-module"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">module</span>, </span><span class="parameter" id="encode7579UninstallModule-param-deInitData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">deInitData</span> = <span class="default-value">&#39;0x&#39;</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-7579 uninstallModule call.
+  
+
+</dd>
+
+          <dt id="encodeCreateProxyWithNonce" class="callable">
+  <span class="name"><a href="../permissionless/encodeCreateProxyWithNonce.html">encodeCreateProxyWithNonce</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeCreateProxyWithNonce-param-singleton"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">singleton</span>, </span><span class="parameter" id="encodeCreateProxyWithNonce-param-initializer"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initializer</span>, </span><span class="parameter" id="encodeCreateProxyWithNonce-param-saltNonce"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">saltNonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a <code>createProxyWithNonce</code> call.
+  
+
+</dd>
+
+          <dt id="encodeEnableModules" class="callable">
+  <span class="name"><a href="../permissionless/encodeEnableModules.html">encodeEnableModules</a></span><span class="signature">(<wbr><span class="parameter" id="encodeEnableModules-param-modules"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">modules</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an <code>enableModules</code> call for Safe module setup.
+  
+
+</dd>
+
+          <dt id="encodeErc20AllowanceCall" class="callable">
+  <span class="name"><a href="../permissionless/encodeErc20AllowanceCall.html">encodeErc20AllowanceCall</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeErc20AllowanceCall-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="encodeErc20AllowanceCall-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-20 allowance(owner, spender) call for eth_call.
+  
+
+</dd>
+
+          <dt id="encodeErc20Approve" class="callable">
+  <span class="name"><a href="../permissionless/encodeErc20Approve.html">encodeErc20Approve</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeErc20Approve-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="encodeErc20Approve-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span>, </span><span class="parameter" id="encodeErc20Approve-param-amount"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">amount</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Call-class.html">Call</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-20 approve(spender, amount) call.
+  
+
+</dd>
+
+          <dt id="encodeErc20BalanceOfCall" class="callable">
+  <span class="name"><a href="../permissionless/encodeErc20BalanceOfCall.html">encodeErc20BalanceOfCall</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeErc20BalanceOfCall-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-20 balanceOf(account) call for eth_call.
+  
+
+</dd>
+
+          <dt id="encodeErc20Transfer" class="callable">
+  <span class="name"><a href="../permissionless/encodeErc20Transfer.html">encodeErc20Transfer</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeErc20Transfer-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="encodeErc20Transfer-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span><span class="parameter" id="encodeErc20Transfer-param-amount"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">amount</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/Call-class.html">Call</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an ERC-20 transfer(to, amount) call.
+  
+
+</dd>
+
+          <dt id="encodeExecuteUserOp" class="callable">
+  <span class="name"><a href="../permissionless/encodeExecuteUserOp.html">encodeExecuteUserOp</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeExecuteUserOp-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span><span class="parameter" id="encodeExecuteUserOp-param-value"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">value</span>, </span><span class="parameter" id="encodeExecuteUserOp-param-data"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">data</span>, </span><span class="parameter" id="encodeExecuteUserOp-param-operation"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">operation</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes an <code>executeUserOpWithErrorString</code> call.
+  
+
+</dd>
+
+          <dt id="encodeInitSafe7579" class="callable">
+  <span class="name"><a href="../permissionless/encodeInitSafe7579.html">encodeInitSafe7579</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeInitSafe7579-param-safe7579"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">safe7579</span>, </span><span class="parameter" id="encodeInitSafe7579-param-executors"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter">(<span class="field"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>, </span><span class="field"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span></span>)</span>&gt;</span></span> <span class="parameter-name">executors</span>, </span><span class="parameter" id="encodeInitSafe7579-param-fallbacks"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter">(<span class="field"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>, </span><span class="field"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span></span>)</span>&gt;</span></span> <span class="parameter-name">fallbacks</span>, </span><span class="parameter" id="encodeInitSafe7579-param-hooks"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter">(<span class="field"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>, </span><span class="field"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span></span>)</span>&gt;</span></span> <span class="parameter-name">hooks</span>, </span><span class="parameter" id="encodeInitSafe7579-param-attesters"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">attesters</span>, </span><span class="parameter" id="encodeInitSafe7579-param-threshold"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">threshold</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes the <code>initSafe7579</code> function call.
+  
+
+</dd>
+
+          <dt id="encodeMultiSend" class="callable">
+  <span class="name"><a href="../permissionless/encodeMultiSend.html">encodeMultiSend</a></span><span class="signature">(<wbr><span class="parameter" id="encodeMultiSend-param-calls"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span>, {</span><span class="parameter" id="encodeMultiSend-param-defaultOperation"><span class="type-annotation"><a href="../permissionless/OperationType.html">OperationType</a></span> <span class="parameter-name">defaultOperation</span> = <span class="default-value">OperationType.call</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes multiple calls into a MultiSend transaction.
+  
+
+</dd>
+
+          <dt id="encodeMultiSendWithOperations" class="callable">
+  <span class="name"><a href="../permissionless/encodeMultiSendWithOperations.html">encodeMultiSendWithOperations</a></span><span class="signature">(<wbr><span class="parameter" id="encodeMultiSendWithOperations-param-calls"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/MultiSendCall-class.html">MultiSendCall</a></span>&gt;</span></span> <span class="parameter-name">calls</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes multiple calls with explicit operation types into a MultiSend transaction.
+  
+
+</dd>
+
+          <dt id="encodeNonce" class="callable">
+  <span class="name"><a href="../permissionless/encodeNonce.html">encodeNonce</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeNonce-param-key"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">key</span>, </span><span class="parameter" id="encodeNonce-param-sequence"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">sequence</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a key and sequence into an ERC-4337 nonce.
+  
+
+</dd>
+
+          <dt id="encodePreValidationSetup" class="callable">
+  <span class="name"><a href="../permissionless/encodePreValidationSetup.html">encodePreValidationSetup</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodePreValidationSetup-param-initHash"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initHash</span>, </span><span class="parameter" id="encodePreValidationSetup-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span><span class="parameter" id="encodePreValidationSetup-param-preInit"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">preInit</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes the <code>preValidationSetup</code> function call.
+  
+
+</dd>
+
+          <dt id="encodeSafeSetup" class="callable">
+  <span class="name"><a href="../permissionless/encodeSafeSetup.html">encodeSafeSetup</a></span><span class="signature">(<wbr>{<span class="parameter" id="encodeSafeSetup-param-owners"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">owners</span>, </span><span class="parameter" id="encodeSafeSetup-param-threshold"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">threshold</span>, </span><span class="parameter" id="encodeSafeSetup-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span><span class="parameter" id="encodeSafeSetup-param-data"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">data</span>, </span><span class="parameter" id="encodeSafeSetup-param-fallbackHandler"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">fallbackHandler</span>, </span><span class="parameter" id="encodeSafeSetup-param-paymentToken"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">paymentToken</span>, </span><span class="parameter" id="encodeSafeSetup-param-payment"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">payment</span>, </span><span class="parameter" id="encodeSafeSetup-param-paymentReceiver"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">paymentReceiver</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes a Safe <code>setup</code> function call.
+  
+
+</dd>
+
+          <dt id="encodeSetupSafe" class="callable">
+  <span class="name"><a href="../permissionless/encodeSetupSafe.html">encodeSetupSafe</a></span><span class="signature">(<wbr><span class="parameter" id="encodeSetupSafe-param-initData"><span class="type-annotation"><a href="../permissionless/Safe7579InitData-class.html">Safe7579InitData</a></span> <span class="parameter-name">initData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Encodes the <code>setupSafe</code> function call for Safe 7579.
+  
+
+</dd>
+
+          <dt id="erc20AllowanceOverride" class="callable">
+  <span class="name"><a href="../permissionless/erc20AllowanceOverride.html">erc20AllowanceOverride</a></span><span class="signature">(<wbr>{<span class="parameter" id="erc20AllowanceOverride-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="erc20AllowanceOverride-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="erc20AllowanceOverride-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span>, </span><span class="parameter" id="erc20AllowanceOverride-param-slot"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">slot</span>, </span><span class="parameter" id="erc20AllowanceOverride-param-amount"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">amount</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a state override to simulate an ERC-20 allowance.
+  
+
+</dd>
+
+          <dt id="erc20BalanceOverride" class="callable">
+  <span class="name"><a href="../permissionless/erc20BalanceOverride.html">erc20BalanceOverride</a></span><span class="signature">(<wbr>{<span class="parameter" id="erc20BalanceOverride-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="erc20BalanceOverride-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="erc20BalanceOverride-param-slot"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">slot</span>, </span><span class="parameter" id="erc20BalanceOverride-param-balance"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">balance</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a state override to simulate an ERC-20 balance.
+  
+
+</dd>
+
+          <dt id="erc20PaymasterOverride" class="callable">
+  <span class="name"><a href="../permissionless/erc20PaymasterOverride.html">erc20PaymasterOverride</a></span><span class="signature">(<wbr>{<span class="parameter" id="erc20PaymasterOverride-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-balanceSlot"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">balanceSlot</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-allowanceSlot"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">allowanceSlot</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-balance"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">balance</span>, </span><span class="parameter" id="erc20PaymasterOverride-param-allowance"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">allowance</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates combined balance and allowance state overrides for ERC-20 paymaster.
+  
+
+</dd>
+
+          <dt id="estimateErc20PaymasterCost" class="callable">
+  <span class="name"><a href="../permissionless/estimateErc20PaymasterCost.html">estimateErc20PaymasterCost</a></span><span class="signature">(<wbr>{<span class="parameter" id="estimateErc20PaymasterCost-param-pimlicoClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> <span class="parameter-name">pimlicoClient</span>, </span><span class="parameter" id="estimateErc20PaymasterCost-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="estimateErc20PaymasterCost-param-userOperation"><span>required</span> <span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Erc20CostEstimate-class.html">Erc20CostEstimate</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Estimates the cost of a UserOperation in ERC-20 tokens.
+  
+
+</dd>
+
+          <dt id="estimateFees" class="callable">
+  <span class="name"><a href="../permissionless/estimateFees.html">estimateFees</a></span><span class="signature">(<wbr><span class="parameter" id="estimateFees-param-public"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">public</span>, {</span><span class="parameter" id="estimateFees-param-multiplier"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/double-class.html">double</a></span> <span class="parameter-name">multiplier</span> = <span class="default-value">1.1</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/FeeEstimate-class.html">FeeEstimate</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Gets fee estimates from a public client.
+  
+
+</dd>
+
+          <dt id="estimateFeesFromPimlico" class="callable">
+  <span class="name"><a href="../permissionless/estimateFeesFromPimlico.html">estimateFeesFromPimlico</a></span><span class="signature">(<wbr><span class="parameter" id="estimateFeesFromPimlico-param-pimlico"><span class="type-annotation"><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> <span class="parameter-name">pimlico</span>, {</span><span class="parameter" id="estimateFeesFromPimlico-param-speed"><span class="type-annotation"><a href="../permissionless/GasSpeed.html">GasSpeed</a></span> <span class="parameter-name">speed</span> = <span class="default-value">GasSpeed.standard</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/FeeEstimate-class.html">FeeEstimate</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Gets fee estimates from a Pimlico client.
+  
+
+</dd>
+
+          <dt id="estimateTokenCost" class="callable">
+  <span class="name"><a href="../permissionless/estimateTokenCost.html">estimateTokenCost</a></span><span class="signature">(<wbr>{<span class="parameter" id="estimateTokenCost-param-quote"><span>required</span> <span class="type-annotation"><a href="../permissionless/PimlicoTokenQuote-class.html">PimlicoTokenQuote</a></span> <span class="parameter-name">quote</span>, </span><span class="parameter" id="estimateTokenCost-param-userOp"><span>required</span> <span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOp</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Estimates the token cost for a UserOperation.
+  
+
+</dd>
+
+          <dt id="getAccountGasLimits" class="callable">
+  <span class="name"><a href="../permissionless/getAccountGasLimits.html">getAccountGasLimits</a></span><span class="signature">(<wbr><span class="parameter" id="getAccountGasLimits-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates the packed accountGasLimits from gas limits.
+  
+
+</dd>
+
+          <dt id="getAccountId" class="callable">
+  <span class="name"><a href="../permissionless/getAccountId.html">getAccountId</a></span><span class="signature">(<wbr>{<span class="parameter" id="getAccountId-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="getAccountId-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Gets the account identifier from an ERC-7579 account.
+  
+
+</dd>
+
+          <dt id="getAddressFromInitCodeOrPaymasterAndData" class="callable">
+  <span class="name"><a href="../permissionless/getAddressFromInitCodeOrPaymasterAndData.html">getAddressFromInitCodeOrPaymasterAndData</a></span><span class="signature">(<wbr><span class="parameter" id="getAddressFromInitCodeOrPaymasterAndData-param-data"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">data</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span>
+  </span>
+  
+
+</dt>
+<dd>
+  Extracts an address from <code>initCode</code> or <code>paymasterAndData</code> fields.
+  
+
+</dd>
+
+          <dt id="getApprovalCallIfNeeded" class="callable">
+  <span class="name"><a href="../permissionless/getApprovalCallIfNeeded.html">getApprovalCallIfNeeded</a></span><span class="signature">(<wbr>{<span class="parameter" id="getApprovalCallIfNeeded-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="getApprovalCallIfNeeded-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="getApprovalCallIfNeeded-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="getApprovalCallIfNeeded-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span>, </span><span class="parameter" id="getApprovalCallIfNeeded-param-requiredAmount"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">requiredAmount</span>, </span><span class="parameter" id="getApprovalCallIfNeeded-param-approvalAmount"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">approvalAmount</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a>?</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Checks if approval is needed and returns an optional approval call.
+  
+
+</dd>
+
+          <dt id="getGasFees" class="callable">
+  <span class="name"><a href="../permissionless/getGasFees.html">getGasFees</a></span><span class="signature">(<wbr><span class="parameter" id="getGasFees-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates the packed gasFees from fee parameters.
+  
+
+</dd>
+
+          <dt id="getInitCode" class="callable">
+  <span class="name"><a href="../permissionless/getInitCode.html">getInitCode</a></span><span class="signature">(<wbr><span class="parameter" id="getInitCode-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates the packed initCode from factory + factoryData.
+  
+
+</dd>
+
+          <dt id="getInstalledModulesOfType" class="callable">
+  <span class="name"><a href="../permissionless/getInstalledModulesOfType.html">getInstalledModulesOfType</a></span><span class="signature">(<wbr>{<span class="parameter" id="getInstalledModulesOfType-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="getInstalledModulesOfType-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="getInstalledModulesOfType-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span><span class="parameter" id="getInstalledModulesOfType-param-candidateModules"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">candidateModules</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Gets the installed modules of a specific type from an ERC-7579 account.
+  
+
+</dd>
+
+          <dt id="getPackedUserOperation" class="callable">
+  <span class="name"><a href="../permissionless/getPackedUserOperation.html">getPackedUserOperation</a></span><span class="signature">(<wbr><span class="parameter" id="getPackedUserOperation-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/PackedUserOperation-class.html">PackedUserOperation</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Packs a v0.7 UserOperation into the packed format.
+  
+
+</dd>
+
+          <dt id="getPaymasterAndData" class="callable">
+  <span class="name"><a href="../permissionless/getPaymasterAndData.html">getPaymasterAndData</a></span><span class="signature">(<wbr><span class="parameter" id="getPaymasterAndData-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates the packed paymasterAndData from paymaster fields.
+  
+
+</dd>
+
+          <dt id="getRequiredPrefund" class="callable">
+  <span class="name"><a href="../permissionless/getRequiredPrefund.html">getRequiredPrefund</a></span><span class="signature">(<wbr><span class="parameter" id="getRequiredPrefund-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Calculates the required prefund for a UserOperation (v0.7).
+  
+
+</dd>
+
+          <dt id="getRequiredPrefundV06" class="callable">
+  <span class="name"><a href="../permissionless/getRequiredPrefundV06.html">getRequiredPrefundV06</a></span><span class="signature">(<wbr><span class="parameter" id="getRequiredPrefundV06-param-userOperation"><span class="type-annotation"><a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span> <span class="parameter-name">userOperation</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Calculates the required prefund for a UserOperation (v0.6).
+  
+
+</dd>
+
+          <dt id="getTokenAllowance" class="callable">
+  <span class="name"><a href="../permissionless/getTokenAllowance.html">getTokenAllowance</a></span><span class="signature">(<wbr>{<span class="parameter" id="getTokenAllowance-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="getTokenAllowance-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="getTokenAllowance-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span><span class="parameter" id="getTokenAllowance-param-spender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">spender</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Checks the token allowance for a spender.
+  
+
+</dd>
+
+          <dt id="getTokenBalance" class="callable">
+  <span class="name"><a href="../permissionless/getTokenBalance.html">getTokenBalance</a></span><span class="signature">(<wbr>{<span class="parameter" id="getTokenBalance-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="getTokenBalance-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="getTokenBalance-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Checks the token balance of an account.
+  
+
+</dd>
+
+          <dt id="hashMessage" class="callable">
+  <span class="name"><a href="../permissionless/hashMessage.html">hashMessage</a></span><span class="signature">(<wbr><span class="parameter" id="hashMessage-param-message"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">message</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Computes the EIP-191 personal message hash.
+  
+
+</dd>
+
+          <dt id="hashStruct" class="callable">
+  <span class="name"><a href="../permissionless/hashStruct.html">hashStruct</a></span><span class="signature">(<wbr><span class="parameter" id="hashStruct-param-primaryType"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">primaryType</span>, </span><span class="parameter" id="hashStruct-param-data"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">data</span>, </span><span class="parameter" id="hashStruct-param-types"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/TypedDataField-class.html">TypedDataField</a></span>&gt;</span></span>&gt;</span></span> <span class="parameter-name">types</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Computes the struct hash for EIP-712.
+  
+
+</dd>
+
+          <dt id="hashTypedData" class="callable">
+  <span class="name"><a href="../permissionless/hashTypedData.html">hashTypedData</a></span><span class="signature">(<wbr><span class="parameter" id="hashTypedData-param-typedData"><span class="type-annotation"><a href="../permissionless/TypedData-class.html">TypedData</a></span> <span class="parameter-name">typedData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Computes the EIP-712 typed data hash.
+  
+
+</dd>
+
+          <dt id="isModuleInstalled" class="callable">
+  <span class="name"><a href="../permissionless/isModuleInstalled.html">isModuleInstalled</a></span><span class="signature">(<wbr>{<span class="parameter" id="isModuleInstalled-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="isModuleInstalled-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="isModuleInstalled-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span><span class="parameter" id="isModuleInstalled-param-module"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">module</span>, </span><span class="parameter" id="isModuleInstalled-param-additionalContext"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">additionalContext</span> = <span class="default-value">&#39;0x&#39;</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Checks if a module is installed on an ERC-7579 account.
+  
+
+</dd>
+
+          <dt id="mergeStateOverrides" class="callable">
+  <span class="name"><a href="../permissionless/mergeStateOverrides.html">mergeStateOverrides</a></span><span class="signature">(<wbr><span class="parameter" id="mergeStateOverrides-param-overrides"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span> <span class="parameter-name">overrides</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Merges multiple state overrides for the same address.
+  
+
+</dd>
+
+          <dt id="prepareUserOperationForErc20Paymaster" class="callable">
+  <span class="name"><a href="../permissionless/prepareUserOperationForErc20Paymaster.html">prepareUserOperationForErc20Paymaster</a></span><span class="signature">(<wbr>{<span class="parameter" id="prepareUserOperationForErc20Paymaster-param-smartAccountClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></span> <span class="parameter-name">smartAccountClient</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-pimlicoClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> <span class="parameter-name">pimlicoClient</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-calls"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-config"><span class="type-annotation"><a href="../permissionless/Erc20PaymasterConfig-class.html">Erc20PaymasterConfig</a></span> <span class="parameter-name">config</span> = <span class="default-value">const Erc20PaymasterConfig()</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Erc20PaymasterResult-class.html">Erc20PaymasterResult</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Prepares a UserOperation for ERC-20 paymaster gas payment.
+  
+
+</dd>
+
+          <dt id="stateOverridesToJson" class="callable">
+  <span class="name"><a href="../permissionless/stateOverridesToJson.html">stateOverridesToJson</a></span><span class="signature">(<wbr><span class="parameter" id="stateOverridesToJson-param-overrides"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span> <span class="parameter-name">overrides</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Converts a list of <a href="../permissionless/StateOverride-class.html">StateOverride</a>s to the JSON format expected by RPC calls.
+  
+
+</dd>
+
+          <dt id="supportsModule" class="callable">
+  <span class="name"><a href="../permissionless/supportsModule.html">supportsModule</a></span><span class="signature">(<wbr>{<span class="parameter" id="supportsModule-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="supportsModule-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="supportsModule-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Checks if an ERC-7579 account supports a particular module type.
+  
+
+</dd>
+
+          <dt id="unpackAccountGasLimits" class="callable">
+  <span class="name"><a href="../permissionless/unpackAccountGasLimits.html">unpackAccountGasLimits</a></span><span class="signature">(<wbr><span class="parameter" id="unpackAccountGasLimits-param-accountGasLimits"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">accountGasLimits</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UnpackedAccountGasLimits-class.html">UnpackedAccountGasLimits</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Unpacks accountGasLimits into verificationGasLimit + callGasLimit.
+  
+
+</dd>
+
+          <dt id="unpackGasFees" class="callable">
+  <span class="name"><a href="../permissionless/unpackGasFees.html">unpackGasFees</a></span><span class="signature">(<wbr><span class="parameter" id="unpackGasFees-param-gasFees"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">gasFees</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UnpackedGasFees-class.html">UnpackedGasFees</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Unpacks gasFees into maxPriorityFeePerGas + maxFeePerGas.
+  
+
+</dd>
+
+          <dt id="unpackInitCode" class="callable">
+  <span class="name"><a href="../permissionless/unpackInitCode.html">unpackInitCode</a></span><span class="signature">(<wbr><span class="parameter" id="unpackInitCode-param-initCode"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initCode</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UnpackedInitCode-class.html">UnpackedInitCode</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Unpacks initCode into factory + factoryData.
+  
+
+</dd>
+
+          <dt id="unpackPaymasterAndData" class="callable">
+  <span class="name"><a href="../permissionless/unpackPaymasterAndData.html">unpackPaymasterAndData</a></span><span class="signature">(<wbr><span class="parameter" id="unpackPaymasterAndData-param-paymasterAndData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">paymasterAndData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UnpackedPaymasterAndData-class.html">UnpackedPaymasterAndData</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Unpacks paymasterAndData into its components.
+  
+
+</dd>
+
+          <dt id="unpackUserOperation" class="callable">
+  <span class="name"><a href="../permissionless/unpackUserOperation.html">unpackUserOperation</a></span><span class="signature">(<wbr><span class="parameter" id="unpackUserOperation-param-packed"><span class="type-annotation"><a href="../permissionless/PackedUserOperation-class.html">PackedUserOperation</a></span> <span class="parameter-name">packed</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Converts a PackedUserOperation back to an unpacked UserOperationV07.
+  
+
+</dd>
+
+      </dl>
+    </section>
+
+
+    <section class="summary offset-anchor" id="exceptions">
+      <h2>Exceptions / Errors</h2>
+      <dl>
+          <dt id="BundlerRpcError">
+  <span class="name "><a href="../permissionless/BundlerRpcError-class.html">BundlerRpcError</a></span> 
+
+</dt>
+<dd>
+  Error returned by bundler RPC calls.
+</dd>
+
+          <dt id="PaymasterRpcError">
+  <span class="name "><a href="../permissionless/PaymasterRpcError-class.html">PaymasterRpcError</a></span> 
+
+</dt>
+<dd>
+  Error returned by paymaster RPC calls.
+</dd>
+
+          <dt id="PublicRpcError">
+  <span class="name "><a href="../permissionless/PublicRpcError-class.html">PublicRpcError</a></span> 
+
+</dt>
+<dd>
+  Error returned by public RPC calls.
+</dd>
+
+      </dl>
+    </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">permissionless</a></li>
+    <li class="self-crumb">permissionless.dart</li>
+</ol>
+
+    <h5><span class="package-name">permissionless</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="../permissionless/">permissionless</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+    <h5>permissionless library</h5>
+  </div><!--/sidebar-offcanvas-right-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the prepareUserOperationWithAuth method from the SmartAccountClient class, for the Dart programming language.">
+  <title>prepareUserOperationWithAuth method - SmartAccountClient class - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../../static-assets/styles.css?v1">
+  <link rel="icon" href="../../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../../index.html">permissionless</a></li>
+    <li><a href="../../permissionless/">permissionless.dart</a></li>
+    <li><a href="../../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></li>
+    <li class="self-crumb">prepareUserOperationWithAuth method</li>
+  </ol>
+  <div class="self-name">prepareUserOperationWithAuth</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="permissionless&#47;SmartAccountClient-class-sidebar.html"
+    data-below-sidebar="">
+    <div>
+<h1><span class="kind-method">prepareUserOperationWithAuth</span> method 
+</h1></div>
+
+    <section class="multi-line-signature">
+      
+<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/PreparedUserOperation-class.html">PreparedUserOperation</a></span>&gt;</span></span>
+<span class="name ">prepareUserOperationWithAuth</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="prepareUserOperationWithAuth-param-calls"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-paymasterContext"><span class="type-annotation"><a href="../../permissionless/PaymasterContext-class.html">PaymasterContext</a>?</span> <span class="parameter-name">paymasterContext</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-includeFactoryData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">includeFactoryData</span> = <span class="default-value">true</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-sender"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-stateOverride"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span>?</span> <span class="parameter-name">stateOverride</span>, </span></li>
+</ol>})
+
+      
+
+    </section>
+    
+<section class="desc markdown">
+  <p>Prepares a UserOperation with EIP-7702 authorization support.</p>
+<p>This is similar to <a href="../../permissionless/SmartAccountClient/prepareUserOperation.html">prepareUserOperation</a>, but returns a
+<a href="../../permissionless/PreparedUserOperation-class.html">PreparedUserOperation</a> that includes any required EIP-7702
+authorization for first-time delegation.</p>
+<p>For non-EIP-7702 accounts, the authorization will be null.</p>
+<p><code>stateOverride</code> can be provided to override contract state during gas
+estimation. This is useful for ERC-20 paymaster scenarios where you need
+to simulate having sufficient token balance before the account is funded.</p>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">final prepared = await client.prepareUserOperationWithAuth(
+  calls: [Call(to: recipient, value: amount)],
+  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+);
+
+// Sign and send with authorization handling
+final signedOp = await client.signUserOperation(prepared.userOp);
+final hash = await client.sendPreparedUserOperationWithAuth(
+  signedOp,
+  prepared.authorization,
+);
+</code></pre>
+</section>
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">Future&lt;PreparedUserOperation&gt; prepareUserOperationWithAuth({
+  required List&lt;Call&gt; calls,
+  required BigInt maxFeePerGas,
+  required BigInt maxPriorityFeePerGas,
+  BigInt? nonce,
+  PaymasterContext? paymasterContext,
+  bool includeFactoryData = true,
+  EthAddress? sender,
+  List&lt;StateOverride&gt;? stateOverride,
+}) async {
+  sender ??= await account.getAddress();
+
+  &#47;&#47; Check if we need EIP-7702 authorization
+  final authorization = await _createAuthorizationIfNeeded();
+  final needsAuth = authorization != null;
+
+  &#47;&#47; Get factory data if account might not be deployed
+  EthAddress? factory;
+  String? factoryData;
+  if (includeFactoryData) {
+    if (needsAuth) {
+      &#47;&#47; EIP-7702: Use marker factory address to signal authorization needed
+      factory = _eip7702FactoryMarker;
+      factoryData = &#39;0x&#39;;
+    } else {
+      final data = await account.getFactoryData();
+      if (data != null) {
+        factory = data.factory;
+        factoryData = data.factoryData;
+      }
+    }
+  }
+
+  &#47;&#47; Encode calls - use deployment encoding for ERC-7579 Safe first UserOp
+  final isDeployment = factory != null;
+  String callData;
+  if (isDeployment &amp;&amp;
+      account is SafeSmartAccount &amp;&amp;
+      (account as SafeSmartAccount).isErc7579Enabled) {
+    callData = (account as SafeSmartAccount).encodeCallsForDeployment(calls);
+  } else {
+    callData = account.encodeCalls(calls);
+  }
+
+  &#47;&#47; Build initial UserOperation with stub signature
+  var userOp = UserOperationV07(
+    sender: sender,
+    nonce: nonce ?? BigInt.zero,
+    factory: factory,
+    factoryData: factoryData,
+    callData: callData,
+    callGasLimit: BigInt.zero,
+    verificationGasLimit: BigInt.zero,
+    preVerificationGas: BigInt.zero,
+    maxFeePerGas: maxFeePerGas,
+    maxPriorityFeePerGas: maxPriorityFeePerGas,
+    signature: account.getStubSignature(),
+  );
+
+  &#47;&#47; Apply paymaster stub data if using paymaster
+  PaymasterStubData? stubData;
+  if (paymaster != null) {
+    stubData = await paymaster!.getPaymasterStubData(
+      userOp: userOp,
+      entryPoint: account.entryPoint,
+      chainId: account.chainId,
+      context: paymasterContext,
+    );
+    userOp = userOp.withPaymasterStub(stubData);
+  }
+
+  &#47;&#47; Estimate gas - use authorization-aware estimation if needed
+  &#47;&#47; Convert state overrides to JSON format for RPC call
+  final stateOverrideJson = stateOverride != null &amp;&amp; stateOverride.isNotEmpty
+      ? stateOverridesToJson(stateOverride)
+      : null;
+
+  UserOperationGasEstimate gasEstimate;
+  if (needsAuth) {
+    gasEstimate = await bundler.estimateUserOperationGasWithAuthorization(
+      userOp,
+      [authorization],
+      stateOverride: stateOverrideJson,
+    );
+  } else {
+    gasEstimate = await bundler.estimateUserOperationGas(
+      userOp,
+      stateOverride: stateOverrideJson,
+    );
+  }
+  userOp = _applyGasEstimate(userOp, gasEstimate);
+
+  &#47;&#47; Get final paymaster data if using paymaster and not final
+  if (paymaster != null &amp;&amp; stubData != null &amp;&amp; !stubData.isFinal) {
+    final finalData = await paymaster!.getPaymasterData(
+      userOp: userOp,
+      entryPoint: account.entryPoint,
+      chainId: account.chainId,
+      context: paymasterContext,
+    );
+    userOp = userOp.withPaymasterData(finalData);
+  }
+
+  return PreparedUserOperation(
+    userOp: userOp,
+    authorization: authorization,
+  );
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../../index.html">permissionless</a></li>
+    <li><a href="../../permissionless/">permissionless</a></li>
+    <li><a href="../../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></li>
+    <li class="self-crumb">prepareUserOperationWithAuth method</li>
+</ol>
+
+    <h5>SmartAccountClient class</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../../static-assets/highlight.pack.js?v1"></script>
+<script src="../../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

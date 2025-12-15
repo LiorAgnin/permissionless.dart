@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the UserOperationV06 class from the permissionless library, for the Dart programming language.">
+  <title>UserOperationV06 class - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless.dart</a></li>
+    <li class="self-crumb">UserOperationV06 class</li>
+  </ol>
+  <div class="self-name">UserOperationV06</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content"
+    data-above-sidebar="permissionless&#47;permissionless-library-sidebar.html"
+    data-below-sidebar="permissionless&#47;UserOperationV06-class-sidebar.html">
+    <div>
+<h1><span class="kind-class">UserOperationV06</span> class 
+ 
+</h1></div>
+
+    
+<section class="desc markdown">
+  <p>ERC-4337 User Operation for EntryPoint v0.6.</p>
+<p>This is the original UserOperation format from the ERC-4337 specification.
+Use this when interacting with EntryPoint v0.6.</p>
+<h2 id="fields">Fields</h2>
+<ul>
+<li><a href="../permissionless/UserOperationV06/initCode.html">initCode</a>: Factory address + calldata for deploying the account</li>
+<li><a href="../permissionless/UserOperationV06/paymasterAndData.html">paymasterAndData</a>: Paymaster address + verification/postOp gas + data</li>
+</ul>
+<h2 id="example">Example</h2>
+<pre class="language-dart"><code class="language-dart">final userOp = UserOperationV06(
+  sender: accountAddress,
+  nonce: BigInt.zero,
+  initCode: await account.getInitCode(), // or '0x' if deployed
+  callData: account.encodeCall(call),
+  callGasLimit: BigInt.from(100000),
+  verificationGasLimit: BigInt.from(100000),
+  preVerificationGas: BigInt.from(50000),
+  maxFeePerGas: BigInt.from(1000000000),
+  maxPriorityFeePerGas: BigInt.from(1000000000),
+);
+</code></pre>
+</section>
+
+
+    <section>
+      <dl class="dl-horizontal">
+        
+
+        
+  <dt>Implemented types</dt>
+  <dd>
+    <ul class="comma-separated clazz-relationships">
+        <li><a href="../permissionless/UserOperation-class.html">UserOperation</a></li>
+    </ul>
+  </dd>
+        
+
+
+        
+  <dt>Available extensions</dt>
+  <dd><ul class="comma-separated clazz-relationships">
+      <li><a href="../permissionless/PaymasterUserOperationV06Extension.html">PaymasterUserOperationV06Extension</a></li>
+  </ul></dd>
+        
+
+
+      </dl>
+    </section>
+
+    
+  <section class="summary offset-anchor" id="constructors">
+    <h2>Constructors</h2>
+    <dl class="constructor-summary-list">
+        <dt id="UserOperationV06.new" class="callable">
+          <span class="name"><a href="../permissionless/UserOperationV06/UserOperationV06.html">UserOperationV06</a></span><span class="signature">({<span class="parameter" id="-param-sender"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">sender</span>, </span><span class="parameter" id="-param-nonce"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="-param-initCode"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initCode</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="-param-callData"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">callData</span>, </span><span class="parameter" id="-param-callGasLimit"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">callGasLimit</span>, </span><span class="parameter" id="-param-verificationGasLimit"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">verificationGasLimit</span>, </span><span class="parameter" id="-param-preVerificationGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">preVerificationGas</span>, </span><span class="parameter" id="-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="-param-paymasterAndData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">paymasterAndData</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="-param-signature"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">signature</span> = <span class="default-value">&#39;0x&#39;</span></span>})</span>
+        </dt>
+        <dd>
+          Creates a UserOperation for EntryPoint v0.6.
+            <div class="constructor-modifier features">const</div>
+        </dd>
+        <dt id="UserOperationV06.fromJson" class="callable">
+          <span class="name"><a href="../permissionless/UserOperationV06/UserOperationV06.fromJson.html">UserOperationV06.fromJson</a></span><span class="signature">(<span class="parameter" id="fromJson-param-json"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span> <span class="parameter-name">json</span></span>)</span>
+        </dt>
+        <dd>
+          Creates from JSON-RPC response.
+            <div class="constructor-modifier features">factory</div>
+        </dd>
+    </dl>
+  </section>
+    
+  <section
+      class="summary offset-anchor"
+      id="instance-properties">
+    <h2>Properties</h2>
+    <dl class="properties">
+        <dt id="callData" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/callData.html">callData</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  The encoded function call(s) to execute on the smart account.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="callGasLimit" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/callGasLimit.html">callGasLimit</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="hashCode" class="property inherited">
+  <span class="name"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object/hashCode.html">hashCode</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  The hash code for this object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="initCode" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/initCode.html">initCode</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="maxFeePerGas" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/maxFeePerGas.html">maxFeePerGas</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="maxPriorityFeePerGas" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/maxPriorityFeePerGas.html">maxPriorityFeePerGas</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="nonce" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/nonce.html">nonce</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  The account's nonce to prevent replay attacks.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="paymasterAndData" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/paymasterAndData.html">paymasterAndData</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="preVerificationGas" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/preVerificationGas.html">preVerificationGas</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="runtimeType" class="property inherited">
+  <span class="name"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object/runtimeType.html">runtimeType</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Type-class.html">Type</a></span>
+  
+
+</dt>
+<dd class="inherited">
+  A representation of the runtime type of the object.
+  <div class="features"><span class="feature">no setter</span><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="sender" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/sender.html">sender</a></span>
+  <span class="signature">&#8594; <a href="../permissionless/EthAddress-class.html">EthAddress</a></span>
+  
+
+</dt>
+<dd>
+  The smart account address that will execute this operation.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="signature" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/signature.html">signature</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  
+
+</dt>
+<dd>
+  The signature authorizing this operation.
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+        <dt id="verificationGasLimit" class="property">
+  <span class="name"><a href="../permissionless/UserOperationV06/verificationGasLimit.html">verificationGasLimit</a></span>
+  <span class="signature">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>
+  
+
+</dt>
+<dd>
+  
+  <div class="features"><span class="feature">final</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+
+    
+  <section
+      class="summary offset-anchor"
+      id="instance-methods">
+    <h2>Methods</h2>
+    <dl class="callables">
+        <dt id="copyWith" class="callable">
+  <span class="name"><a href="../permissionless/UserOperationV06/copyWith.html">copyWith</a></span><span class="signature">(<wbr>{<span class="parameter" id="copyWith-param-sender"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">sender</span>, </span><span class="parameter" id="copyWith-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="copyWith-param-initCode"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">initCode</span>, </span><span class="parameter" id="copyWith-param-callData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">callData</span>, </span><span class="parameter" id="copyWith-param-callGasLimit"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">callGasLimit</span>, </span><span class="parameter" id="copyWith-param-verificationGasLimit"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">verificationGasLimit</span>, </span><span class="parameter" id="copyWith-param-preVerificationGas"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">preVerificationGas</span>, </span><span class="parameter" id="copyWith-param-maxFeePerGas"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="copyWith-param-maxPriorityFeePerGas"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="copyWith-param-paymasterAndData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">paymasterAndData</span>, </span><span class="parameter" id="copyWith-param-signature"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">signature</span></span>})
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Creates a copy with updated fields.
+  
+
+</dd>
+
+        <dt id="noSuchMethod" class="callable inherited">
+  <span class="name"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object/noSuchMethod.html">noSuchMethod</a></span><span class="signature">(<wbr><span class="parameter" id="noSuchMethod-param-invocation"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Invocation-class.html">Invocation</a></span> <span class="parameter-name">invocation</span></span>)
+    <span class="returntype parameter">&#8594; dynamic</span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  Invoked when a nonexistent method or property is accessed.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="toJson" class="callable">
+  <span class="name"><a href="../permissionless/UserOperationV06/toJson.html">toJson</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Map-class.html">Map</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>, <span class="type-parameter">dynamic</span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+  Converts to JSON-RPC compatible map.
+  <div class="features"><span class="feature">override</span></div>
+
+</dd>
+
+        <dt id="toString" class="callable inherited">
+  <span class="name"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object/toString.html">toString</a></span><span class="signature">(<wbr>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  A string representation of this object.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+        <dt id="withPaymasterDataV06" class="callable">
+  <span class="name"><a href="../permissionless/PaymasterUserOperationV06Extension/withPaymasterDataV06.html">withPaymasterDataV06</a></span><span class="signature">(<wbr><span class="parameter" id="withPaymasterDataV06-param-data"><span class="type-annotation"><a href="../permissionless/PaymasterData-class.html">PaymasterData</a></span> <span class="parameter-name">data</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a>,
+        provided by the <a href="../permissionless/PaymasterUserOperationV06Extension.html">PaymasterUserOperationV06Extension</a> extension</span>
+      </p>
+  Applies final paymaster data for submission.
+  
+
+</dd>
+
+        <dt id="withPaymasterStubV06" class="callable">
+  <span class="name"><a href="../permissionless/PaymasterUserOperationV06Extension/withPaymasterStubV06.html">withPaymasterStubV06</a></span><span class="signature">(<wbr><span class="parameter" id="withPaymasterStubV06-param-stub"><span class="type-annotation"><a href="../permissionless/PaymasterStubData-class.html">PaymasterStubData</a></span> <span class="parameter-name">stub</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a>,
+        provided by the <a href="../permissionless/PaymasterUserOperationV06Extension.html">PaymasterUserOperationV06Extension</a> extension</span>
+      </p>
+  Applies paymaster stub data for gas estimation.
+  
+
+</dd>
+
+        <dt id="withSponsorshipV06" class="callable">
+  <span class="name"><a href="../permissionless/PaymasterUserOperationV06Extension/withSponsorshipV06.html">withSponsorshipV06</a></span><span class="signature">(<wbr><span class="parameter" id="withSponsorshipV06-param-result"><span class="type-annotation"><a href="../permissionless/SponsorUserOperationResult-class.html">SponsorUserOperationResult</a></span> <span class="parameter-name">result</span></span>)
+    <span class="returntype parameter">&#8594; <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/UserOperationV06-class.html">UserOperationV06</a>,
+        provided by the <a href="../permissionless/PaymasterUserOperationV06Extension.html">PaymasterUserOperationV06Extension</a> extension</span>
+      </p>
+  Applies sponsored UserOperation result.
+  
+
+</dd>
+
+    </dl>
+  </section>
+    
+  <section
+      class="summary offset-anchor inherited"
+      id="operators">
+    <h2>Operators</h2>
+    <dl class="callables">
+        <dt id="operator ==" class="callable inherited">
+  <span class="name"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object/operator_equals.html">operator ==</a></span><span class="signature">(<wbr><span class="parameter" id="==-param-other"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Object-class.html">Object</a></span> <span class="parameter-name">other</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>
+  </span>
+  
+
+</dt>
+<dd class="inherited">
+  The equality operator.
+  <div class="features"><span class="feature">inherited</span></div>
+
+</dd>
+
+    </dl>
+  </section>
+    
+    
+    
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless</a></li>
+    <li class="self-crumb">UserOperationV06 class</li>
+</ol>
+
+    <h5>permissionless library</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

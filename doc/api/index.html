@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="permissionless API docs, for the Dart programming language.">
+  <title>permissionless - Dart API docs</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="static-assets/github.css?v1">
+  <link rel="stylesheet" href="static-assets/styles.css?v1">
+  <link rel="icon" href="static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="https://github.com/LiorAgnin/permissionless.dart">permissionless package</a></li>
+  </ol>
+  <div class="self-name">permissionless</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div id="dartdoc-main-content" class="main-content">
+      
+<section class="desc markdown">
+  <h1 id="permissionlessdart">permissionless.dart</h1>
+<p>A Dart implementation of <a href="https://github.com/pimlicolabs/permissionless.js">permissionless.js</a> for ERC-4337 smart accounts.</p>
+<p>Build account abstraction applications in Dart with support for multiple smart account implementations, bundler clients, and paymaster integration.</p>
+<h2 id="features">Features</h2>
+<h3 id="smart-accounts">Smart Accounts</h3>
+<table>
+<thead>
+<tr>
+<th>Account</th>
+<th>Provider</th>
+<th>EntryPoint</th>
+<th>ERC-7579</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Safe</strong></td>
+<td>Gnosis</td>
+<td>v0.6, v0.7</td>
+<td>Optional*</td>
+<td>Battle-tested multi-sig account</td>
+</tr>
+<tr>
+<td><strong>Kernel</strong></td>
+<td>ZeroDev</td>
+<td>v0.6, v0.7</td>
+<td>v0.3.x</td>
+<td>Modular account with plugins</td>
+</tr>
+<tr>
+<td><strong>Nexus</strong></td>
+<td>Biconomy</td>
+<td>v0.7</td>
+<td>Yes</td>
+<td>ERC-7579 modular account</td>
+</tr>
+<tr>
+<td><strong>Light</strong></td>
+<td>Alchemy</td>
+<td>v0.6, v0.7</td>
+<td>No</td>
+<td>Gas-efficient single-owner</td>
+</tr>
+<tr>
+<td><strong>Simple</strong></td>
+<td>eth-infinitism</td>
+<td>v0.6, v0.7</td>
+<td>No</td>
+<td>Minimal reference implementation</td>
+</tr>
+<tr>
+<td><strong>Thirdweb</strong></td>
+<td>Thirdweb</td>
+<td>v0.6, v0.7</td>
+<td>No</td>
+<td>SDK ecosystem integration</td>
+</tr>
+<tr>
+<td><strong>Trust</strong></td>
+<td>Trust Wallet</td>
+<td>v0.6</td>
+<td>No</td>
+<td>Diamond architecture (Barz)</td>
+</tr>
+<tr>
+<td><strong>Etherspot</strong></td>
+<td>Etherspot</td>
+<td>v0.7</td>
+<td>Internal**</td>
+<td>ModularEtherspotWallet</td>
+</tr>
+<tr>
+<td><strong>Biconomy</strong></td>
+<td>Biconomy</td>
+<td>v0.6</td>
+<td>No</td>
+<td><em>Deprecated - use Nexus</em></td>
+</tr>
+</tbody>
+</table>
+<p>* Safe requires <code>erc7579LaunchpadAddress</code> configuration to enable ERC-7579 module management.
+** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.</p>
+<h3 id="clients">Clients</h3>
+<ul>
+<li><strong>BundlerClient</strong> - ERC-4337 bundler RPC methods</li>
+<li><strong>PaymasterClient</strong> - Paymaster sponsorship integration</li>
+<li><strong>SmartAccountClient</strong> - High-level account operations</li>
+<li><strong>PimlicoClient</strong> - Pimlico-specific bundler extensions</li>
+<li><strong>EtherspotClient</strong> - Etherspot (Skandha) bundler extensions</li>
+<li><strong>PublicClient</strong> - Standard Ethereum RPC</li>
+</ul>
+<h3 id="utilities">Utilities</h3>
+<ul>
+<li>Gas estimation and cost calculation</li>
+<li>ERC-7579 call encoding and module management</li>
+<li>ERC-20 state overrides for gas estimation</li>
+<li>ABI encoding utilities</li>
+<li>MultiSend batch transactions</li>
+<li>Message signing (EIP-191, EIP-712)</li>
+<li>PackedUserOperation utilities</li>
+</ul>
+<h3 id="experimental">Experimental</h3>
+<ul>
+<li><strong>ERC-20 Paymaster Preparation</strong> - Pay gas fees with ERC-20 tokens</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<p>Add to your <code>pubspec.yaml</code>:</p>
+<pre class="language-yaml"><code class="language-yaml">dependencies:
+  permissionless: ^0.1.0
+</code></pre>
+<p>Then run:</p>
+<pre class="language-bash"><code class="language-bash">dart pub get
+</code></pre>
+<h2 id="quick-start">Quick Start</h2>
+<pre class="language-dart"><code class="language-dart">import 'package:permissionless/permissionless.dart';
+
+void main() async {
+  // 1. Create an owner from a private key
+  final owner = PrivateKeyOwner(
+    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+  );
+
+  // 2. Create a Safe smart account
+  final account = createSafeSmartAccount(
+    owners: [owner],
+    version: SafeVersion.v1_4_1,
+    entryPointVersion: EntryPointVersion.v07,
+    chainId: BigInt.from(11155111), // Sepolia
+  );
+
+  // 3. Get the account address (deterministic, works before deployment)
+  final address = await account.getAddress();
+  print('Smart Account Address: ${address.checksummed}');
+
+  // 4. Create clients
+  final publicClient = createPublicClient(
+    url: 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY',
+  );
+
+  final pimlico = createPimlicoClient(
+    url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+    entryPoint: EntryPointAddresses.v07,
+  );
+
+  final paymaster = createPaymasterClient(
+    url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+  );
+
+  // 5. Create a smart account client
+  final client = SmartAccountClient(
+    account: account,
+    bundler: pimlico,
+    paymaster: paymaster,
+  );
+
+  // 6. Send a sponsored transaction
+  final hash = await client.sendUserOperation(
+    calls: [
+      Call(
+        to: EthAddress('0x...'),
+        value: BigInt.zero,
+        data: '0x',
+      ),
+    ],
+    maxFeePerGas: BigInt.from(20000000000),
+    maxPriorityFeePerGas: BigInt.from(1000000000),
+  );
+
+  print('UserOperation hash: $hash');
+}
+</code></pre>
+<h2 id="smart-accounts-2">Smart Accounts</h2>
+<h3 id="safe-account">Safe Account</h3>
+<p>The most battle-tested smart account, based on Gnosis Safe:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyOwner('0x...');
+final account = createSafeSmartAccount(
+  owners: [owner],
+  version: SafeVersion.v1_4_1,  // or v1_5_0
+  entryPointVersion: EntryPointVersion.v07,
+  chainId: BigInt.from(1),
+  saltNonce: BigInt.zero,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Multi-signature support with configurable threshold</li>
+<li>EIP-712 SafeOp typed data signing</li>
+<li>Safe v1.4.1 (EP v0.6, v0.7) and v1.5.0 (EP v0.7)</li>
+</ul>
+<h3 id="kernel-account">Kernel Account</h3>
+<p>ZeroDev's modular smart account with plugin support:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyKernelOwner('0x...');
+final account = createKernelSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  version: KernelVersion.v0_3_1,  // ERC-7579, EP v0.7
+  index: BigInt.zero,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>v0.2.x (v0.2.1-v0.2.4): EntryPoint v0.6, custom execute</li>
+<li>v0.3.x (v0.3.0-beta, v0.3.1, v0.3.2, v0.3.3): EntryPoint v0.7, ERC-7579 compliant, external ECDSA validator</li>
+</ul>
+<h3 id="nexus-account-biconomy">Nexus Account (Biconomy)</h3>
+<p>Biconomy's next-generation ERC-7579 modular account:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyNexusAccountOwner('0x...');
+final account = createNexusSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  index: BigInt.zero,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>ERC-7579 modular architecture</li>
+<li>K1 validator for ECDSA signatures</li>
+<li>Replaces deprecated Biconomy Smart Account</li>
+</ul>
+<h3 id="light-account-alchemy">Light Account (Alchemy)</h3>
+<p>Alchemy's gas-efficient smart account:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyLightAccountOwner('0x...');
+final account = createLightSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  version: LightAccountVersion.v200,  // or v110 for EP v0.6
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Low gas overhead</li>
+<li>v1.1.0: EntryPoint v0.6</li>
+<li>v2.0.0: EntryPoint v0.7, signature type prefix</li>
+</ul>
+<h3 id="simple-account">Simple Account</h3>
+<p>Minimal reference implementation from eth-infinitism:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeySimpleAccountOwner('0x...');
+final account = createSimpleSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  entryPointVersion: EntryPointVersion.v07,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Minimal, gas-efficient design</li>
+<li>Direct signature validation</li>
+<li>Ideal for learning ERC-4337</li>
+</ul>
+<h3 id="thirdweb-account">Thirdweb Account</h3>
+<p>Thirdweb SDK smart account:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyThirdwebAccountOwner('0x...');
+final account = createThirdwebSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  entryPointVersion: EntryPointVersion.v07,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Both EntryPoint v0.6 and v0.7 support</li>
+<li>Thirdweb SDK ecosystem integration</li>
+</ul>
+<h3 id="trust-account-barz">Trust Account (Barz)</h3>
+<p>Trust Wallet's diamond-based smart account:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyTrustAccountOwner('0x...');
+final account = createTrustSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  index: BigInt.zero,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Diamond proxy pattern (EIP-2535)</li>
+<li>EntryPoint v0.6 only</li>
+</ul>
+<h3 id="etherspot-account">Etherspot Account</h3>
+<p>Etherspot's ModularEtherspotWallet:</p>
+<pre class="language-dart"><code class="language-dart">final owner = PrivateKeyEtherspotOwner('0x...');
+final account = createEtherspotSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(1),
+  index: BigInt.zero,
+);
+</code></pre>
+<p><strong>Features:</strong></p>
+<ul>
+<li>ERC-7579 modular architecture</li>
+<li>Multiple validator module support</li>
+</ul>
+<h2 id="clients-2">Clients</h2>
+<h3 id="bundlerclient">BundlerClient</h3>
+<p>Interact with ERC-4337 bundlers:</p>
+<pre class="language-dart"><code class="language-dart">final bundler = createBundlerClient(
+  url: 'https://...',
+  entryPoint: EntryPointAddresses.v07,
+);
+
+// Get supported entry points
+final entryPoints = await bundler.supportedEntryPoints();
+
+// Estimate gas for a UserOperation
+final gasEstimate = await bundler.estimateUserOperationGas(userOp);
+
+// Send a UserOperation
+final hash = await bundler.sendUserOperation(userOp);
+
+// Get UserOperation receipt
+final receipt = await bundler.getUserOperationReceipt(hash);
+
+// Wait for receipt with polling
+final receipt = await bundler.waitForUserOperationReceipt(hash);
+</code></pre>
+<h3 id="paymasterclient">PaymasterClient</h3>
+<p>Integrate with paymasters for sponsored transactions:</p>
+<pre class="language-dart"><code class="language-dart">final paymaster = createPaymasterClient(
+  url: 'https://...',
+);
+
+// Get stub data for gas estimation
+final stubData = await paymaster.getPaymasterStubData(
+  userOp: userOp,
+  entryPoint: EntryPointAddresses.v07,
+  chainId: BigInt.from(1),
+);
+
+// Get final paymaster data
+final paymasterData = await paymaster.getPaymasterData(
+  userOp: userOp,
+  entryPoint: EntryPointAddresses.v07,
+  chainId: BigInt.from(1),
+);
+</code></pre>
+<h3 id="smartaccountclient">SmartAccountClient</h3>
+<p>High-level operations combining account, bundler, and paymaster:</p>
+<pre class="language-dart"><code class="language-dart">final client = SmartAccountClient(
+  account: account,
+  bundler: bundler,
+  paymaster: paymaster,  // Optional
+);
+
+// Get account address
+final address = await client.account.getAddress();
+
+// Prepare a UserOperation
+final preparedOp = await client.prepareUserOperation(
+  calls: [call1, call2],
+  maxFeePerGas: BigInt.from(20000000000),
+  maxPriorityFeePerGas: BigInt.from(1000000000),
+);
+
+// Sign a UserOperation
+final signedOp = await client.signUserOperation(preparedOp);
+
+// Send a prepared UserOperation
+final hash = await client.sendPreparedUserOperation(signedOp);
+
+// Send in one call (prepare + sign + send)
+final hash = await client.sendUserOperation(
+  calls: [call],
+  maxFeePerGas: BigInt.from(20000000000),
+  maxPriorityFeePerGas: BigInt.from(1000000000),
+);
+
+// Wait for receipt
+final receipt = await client.waitForReceipt(hash);
+</code></pre>
+<h3 id="pimlicoclient">PimlicoClient</h3>
+<p>Pimlico-specific bundler extensions:</p>
+<pre class="language-dart"><code class="language-dart">final pimlico = createPimlicoClient(
+  url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=...',
+  entryPoint: EntryPointAddresses.v07,
+);
+
+// Get gas prices (slow, standard, fast)
+final gasPrices = await pimlico.getUserOperationGasPrice();
+print('Fast: ${gasPrices.fast.maxFeePerGas}');
+
+// Get detailed operation status
+final status = await pimlico.getUserOperationStatus(hash);
+
+// Get supported ERC-20 tokens for gas payment
+final tokens = await pimlico.getSupportedTokens();
+
+// Get token quotes for ERC-20 paymaster
+final quotes = await pimlico.getTokenQuotes([usdcAddress]);
+</code></pre>
+<h3 id="publicclient">PublicClient</h3>
+<p>Standard Ethereum JSON-RPC:</p>
+<pre class="language-dart"><code class="language-dart">final publicClient = createPublicClient(
+  url: 'https://...',
+);
+
+// Check if account is deployed
+final isDeployed = await publicClient.isDeployed(address);
+
+// Get chain ID
+final chainId = await publicClient.getChainId();
+
+// Get account nonce (from EntryPoint)
+final nonce = await publicClient.getAccountNonce(
+  sender: address,
+  entryPoint: EntryPointAddresses.v07,
+);
+
+// Make a contract call
+final result = await publicClient.call(
+  Call(to: contractAddress, data: callData),
+);
+</code></pre>
+<h2 id="erc-7579-actions">ERC-7579 Actions</h2>
+<p>For ERC-7579 compliant accounts (Kernel v0.3.x, Safe 7579, Nexus):</p>
+<pre class="language-dart"><code class="language-dart">// Install a module
+final installCallData = encodeInstallModule(
+  moduleType: Erc7579ModuleType.validator,
+  module: moduleAddress,
+  initData: '0x',
+);
+
+// Uninstall a module
+final uninstallCallData = encodeUninstallModule(
+  moduleType: Erc7579ModuleType.executor,
+  module: moduleAddress,
+  deInitData: '0x',
+);
+
+// Check if module is installed
+final isInstalled = await supportsModule(
+  client: smartAccountClient,
+  moduleType: Erc7579ModuleType.validator,
+);
+</code></pre>
+<h2 id="smart-account-actions">Smart Account Actions</h2>
+<p>Sign messages and typed data:</p>
+<pre class="language-dart"><code class="language-dart">// Sign a personal message (EIP-191)
+final signature = await account.signMessage('Hello World');
+
+// Sign typed data (EIP-712)
+final typedData = TypedData(
+  domain: TypedDataDomain(
+    name: 'MyApp',
+    version: '1',
+    chainId: BigInt.from(1),
+    verifyingContract: contractAddress,
+  ),
+  types: {
+    'Message': [
+      TypedDataField(name: 'content', type: 'string'),
+    ],
+  },
+  primaryType: 'Message',
+  message: {'content': 'Hello'},
+);
+final signature = await account.signTypedData(typedData);
+</code></pre>
+<h2 id="gas-utilities">Gas Utilities</h2>
+<pre class="language-dart"><code class="language-dart">// Calculate total gas limit
+final totalGas = totalGasLimit(
+  callGasLimit: estimates.callGasLimit,
+  verificationGasLimit: estimates.verificationGasLimit,
+  preVerificationGas: estimates.preVerificationGas,
+);
+
+// Get required prefund
+final prefund = getRequiredPrefund(userOp);
+</code></pre>
+<h2 id="erc-20-paymaster-experimental">ERC-20 Paymaster (Experimental)</h2>
+<p>Pay gas fees with ERC-20 tokens instead of ETH:</p>
+<pre class="language-dart"><code class="language-dart">import 'package:permissionless/permissionless.dart';
+
+// Prepare a UserOperation with ERC-20 gas payment
+final result = await prepareUserOperationForErc20Paymaster(
+  smartAccountClient: client,
+  pimlicoClient: pimlico,
+  publicClient: public,
+  token: usdcAddress,
+  calls: [transferCall],
+  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+);
+
+print('Max cost: ${result.maxCostInToken} tokens');
+print('Approval injected: ${result.approvalInjected}');
+
+// Sign and send
+final signedOp = await client.signUserOperation(result.userOperation);
+final hash = await client.sendPreparedUserOperation(signedOp);
+</code></pre>
+<h2 id="erc-20-state-overrides">ERC-20 State Overrides</h2>
+<p>Simulate token balances during gas estimation:</p>
+<pre class="language-dart"><code class="language-dart">// Create balance override for gas estimation
+final stateOverride = erc20BalanceOverride(
+  token: usdcAddress,
+  owner: accountAddress,
+  slot: BigInt.zero,  // Balance storage slot
+);
+
+// Create allowance override
+final allowanceOverride = erc20AllowanceOverride(
+  token: usdcAddress,
+  owner: accountAddress,
+  spender: paymasterAddress,
+  slot: BigInt.one,  // Allowance storage slot
+);
+</code></pre>
+<h2 id="entrypoint-versions">EntryPoint Versions</h2>
+<table>
+<thead>
+<tr>
+<th>Version</th>
+<th>Address</th>
+<th>Accounts</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>v0.6</td>
+<td><code>0x5FF1...2789</code></td>
+<td>Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust</td>
+</tr>
+<tr>
+<td>v0.7</td>
+<td><code>0x0000...0070</code></td>
+<td>Safe v1.4.1/v1.5.0, Kernel v0.3.1, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot</td>
+</tr>
+</tbody>
+</table>
+<h2 id="examples">Examples</h2>
+<p>See the <a href="example/">example/</a> directory for complete working examples:</p>
+<table>
+<thead>
+<tr>
+<th>Example</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>safe_example.dart</code></td>
+<td>Safe multi-sig account</td>
+</tr>
+<tr>
+<td><code>kernel_example.dart</code></td>
+<td>Kernel v0.2.4 and v0.3.1</td>
+</tr>
+<tr>
+<td><code>nexus_example.dart</code></td>
+<td>Biconomy Nexus (ERC-7579)</td>
+</tr>
+<tr>
+<td><code>light_example.dart</code></td>
+<td>Alchemy Light Account</td>
+</tr>
+<tr>
+<td><code>simple_example.dart</code></td>
+<td>Minimal reference account</td>
+</tr>
+<tr>
+<td><code>thirdweb_example.dart</code></td>
+<td>Thirdweb SDK account</td>
+</tr>
+<tr>
+<td><code>trust_example.dart</code></td>
+<td>Trust Wallet Barz</td>
+</tr>
+<tr>
+<td><code>etherspot_example.dart</code></td>
+<td>Etherspot modular account</td>
+</tr>
+<tr>
+<td><code>erc7579_modules_example.dart</code></td>
+<td>ERC-7579 module management</td>
+</tr>
+<tr>
+<td><code>erc20_paymaster_example.dart</code></td>
+<td>Pay gas with ERC-20 tokens</td>
+</tr>
+</tbody>
+</table>
+<p>Run an example:</p>
+<pre class="language-bash"><code class="language-bash">dart run example/safe_example.dart
+</code></pre>
+<h2 id="api-reference">API Reference</h2>
+<p>Generate API documentation:</p>
+<pre class="language-bash"><code class="language-bash">dart doc
+</code></pre>
+<p>Then open <code>doc/api/index.html</code> in your browser.</p>
+<h2 id="testing">Testing</h2>
+<p>Run all tests:</p>
+<pre class="language-bash"><code class="language-bash">dart test
+</code></pre>
+<p>Run specific tests:</p>
+<pre class="language-bash"><code class="language-bash">dart test test/accounts/safe_test.dart
+</code></pre>
+<h2 id="contributing">Contributing</h2>
+<p>Contributions are welcome! Please:</p>
+<ol>
+<li>Fork the repository</li>
+<li>Create a feature branch</li>
+<li>Add tests for new functionality</li>
+<li>Ensure all tests pass: <code>dart test</code></li>
+<li>Run static analysis: <code>dart analyze</code></li>
+<li>Submit a pull request</li>
+</ol>
+<h2 id="related-projects">Related Projects</h2>
+<ul>
+<li><a href="https://github.com/pimlicolabs/permissionless.js">permissionless.js</a> - TypeScript implementation</li>
+<li><a href="https://pimlico.io/">Pimlico</a> - ERC-4337 infrastructure</li>
+<li><a href="https://eips.ethereum.org/EIPS/eip-4337">ERC-4337</a> - Account Abstraction specification</li>
+<li><a href="https://eips.ethereum.org/EIPS/eip-7579">ERC-7579</a> - Modular Smart Account specification</li>
+</ul>
+<h2 id="license">License</h2>
+<p>MIT License - see <a href="LICENSE">LICENSE</a> for details.</p>
+</section>
+
+
+      <section class="summary">
+          <h2>Libraries</h2>
+        <dl>
+          <dt id="permissionless">
+  <span class="name"><a href="permissionless/">permissionless</a></span> 
+
+</dt>
+<dd>Dart implementation of permissionless.js for ERC-4337 smart accounts.
+</dd>
+
+        </dl>
+      </section>
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="https://github.com/LiorAgnin/permissionless.dart">permissionless package</a></li>
+</ol>
+
+    <h5 class="hidden-xs"><span class="package-name">permissionless</span> <span class="package-kind">package</span></h5>
+    <ol>
+      <li class="section-title">Libraries</li>
+      <li><a href="permissionless/">permissionless</a></li>
+</ol>
+
+  </div>
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div>
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="static-assets/highlight.pack.js?v1"></script>
+<script src="static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+

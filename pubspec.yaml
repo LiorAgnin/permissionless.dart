@@ -1,0 +1,30 @@
+name: permissionless
+description: >-
+  A Dart implementation of permissionless.js for ERC-4337 smart accounts.
+  Supports Safe, Simple, Kernel, and Etherspot accounts with bundler and
+  paymaster clients.
+version: 0.1.0
+homepage: https://github.com/LiorAgnin/permissionless.dart
+repository: https://github.com/LiorAgnin/permissionless.dart
+issue_tracker: https://github.com/LiorAgnin/permissionless.dart/issues
+topics:
+  - account-abstraction
+  - erc4337
+  - erc7579
+  - smart-accounts
+  - web3
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  # Ethereum utilities
+  web3dart: ^3.0.1
+  # Hex encoding/decoding
+  convert: ^3.1.2
+  # HTTP client for RPC calls
+  http: ^1.6.0
+
+dev_dependencies:
+  test: ^1.25.0
+  lints: ^6.0.0

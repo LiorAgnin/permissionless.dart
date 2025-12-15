@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the SmartAccountActions extension from the permissionless library, for the Dart programming language.">
+  <title>SmartAccountActions extension - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless.dart</a></li>
+    <li class="self-crumb">SmartAccountActions extension</li>
+  </ol>
+  <div class="self-name">SmartAccountActions</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+<div
+    id="dartdoc-main-content"
+    class="main-content extension-page"
+    data-above-sidebar="permissionless&#47;permissionless-library-sidebar.html"
+    data-below-sidebar="permissionless&#47;SmartAccountActions-extension-sidebar.html">
+    <div>
+<h1><span class="kind-class">SmartAccountActions</span> extension 
+ 
+</h1></div>
+
+    
+<section class="desc markdown">
+  <p>Extension methods for SmartAccountClient providing high-level actions.</p>
+<p>These actions mirror the TypeScript permissionless.js API:</p>
+<ul>
+<li><code>signMessage</code> - EIP-191 personal message signing</li>
+<li><code>signTypedData</code> - EIP-712 typed data signing</li>
+<li><code>sendTransaction</code> - Send a single transaction and wait for tx hash</li>
+<li><code>writeContract</code> - Encode and send a contract call</li>
+<li><code>sendCalls</code> - ERC-5792 batch calls (returns immediately)</li>
+<li><code>getCallsStatus</code> - ERC-5792 status check</li>
+</ul>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">// Sign a message
+final signature = await client.signMessage('Hello, World!');
+
+// Send a transaction
+final txHash = await client.sendTransaction(
+  to: recipient,
+  value: parseEther('1'),
+  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+);
+</code></pre>
+</section>
+
+    <section>
+      <dl class="dl-horizontal">
+        <dt>on</dt>
+        <dd>
+          <ul class="comma-separated clazz-relationships">
+            <li><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></li>
+          </ul>
+        </dd>
+      </dl>
+      
+
+
+    </section>
+    
+
+    
+  <section
+      class="summary offset-anchor"
+      id="instance-methods">
+    <h2>Methods</h2>
+    <dl class="callables">
+        <dt id="getCallsStatus" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/getCallsStatus.html">getCallsStatus</a></span><span class="signature">(<wbr><span class="parameter" id="getCallsStatus-param-id"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">id</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/CallsStatus-class.html">CallsStatus</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Gets the status of a sendCalls operation (ERC-5792).
+  
+
+</dd>
+
+        <dt id="sendCalls" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/sendCalls.html">sendCalls</a></span><span class="signature">(<wbr>{<span class="parameter" id="sendCalls-param-calls"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span>, </span><span class="parameter" id="sendCalls-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="sendCalls-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="sendCalls-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Sends multiple calls as a batch (ERC-5792).
+  
+
+</dd>
+
+        <dt id="sendTransaction" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/sendTransaction.html">sendTransaction</a></span><span class="signature">(<wbr>{<span class="parameter" id="sendTransaction-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span><span class="parameter" id="sendTransaction-param-value"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">value</span>, </span><span class="parameter" id="sendTransaction-param-data"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">data</span> = <span class="default-value">&#39;0x&#39;</span>, </span><span class="parameter" id="sendTransaction-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="sendTransaction-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="sendTransaction-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="sendTransaction-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">timeout</span> = <span class="default-value">const Duration(seconds: 60)</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Sends a transaction and waits for the on-chain transaction hash.
+  
+
+</dd>
+
+        <dt id="signMessage" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/signMessage.html">signMessage</a></span><span class="signature">(<wbr><span class="parameter" id="signMessage-param-message"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">message</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Signs a personal message (EIP-191).
+  
+
+</dd>
+
+        <dt id="signTypedData" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/signTypedData.html">signTypedData</a></span><span class="signature">(<wbr><span class="parameter" id="signTypedData-param-typedData"><span class="type-annotation"><a href="../permissionless/TypedData-class.html">TypedData</a></span> <span class="parameter-name">typedData</span></span>)
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Signs EIP-712 typed data.
+  
+
+</dd>
+
+        <dt id="writeContract" class="callable">
+  <span class="name"><a href="../permissionless/SmartAccountActions/writeContract.html">writeContract</a></span><span class="signature">(<wbr>{<span class="parameter" id="writeContract-param-address"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span><span class="parameter" id="writeContract-param-functionSignature"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">functionSignature</span>, </span><span class="parameter" id="writeContract-param-args"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a></span> <span class="parameter-name">args</span> = <span class="default-value">const []</span>, </span><span class="parameter" id="writeContract-param-value"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">value</span>, </span><span class="parameter" id="writeContract-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span><span class="parameter" id="writeContract-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span><span class="parameter" id="writeContract-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span><span class="parameter" id="writeContract-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">timeout</span> = <span class="default-value">const Duration(seconds: 60)</span></span>})
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
+  </span>
+  
+
+</dt>
+<dd>
+      <p class="from-extension">
+        <span>Available on <a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a>,
+        provided by the <a href="../permissionless/SmartAccountActions.html">SmartAccountActions</a> extension</span>
+      </p>
+  Sends a contract write call.
+  
+
+</dd>
+
+    </dl>
+  </section>
+    
+    
+    
+    
+
+</div> <!-- /.main-content -->
+<div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+  <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless</a></li>
+    <li class="self-crumb">SmartAccountActions extension</li>
+</ol>
+
+  <h5>permissionless library</h5>
+  <div id="dartdoc-sidebar-left-content"></div>
+</div>
+<div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+</div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+
+
+

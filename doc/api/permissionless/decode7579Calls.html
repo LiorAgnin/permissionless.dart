@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=no">
+  <meta name="description" content="API docs for the decode7579Calls function from the permissionless library, for the Dart programming language.">
+  <title>decode7579Calls function - permissionless library - Dart API</title>
+
+
+  
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+  
+  <link rel="stylesheet" href="../static-assets/github.css?v1">
+  <link rel="stylesheet" href="../static-assets/styles.css?v1">
+  <link rel="icon" href="../static-assets/favicon.png?v1">
+  
+</head>
+
+<body data-base-href="../" data-using-base-href="false" class="light-theme">
+<div id="overlay-under-drawer"></div>
+<header id="title">
+  <span id="sidenav-left-toggle" class="material-symbols-outlined" role="button" tabindex="0">menu</span>
+  <ol class="breadcrumbs gt-separated dark hidden-xs">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless.dart</a></li>
+    <li class="self-crumb">decode7579Calls function</li>
+  </ol>
+  <div class="self-name">decode7579Calls</div>
+  <form class="search navbar-right" role="search">
+    <input type="text" id="search-box" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+  <button class="toggle" id="theme-button" title="Toggle between light and dark mode" aria-label="Light and dark mode toggle">
+    <span id="dark-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      dark_mode
+    </span>
+    <span id="light-theme-button" class="material-symbols-outlined" aria-hidden="true">
+      light_mode
+    </span>
+  </button>
+</header>
+<main>
+  <div
+      id="dartdoc-main-content"
+      class="main-content"
+      data-above-sidebar="permissionless&#47;permissionless-library-sidebar.html"
+      data-below-sidebar="">
+      <div>
+<h1><span class="kind-function">decode7579Calls</span> function 
+ 
+</h1></div>
+
+    <section class="multi-line-signature">
+        
+<span class="returntype"><a href="../permissionless/Decoded7579Calls-class.html">Decoded7579Calls</a></span>
+<span class="name ">decode7579Calls</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="decode7579Calls-param-callData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">callData</span></span></li>
+</ol>)
+
+        
+
+    </section>
+    
+<section class="desc markdown">
+  <p>Decodes ERC-7579 execute call data back into mode and calls.</p>
+<p>Reverses the encoding done by <a href="../permissionless/encode7579Execute.html">encode7579Execute</a> or <a href="../permissionless/encode7579ExecuteBatch.html">encode7579ExecuteBatch</a>.</p>
+<p>Example:</p>
+<pre class="language-dart"><code class="language-dart">final decoded = decode7579Calls(userOperation.callData);
+print('Mode: ${decoded.mode.type}');
+for (final call in decoded.calls) {
+  print('  To: ${call.to}, Value: ${call.value}');
+}
+</code></pre>
+<p>Throws <a href="https://api.dart.dev/stable/3.10.4/dart-core/ArgumentError-class.html">ArgumentError</a> if the call data is invalid or not an ERC-7579 execute call.</p>
+</section>
+
+
+    
+<section class="summary source-code" id="source">
+  <h2><span>Implementation</span></h2>
+  <pre class="language-dart"><code class="language-dart">Decoded7579Calls decode7579Calls(String callData) {
+  final hex = Hex.strip0x(callData);
+
+  &#47;&#47; Minimum length: selector (8) + mode (64) + offset (64) = 136 chars
+  if (hex.length &lt; 136) {
+    throw ArgumentError(&#39;Call data too short for ERC-7579 execute&#39;);
+  }
+
+  &#47;&#47; Check function selector
+  final selector = &#39;0x${hex.substring(0, 8)}&#39;;
+  if (selector != Erc7579Selectors.execute) {
+    throw ArgumentError(
+      &#39;Invalid selector: expected ${Erc7579Selectors.execute}, got $selector&#39;,
+    );
+  }
+
+  &#47;&#47; Parse mode (bytes32 at offset 8-72)
+  final modeHex = hex.substring(8, 72);
+  final modeBytes = Hex.decode(&#39;0x$modeHex&#39;);
+
+  &#47;&#47; Decode mode components
+  final callType = Erc7579CallKind.fromValue(modeBytes[0]);
+  final revertOnError = modeBytes[1] == 0x00;
+
+  &#47;&#47; Bytes 6-9: selector (4 bytes)
+  String? modeSelector;
+  if (modeBytes[6] != 0 ||
+      modeBytes[7] != 0 ||
+      modeBytes[8] != 0 ||
+      modeBytes[9] != 0) {
+    modeSelector = Hex.fromBytes(Uint8List.fromList(modeBytes.sublist(6, 10)));
+  }
+
+  &#47;&#47; Bytes 10-31: context (22 bytes)
+  String? modeContext;
+  var hasContext = false;
+  for (var i = 10; i &lt; 32; i++) {
+    if (modeBytes[i] != 0) {
+      hasContext = true;
+      break;
+    }
+  }
+  if (hasContext) {
+    modeContext = Hex.fromBytes(Uint8List.fromList(modeBytes.sublist(10, 32)));
+  }
+
+  final mode = ExecutionMode(
+    type: callType,
+    revertOnError: revertOnError,
+    selector: modeSelector,
+    context: modeContext,
+  );
+
+  &#47;&#47; Parse execution calldata offset (bytes 72-136)
+  &#47;&#47; final offsetHex = hex.substring(72, 136);
+  &#47;&#47; Offset should be 64 (0x40) pointing past mode and offset itself
+
+  &#47;&#47; Parse execution calldata length (at offset position)
+  final lengthHex = hex.substring(136, 200);
+  final length = int.parse(lengthHex, radix: 16);
+
+  if (length == 0) {
+    return Decoded7579Calls(mode: mode, calls: []);
+  }
+
+  &#47;&#47; Extract execution calldata
+  final executionHex = hex.substring(200, 200 + length * 2);
+
+  &#47;&#47; Decode based on call type
+  if (callType == Erc7579CallKind.batchCall) {
+    final calls = _decodeBatchCalls(executionHex);
+    return Decoded7579Calls(mode: mode, calls: calls);
+  } else {
+    &#47;&#47; Single call: packed as (address, value, calldata)
+    final call = _decodeSingleCall(executionHex);
+    return Decoded7579Calls(mode: mode, calls: [call]);
+  }
+}</code></pre>
+</section>
+
+
+  </div> <!-- /.main-content -->
+  <div id="dartdoc-sidebar-left" class="sidebar sidebar-offcanvas-left">
+    <!-- The search input and breadcrumbs below are only responsively visible at low resolutions. -->
+<header id="header-search-sidebar" class="hidden-l">
+  <form class="search-sidebar" role="search">
+    <input type="text" id="search-sidebar" autocomplete="off" disabled class="form-control typeahead" placeholder="Loading search...">
+  </form>
+</header>
+<ol class="breadcrumbs gt-separated dark hidden-l" id="sidebar-nav">
+    <li><a href="../index.html">permissionless</a></li>
+    <li><a href="../permissionless/">permissionless</a></li>
+    <li class="self-crumb">decode7579Calls function</li>
+</ol>
+
+    <h5>permissionless library</h5>
+    <div id="dartdoc-sidebar-left-content"></div>
+  </div><!--/.sidebar-offcanvas-left-->
+  <div id="dartdoc-sidebar-right" class="sidebar sidebar-offcanvas-right">
+  </div><!--/.sidebar-offcanvas-->
+</main>
+<footer>
+  <span class="no-break">
+    permissionless
+      0.1.0
+  </span>
+  
+</footer>
+
+
+<script src="../static-assets/highlight.pack.js?v1"></script>
+<script src="../static-assets/docs.dart.js"></script>
+
+</body>
+</html>
+
