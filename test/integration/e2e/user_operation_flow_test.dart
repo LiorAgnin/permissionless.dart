@@ -57,7 +57,7 @@ void main() {
             account: account!,
             bundler: bundler!,
             paymaster: paymaster,
-            publicClient: publicClient,
+            publicClient: publicClient!,
           );
         });
 

@@ -114,21 +114,17 @@ final hash = await client.sendPreparedUserOperationWithAuth(
 
   &#47;&#47; Check if account is already deployed (requires publicClient)
   var isDeployed = false;
-  if (publicClient != null) {
-    isDeployed = await publicClient!.isDeployed(sender);
-  }
+  isDeployed = await publicClient.isDeployed(sender);
 
   &#47;&#47; Auto-fetch nonce if not provided and publicClient is available
   BigInt accountNonce;
   if (nonce != null) {
     accountNonce = nonce;
-  } else if (publicClient != null) {
-    accountNonce = await publicClient!.getAccountNonce(
+  } else {
+    accountNonce = await publicClient.getAccountNonce(
       sender,
       account.entryPoint,
     );
-  } else {
-    accountNonce = BigInt.zero;
   }
 
   &#47;&#47; Get factory data if account is not yet deployed

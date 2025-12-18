@@ -89,6 +89,7 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: pimlico,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 

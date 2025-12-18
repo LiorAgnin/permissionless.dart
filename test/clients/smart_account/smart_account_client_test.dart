@@ -115,6 +115,41 @@ void main() {
           );
         });
 
+    /// Creates a mock PublicClient for testing.
+    /// By default returns empty code (not deployed account).
+    PublicClient createPublicClientMock({bool isDeployed = false}) {
+      final mock = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final method = body['method'] as String;
+
+        dynamic result;
+        if (method == 'eth_getCode') {
+          // Return code if deployed, empty otherwise
+          result = isDeployed ? '0x6080604052' : '0x';
+        } else if (method == 'eth_call') {
+          // Return nonce for getAccountNonce
+          result =
+              '0x0000000000000000000000000000000000000000000000000000000000000000';
+        }
+
+        return http.Response(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'id': body['id'],
+            'result': result,
+          }),
+          200,
+        );
+      });
+
+      return PublicClient(
+        rpcClient: JsonRpcClient(
+          url: Uri.parse('http://localhost:8545'),
+          httpClient: mock,
+        ),
+      );
+    }
+
     group('getAddress', () {
       test('returns account address', () async {
         final bundler = createBundlerClient(
@@ -126,6 +161,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final address = await client.getAddress();
@@ -146,6 +182,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
@@ -192,6 +229,7 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
@@ -248,6 +286,7 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
@@ -341,6 +380,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final preparedUserOp = await client.prepareUserOperation(
@@ -373,6 +413,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         var userOp = await client.prepareUserOperation(
@@ -408,6 +449,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final hash = await client.sendUserOperation(
@@ -447,6 +489,7 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         await client.sendUserOperation(
@@ -480,6 +523,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final receipt = await client.waitForReceipt(
@@ -504,6 +548,7 @@ void main() {
         final client = createSmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         expect(client, isA<SmartAccountClient>());

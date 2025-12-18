@@ -42,6 +42,7 @@ class PreparedUserOperation {
 /// final client = SmartAccountClient(
 ///   account: safeAccount,
 ///   bundler: bundlerClient,
+///   publicClient: publicClient,
 ///   paymaster: paymasterClient, // optional
 /// );
 ///
@@ -59,8 +60,8 @@ class SmartAccountClient {
   SmartAccountClient({
     required this.account,
     required this.bundler,
+    required this.publicClient,
     this.paymaster,
-    this.publicClient,
   });
 
   /// The smart account to use for operations.
@@ -76,7 +77,7 @@ class SmartAccountClient {
   ///
   /// Required for EIP-7702 accounts to check if delegation is active
   /// and to retrieve the EOA nonce for authorization creation.
-  final PublicClient? publicClient;
+  final PublicClient publicClient;
 
   /// Gets the address of the smart account.
   Future<EthereumAddress> getAddress() => account.getAddress();
@@ -86,18 +87,18 @@ class SmartAccountClient {
   /// Returns null if authorization is not needed (non-EIP-7702 account,
   /// no public client, or delegation already active).
   Future<Eip7702Authorization?> _createAuthorizationIfNeeded() async {
-    if (account is! Eip7702SmartAccount || publicClient == null) {
+    if (account is! Eip7702SmartAccount) {
       return null;
     }
 
     final address = await account.getAddress();
-    final isDeployed = await publicClient!.isDeployed(address);
+    final isDeployed = await publicClient.isDeployed(address);
     if (isDeployed) {
       return null;
     }
 
     // Get EOA nonce for authorization
-    final eoaNonce = await publicClient!.getTransactionCount(address);
+    final eoaNonce = await publicClient.getTransactionCount(address);
     return (account as Eip7702SmartAccount).getAuthorization(nonce: eoaNonce);
   }
 
@@ -193,21 +194,17 @@ class SmartAccountClient {
 
     // Check if account is already deployed (requires publicClient)
     var isDeployed = false;
-    if (publicClient != null) {
-      isDeployed = await publicClient!.isDeployed(sender);
-    }
+    isDeployed = await publicClient.isDeployed(sender);
 
     // Auto-fetch nonce if not provided and publicClient is available
     BigInt accountNonce;
     if (nonce != null) {
       accountNonce = nonce;
-    } else if (publicClient != null) {
-      accountNonce = await publicClient!.getAccountNonce(
+    } else {
+      accountNonce = await publicClient.getAccountNonce(
         sender,
         account.entryPoint,
       );
-    } else {
-      accountNonce = BigInt.zero;
     }
 
     // Get factory data if account is not yet deployed
@@ -473,9 +470,7 @@ class SmartAccountClient {
 
     // Check if account is already deployed (requires publicClient)
     var isDeployed = false;
-    if (publicClient != null) {
-      isDeployed = await publicClient!.isDeployed(sender);
-    }
+    isDeployed = await publicClient.isDeployed(sender);
 
     // Get initCode if account is not yet deployed
     var initCode = '0x';
@@ -662,12 +657,12 @@ class SmartAccountClient {
 SmartAccountClient createSmartAccountClient({
   required SmartAccount account,
   required BundlerClient bundler,
+  required PublicClient publicClient,
   PaymasterClient? paymaster,
-  PublicClient? publicClient,
 }) =>
     SmartAccountClient(
       account: account,
       bundler: bundler,
-      paymaster: paymaster,
       publicClient: publicClient,
+      paymaster: paymaster,
     );

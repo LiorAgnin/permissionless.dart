@@ -102,7 +102,8 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
-    paymaster: paymaster,
+    publicClient: publicClient,
+    paymaster: paymaster, // optional
   );
 
   // 6. Send a sponsored transaction
@@ -327,6 +328,7 @@ High-level operations combining account, bundler, and paymaster:
 final client = SmartAccountClient(
   account: account,
   bundler: bundler,
+  publicClient: publicClient,
   paymaster: paymaster,  // Optional
 );
 

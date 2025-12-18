@@ -196,7 +196,8 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
-    paymaster: paymaster,
+    publicClient: publicClient,
+    paymaster: paymaster, // optional
   );
 
   // 6. Send a sponsored transaction
@@ -383,6 +384,7 @@ final paymasterData = await paymaster.getPaymasterData(
 <pre class="language-dart"><code class="language-dart">final client = SmartAccountClient(
   account: account,
   bundler: bundler,
+  publicClient: publicClient,
   paymaster: paymaster,  // Optional
 );
 

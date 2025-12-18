@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `prepareUserOperation`, `prepareUserOperationWithAuth`, `sendUserOperation`, `sendUserOperationAndWait`
   - `prepareUserOperationV06`, `sendUserOperationV06`, `sendUserOperationV06AndWait`
   - The SDK now automatically detects deployment status via `publicClient.isDeployed()` and includes factory data only when needed
+  - **Important**: `publicClient` parameter is now required in `SmartAccountClient` constructor for auto-detection to work
   - This simplifies the API - users no longer need to track deployment status themselves
 - Added `wallet` package as direct dependency for `EthereumAddress` type
 

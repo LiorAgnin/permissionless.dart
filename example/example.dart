@@ -50,6 +50,7 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 

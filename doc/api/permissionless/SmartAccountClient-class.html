@@ -61,6 +61,7 @@ to provide a seamless UserOperation flow.</p>
 <pre class="language-dart"><code class="language-dart">final client = SmartAccountClient(
   account: safeAccount,
   bundler: bundlerClient,
+  publicClient: publicClient,
   paymaster: paymasterClient, // optional
 );
 
@@ -102,7 +103,7 @@ final receipt = await client.waitForReceipt(hash);
     <h2>Constructors</h2>
     <dl class="constructor-summary-list">
         <dt id="SmartAccountClient.new" class="callable">
-          <span class="name"><a href="../permissionless/SmartAccountClient/SmartAccountClient.html">SmartAccountClient</a></span><span class="signature">({<span class="parameter" id="-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccount-class.html">SmartAccount</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="-param-bundler"><span>required</span> <span class="type-annotation"><a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span> <span class="parameter-name">bundler</span>, </span><span class="parameter" id="-param-paymaster"><span class="type-annotation"><a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a>?</span> <span class="parameter-name">paymaster</span>, </span><span class="parameter" id="-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span></span>})</span>
+          <span class="name"><a href="../permissionless/SmartAccountClient/SmartAccountClient.html">SmartAccountClient</a></span><span class="signature">({<span class="parameter" id="-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccount-class.html">SmartAccount</a></span> <span class="parameter-name">account</span>, </span><span class="parameter" id="-param-bundler"><span>required</span> <span class="type-annotation"><a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span> <span class="parameter-name">bundler</span>, </span><span class="parameter" id="-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span><span class="parameter" id="-param-paymaster"><span class="type-annotation"><a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a>?</span> <span class="parameter-name">paymaster</span></span>})</span>
         </dt>
         <dd>
           
@@ -165,7 +166,7 @@ final receipt = await client.waitForReceipt(hash);
 
         <dt id="publicClient" class="property">
   <span class="name"><a href="../permissionless/SmartAccountClient/publicClient.html">publicClient</a></span>
-  <span class="signature">&#8594; <a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span>
+  <span class="signature">&#8594; <a href="../permissionless/PublicClient-class.html">PublicClient</a></span>
   
 
 </dt>

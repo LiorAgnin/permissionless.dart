@@ -96,9 +96,7 @@ correct address from the EntryPoint).</p>
 
   &#47;&#47; Check if account is already deployed (requires publicClient)
   var isDeployed = false;
-  if (publicClient != null) {
-    isDeployed = await publicClient!.isDeployed(sender);
-  }
+  isDeployed = await publicClient.isDeployed(sender);
 
   &#47;&#47; Get initCode if account is not yet deployed
   var initCode = &#39;0x&#39;;

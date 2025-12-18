@@ -101,6 +101,7 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: bundler,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 
