@@ -12,17 +12,17 @@ class EtherspotAddresses {
 
   /// ModularEtherspotWalletFactory for deploying wallets.
   /// Deploys via CREATE2 with createAccount(bytes32 salt, bytes initCode).
-  static final EthAddress factory = EthAddress(
+  static final EthereumAddress factory = EthereumAddress.fromHex(
     '0x2A40091f044e48DEB5C0FCbc442E443F3341B451',
   );
 
   /// Bootstrap contract for initializing wallet modules.
-  static final EthAddress bootstrap = EthAddress(
+  static final EthereumAddress bootstrap = EthereumAddress.fromHex(
     '0x0D5154d7751b6e2fDaa06F0cC9B400549394C8AA',
   );
 
   /// Multiple owner ECDSA validator module address.
-  static final EthAddress ecdsaValidator = EthAddress(
+  static final EthereumAddress ecdsaValidator = EthereumAddress.fromHex(
     '0x0740Ed7c11b9da33d9C80Bd76b826e4E90CC1906',
   );
 }

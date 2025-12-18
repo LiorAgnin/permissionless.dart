@@ -35,7 +35,7 @@ class PackedUserOperation {
   });
 
   /// The smart account address.
-  final EthAddress sender;
+  final EthereumAddress sender;
 
   /// The account's nonce.
   final BigInt nonce;
@@ -196,7 +196,7 @@ class UnpackedInitCode {
   });
 
   /// The factory address, or null if no factory.
-  final EthAddress? factory;
+  final EthereumAddress? factory;
 
   /// The factory calldata, or null if no factory.
   final String? factoryData;
@@ -221,7 +221,7 @@ UnpackedInitCode unpackInitCode(String initCode) {
   }
 
   return UnpackedInitCode(
-    factory: EthAddress('0x${hex.substring(0, 40)}'),
+    factory: EthereumAddress.fromHex('0x${hex.substring(0, 40)}'),
     factoryData: hex.length > 40 ? '0x${hex.substring(40)}' : '0x',
   );
 }
@@ -300,7 +300,7 @@ class UnpackedPaymasterAndData {
   });
 
   /// The paymaster address, or null if no paymaster.
-  final EthAddress? paymaster;
+  final EthereumAddress? paymaster;
 
   /// The paymaster verification gas limit, or null if no paymaster.
   final BigInt? paymasterVerificationGasLimit;
@@ -334,7 +334,7 @@ UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
   }
 
   return UnpackedPaymasterAndData(
-    paymaster: EthAddress('0x${hex.substring(0, 40)}'),
+    paymaster: EthereumAddress.fromHex('0x${hex.substring(0, 40)}'),
     paymasterVerificationGasLimit:
         BigInt.parse(hex.substring(40, 72), radix: 16),
     paymasterPostOpGasLimit: BigInt.parse(hex.substring(72, 104), radix: 16),

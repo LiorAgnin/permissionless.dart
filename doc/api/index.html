@@ -196,14 +196,15 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
-    paymaster: paymaster,
+    publicClient: publicClient,
+    paymaster: paymaster, // optional
   );
 
   // 6. Send a sponsored transaction
   final hash = await client.sendUserOperation(
     calls: [
       Call(
-        to: EthAddress('0x...'),
+        to: EthereumAddress.fromHex('0x...'),
         value: BigInt.zero,
         data: '0x',
       ),
@@ -383,6 +384,7 @@ final paymasterData = await paymaster.getPaymasterData(
 <pre class="language-dart"><code class="language-dart">final client = SmartAccountClient(
   account: account,
   bundler: bundler,
+  publicClient: publicClient,
   paymaster: paymaster,  // Optional
 );
 
@@ -698,7 +700,7 @@ final allowanceOverride = erc20AllowanceOverride(
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

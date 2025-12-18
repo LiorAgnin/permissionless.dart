@@ -113,8 +113,8 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: bundler,
+    publicClient: publicClient,
     paymaster: paymaster,
-    publicClient: publicClient, // Required for EIP-7702 authorization handling
   );
 
   // ================================================================

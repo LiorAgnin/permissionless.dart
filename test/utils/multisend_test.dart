@@ -7,7 +7,9 @@ void main() {
       test('encodes single call', () {
         final calls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.from(1000),
             data: '0x',
           ),
@@ -22,12 +24,16 @@ void main() {
       test('encodes multiple calls', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.from(1000),
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(2000),
             data: '0xabcd',
           ),
@@ -47,7 +53,9 @@ void main() {
       test('handles call with data', () {
         final calls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.zero,
             data: '0xa9059cbb', // transfer selector
           ),
@@ -62,7 +70,9 @@ void main() {
       test('round-trips single call', () {
         final originalCalls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.from(1000),
             data: '0x',
           ),
@@ -79,12 +89,16 @@ void main() {
       test('round-trips multiple calls', () {
         final originalCalls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.from(1000),
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(2000),
             data: '0xabcdef',
           ),
@@ -104,7 +118,9 @@ void main() {
       test('preserves large values', () {
         final originalCalls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.parse('1000000000000000000'), // 1 ETH
             data: '0x',
           ),

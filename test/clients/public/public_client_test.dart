@@ -40,7 +40,7 @@ void main() {
         );
 
         final code = await client.getCode(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(code, equals('0x608060405234801561001057600080fd5b50'));
@@ -56,7 +56,7 @@ void main() {
         );
 
         final code = await client.getCode(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(code, equals('0x'));
@@ -70,7 +70,7 @@ void main() {
         );
 
         await client.getCode(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
           blockTag: 'pending',
         );
 
@@ -89,7 +89,7 @@ void main() {
         );
 
         final deployed = await client.isDeployed(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(deployed, isTrue);
@@ -103,7 +103,7 @@ void main() {
         );
 
         final deployed = await client.isDeployed(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(deployed, isFalse);
@@ -121,7 +121,7 @@ void main() {
         );
 
         final balance = await client.getBalance(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(balance, equals(BigInt.parse('1000000000000000000')));
@@ -136,7 +136,7 @@ void main() {
         );
 
         final balance = await client.getBalance(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(balance, equals(BigInt.zero));
@@ -156,7 +156,9 @@ void main() {
 
         final result = await client.call(
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             data: '0x70a08231', // balanceOf selector
           ),
         );
@@ -179,7 +181,9 @@ void main() {
 
         await client.call(
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.from(1000000000000000000),
             data: '0x',
           ),
@@ -200,7 +204,7 @@ void main() {
         );
 
         final nonce = await client.getTransactionCount(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
         );
 
         expect(nonce, equals(BigInt.from(5)));
@@ -295,7 +299,7 @@ void main() {
         );
 
         final nonce = await client.getAccountNonce(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
           EntryPointAddresses.v07,
         );
 
@@ -322,7 +326,7 @@ void main() {
         );
 
         final nonce = await client.getAccountNonce(
-          EthAddress('0x1234567890123456789012345678901234567890'),
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
           EntryPointAddresses.v07,
           nonceKey: BigInt.from(1),
         );

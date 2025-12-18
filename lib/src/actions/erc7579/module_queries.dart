@@ -25,9 +25,9 @@ import '../../utils/erc7579.dart';
 /// ```
 Future<bool> isModuleInstalled({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
   required Erc7579ModuleType moduleType,
-  required EthAddress module,
+  required EthereumAddress module,
   String additionalContext = '0x',
 }) async {
   final callData = encode7579IsModuleInstalled(
@@ -63,7 +63,7 @@ Future<bool> isModuleInstalled({
 /// ```
 Future<bool> supportsModule({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
   required Erc7579ModuleType moduleType,
 }) async {
   final callData = encode7579SupportsModule(moduleType);
@@ -87,7 +87,7 @@ Future<bool> supportsModule({
 /// ```
 Future<String> getAccountId({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
 }) async {
   final callData = encode7579AccountId();
   final result = await publicClient.call(Call(to: account, data: callData));
@@ -113,13 +113,13 @@ Future<String> getAccountId({
 ///
 /// print('Installed validators: $installedValidators');
 /// ```
-Future<List<EthAddress>> getInstalledModulesOfType({
+Future<List<EthereumAddress>> getInstalledModulesOfType({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
   required Erc7579ModuleType moduleType,
-  required List<EthAddress> candidateModules,
+  required List<EthereumAddress> candidateModules,
 }) async {
-  final installed = <EthAddress>[];
+  final installed = <EthereumAddress>[];
 
   for (final module in candidateModules) {
     final isInstalled = await isModuleInstalled(

@@ -8,8 +8,9 @@ void main() {
         name: 'Test App',
         version: '1.0.0',
         chainId: BigInt.from(1),
-        verifyingContract:
-            EthAddress('0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'),
+        verifyingContract: EthereumAddress.fromHex(
+          '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        ),
         salt:
             '0x0000000000000000000000000000000000000000000000000000000000000001',
       );
@@ -116,8 +117,9 @@ void main() {
           name: 'Test Token',
           version: '1',
           chainId: BigInt.from(1),
-          verifyingContract:
-              EthAddress('0x6B175474E89094C44Da98b954eedeAC495271d0F'),
+          verifyingContract: EthereumAddress.fromHex(
+            '0x6B175474E89094C44Da98b954eedeAC495271d0F',
+          ),
         ),
         types: {
           'Permit': [

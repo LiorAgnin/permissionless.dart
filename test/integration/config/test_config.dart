@@ -93,5 +93,5 @@ enum TestChain {
   }
 
   /// EntryPoint v0.7 address (same across all chains).
-  EthAddress get entryPointV07 => EntryPointAddresses.v07;
+  EthereumAddress get entryPointV07 => EntryPointAddresses.v07;
 }

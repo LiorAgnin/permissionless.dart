@@ -12,7 +12,7 @@ import '../../types/user_operation.dart';
 /// ```dart
 /// class MyCustomAccount implements SmartAccount {
 ///   @override
-///   Future<EthAddress> getAddress() async => ...;
+///   Future<EthereumAddress> getAddress() async => ...;
 ///
 ///   // ... implement other methods
 /// }
@@ -21,7 +21,7 @@ abstract class SmartAccount {
   /// Gets the deterministic address of this account.
   ///
   /// For CREATE2-based accounts, this can be computed before deployment.
-  Future<EthAddress> getAddress();
+  Future<EthereumAddress> getAddress();
 
   /// Gets the init code for deploying this account.
   ///
@@ -32,7 +32,7 @@ abstract class SmartAccount {
   /// Gets the factory address and data for UserOperation v0.7.
   ///
   /// Returns null if the account is already deployed.
-  Future<({EthAddress factory, String factoryData})?> getFactoryData();
+  Future<({EthereumAddress factory, String factoryData})?> getFactoryData();
 
   /// Encodes a single call for execution by this account.
   String encodeCall(Call call);
@@ -89,7 +89,7 @@ abstract class SmartAccount {
   BigInt get chainId;
 
   /// The EntryPoint address this account uses.
-  EthAddress get entryPoint;
+  EthereumAddress get entryPoint;
 
   /// The nonce key for parallel transaction support.
   ///
@@ -132,7 +132,7 @@ abstract class Eip7702SmartAccount implements SmartAccount {
   ///
   /// This is the implementation contract that the EOA will execute code from
   /// when the EIP-7702 authorization is active.
-  EthAddress get accountLogicAddress;
+  EthereumAddress get accountLogicAddress;
 
   /// Whether this account uses EIP-7702 code delegation.
   ///

@@ -43,7 +43,7 @@ class EtherspotSmartAccountConfig {
   /// If provided, this address will be used directly.
   /// If not provided but [publicClient] is set, the address will be
   /// computed on-demand via [PublicClient.getSenderAddress].
-  final EthAddress? address;
+  final EthereumAddress? address;
 
   /// Public client for on-chain address computation (optional).
   ///
@@ -61,9 +61,9 @@ class EtherspotCustomAddresses {
     this.ecdsaValidator,
   });
 
-  final EthAddress? factory;
-  final EthAddress? bootstrap;
-  final EthAddress? ecdsaValidator;
+  final EthereumAddress? factory;
+  final EthereumAddress? bootstrap;
+  final EthereumAddress? ecdsaValidator;
 }
 
 /// Etherspot ModularEtherspotWallet smart account implementation.
@@ -74,7 +74,7 @@ class EtherspotSmartAccount implements SmartAccount {
   EtherspotSmartAccount(this._config);
 
   final EtherspotSmartAccountConfig _config;
-  EthAddress? _cachedAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The account owner.
   AccountOwner get owner => _config.owner;
@@ -86,20 +86,20 @@ class EtherspotSmartAccount implements SmartAccount {
   BigInt get index => _config.index;
 
   /// The factory address.
-  EthAddress get factory =>
+  EthereumAddress get factory =>
       _config.customAddresses?.factory ?? EtherspotAddresses.factory;
 
   /// The bootstrap address.
-  EthAddress get bootstrap =>
+  EthereumAddress get bootstrap =>
       _config.customAddresses?.bootstrap ?? EtherspotAddresses.bootstrap;
 
   /// The ECDSA validator address.
-  EthAddress get ecdsaValidator =>
+  EthereumAddress get ecdsaValidator =>
       _config.customAddresses?.ecdsaValidator ??
       EtherspotAddresses.ecdsaValidator;
 
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint => EntryPointAddresses.v07;
 
   @override
   BigInt get nonceKey {
@@ -118,7 +118,7 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) return _cachedAddress!;
 
     // Option 1: Use pre-computed address
@@ -155,7 +155,8 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     // Factory: createAccount(bytes32 salt, bytes initCode)
     final salt = Hex.fromBigInt(index, byteLength: 32);
     final initCode = _encodeInitCode();
@@ -199,16 +200,14 @@ class EtherspotSmartAccount implements SmartAccount {
 
     // Build executors array with zero address (matching TS implementation)
     final zeroOnInstall = _encodeOnInstall('0x');
-    final executorConfig =
-        _encodeBootstrapConfig(EthAddress.zero, zeroOnInstall);
+    final executorConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
 
     // Hook - single BootstrapConfig (not array)
     final hookConfig =
-        _encodeBootstrapConfigTuple(EthAddress.zero, _encodeOnInstall('0x'));
+        _encodeBootstrapConfigTuple(zeroAddress, _encodeOnInstall('0x'));
 
     // Fallbacks array with zero address (matching TS implementation)
-    final fallbackConfig =
-        _encodeBootstrapConfig(EthAddress.zero, zeroOnInstall);
+    final fallbackConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
 
     // Calculate offsets for dynamic parameters
     // Header: 4 offsets * 32 = 128 bytes
@@ -267,14 +266,14 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   /// Creates a BootstrapConfig tuple struct.
-  ({EthAddress module, String data}) _encodeBootstrapConfig(
-    EthAddress module,
+  ({EthereumAddress module, String data}) _encodeBootstrapConfig(
+    EthereumAddress module,
     String data,
   ) =>
       (module: module, data: data);
 
   /// Encodes a single BootstrapConfig tuple for hook (inline, not in array).
-  String _encodeBootstrapConfigTuple(EthAddress module, String data) {
+  String _encodeBootstrapConfigTuple(EthereumAddress module, String data) {
     // Tuple (address, bytes) - address is static, bytes is dynamic
     final dataBytes = Hex.decode(data);
     // Pad to next 32-byte boundary
@@ -295,7 +294,9 @@ class EtherspotSmartAccount implements SmartAccount {
   int _calculateTupleSize(String encodedTuple) => Hex.byteLength(encodedTuple);
 
   /// Calculates size of a BootstrapConfig array encoding.
-  int _calculateArraySize(List<({EthAddress module, String data})> configs) {
+  int _calculateArraySize(
+    List<({EthereumAddress module, String data})> configs,
+  ) {
     if (configs.isEmpty) return 32; // Just length = 0
 
     // Array structure:
@@ -316,7 +317,7 @@ class EtherspotSmartAccount implements SmartAccount {
 
   /// Encodes a BootstrapConfig[] array.
   String _encodeBootstrapConfigArray(
-    List<({EthAddress module, String data})> configs,
+    List<({EthereumAddress module, String data})> configs,
   ) {
     if (configs.isEmpty) {
       return Hex.strip0x(AbiEncoder.encodeUint256(BigInt.zero));
@@ -531,7 +532,7 @@ EtherspotSmartAccount createEtherspotSmartAccount({
   required BigInt chainId,
   BigInt? index,
   EtherspotCustomAddresses? customAddresses,
-  EthAddress? address,
+  EthereumAddress? address,
   PublicClient? publicClient,
 }) =>
     EtherspotSmartAccount(

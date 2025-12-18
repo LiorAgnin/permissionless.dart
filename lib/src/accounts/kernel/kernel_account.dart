@@ -66,7 +66,7 @@ class KernelSmartAccountConfig {
   ///
   /// If provided, this address will be used instead of RPC computation.
   /// Use when you already know the account address.
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// Kernel smart account implementation.
@@ -79,7 +79,7 @@ class KernelSmartAccount implements SmartAccount {
 
   final KernelSmartAccountConfig _config;
   final KernelAddresses _addresses;
-  EthAddress? _cachedAddress;
+  EthereumAddress? _cachedAddress;
 
   /// Returns the entry point version for this account.
   EntryPointVersion get entryPointVersion =>
@@ -91,7 +91,7 @@ class KernelSmartAccount implements SmartAccount {
   BigInt get chainId => _config.chainId;
 
   @override
-  EthAddress get entryPoint => entryPointVersion == EntryPointVersion.v06
+  EthereumAddress get entryPoint => entryPointVersion == EntryPointVersion.v06
       ? EntryPointAddresses.v06
       : EntryPointAddresses.v07;
 
@@ -118,7 +118,7 @@ class KernelSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) return _cachedAddress!;
 
     // Option 1: Use pre-computed address if provided
@@ -144,7 +144,7 @@ class KernelSmartAccount implements SmartAccount {
     );
   }
 
-  // Future<EthAddress> _computeAddressV2() async {
+  // Future<EthereumAddress> _computeAddressV2() async {
   //   // v0.2.x uses ERC1967 proxy via AdminLessERC1967Factory
   //   // Salt = bytes32(uint256(keccak256(abi.encodePacked(data, index))) & type(uint96).max)
   //   //
@@ -181,10 +181,10 @@ class KernelSmartAccount implements SmartAccount {
   //   ]);
 
   //   final addressHash = keccak256(Hex.decode(preImage));
-  //   return EthAddress(Hex.slice(Hex.fromBytes(addressHash), 12));
+  //   return EthereumAddress.fromHex(Hex.slice(Hex.fromBytes(addressHash), 12));
   // }
 
-  // Future<EthAddress> _computeAddressV3() async {
+  // Future<EthereumAddress> _computeAddressV3() async {
   //   // v0.3.x uses meta factory pattern
   //   // The inner factory (KernelFactory) computes the address using:
   //   // actualSalt = keccak256(abi.encodePacked(initializeCalldata, index))
@@ -218,12 +218,12 @@ class KernelSmartAccount implements SmartAccount {
   //   ]);
 
   //   final addressHash = keccak256(Hex.decode(preImage));
-  //   return EthAddress(Hex.slice(Hex.fromBytes(addressHash), 12));
+  //   return EthereumAddress.fromHex(Hex.slice(Hex.fromBytes(addressHash), 12));
   // }
 
   // /// Computes the ERC1967 init code hash as Solady's LibClone does.
   // /// See: https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol
-  // Uint8List _computeERC1967InitCodeHash(EthAddress implementation) {
+  // Uint8List _computeERC1967InitCodeHash(EthereumAddress implementation) {
   //   // Simulate the Solady assembly that builds the init code
   //   final memory = Uint8List(0x80);
   //   final impl = BigInt.parse(Hex.strip0x(implementation.hex), radix: 16);
@@ -280,7 +280,8 @@ class KernelSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     if (_config.version == KernelVersion.v0_2_4) {
       return _getFactoryDataV2();
     } else {
@@ -288,7 +289,8 @@ class KernelSmartAccount implements SmartAccount {
     }
   }
 
-  Future<({EthAddress factory, String factoryData})> _getFactoryDataV2() async {
+  Future<({EthereumAddress factory, String factoryData})>
+      _getFactoryDataV2() async {
     // Build the full initialize calldata including selector
     final initializeCalldata = _encodeInitializeV2();
 
@@ -305,7 +307,8 @@ class KernelSmartAccount implements SmartAccount {
     return (factory: _addresses.factory, factoryData: factoryData);
   }
 
-  Future<({EthAddress factory, String factoryData})> _getFactoryDataV3() async {
+  Future<({EthereumAddress factory, String factoryData})>
+      _getFactoryDataV3() async {
     final initializeData = _encodeInitializeV3();
 
     // Full initialize calldata (with selector) for the factory
@@ -367,7 +370,7 @@ class KernelSmartAccount implements SmartAccount {
     final validatorData = _config.owner.address.hex;
 
     // Hook address (none)
-    final hookAddress = EthAddress.zero;
+    final hookAddress = zeroAddress;
 
     // Hook data (empty)
     const hookData = '0x';
@@ -670,7 +673,7 @@ KernelSmartAccount createKernelSmartAccount({
   BigInt? index,
   KernelAddresses? customAddresses,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     KernelSmartAccount(
       KernelSmartAccountConfig(

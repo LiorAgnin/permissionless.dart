@@ -63,13 +63,13 @@
 <li><span class="parameter" id="createSafeSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-customAddresses"><span class="type-annotation"><a href="../permissionless/SafeAddresses-class.html">SafeAddresses</a>?</span> <span class="parameter-name">customAddresses</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="createSafeSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
-<li><span class="parameter" id="createSafeSmartAccount-param-erc7579LaunchpadAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">erc7579LaunchpadAddress</span>, </span></li>
+<li><span class="parameter" id="createSafeSmartAccount-param-address"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
+<li><span class="parameter" id="createSafeSmartAccount-param-erc7579LaunchpadAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">erc7579LaunchpadAddress</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-validators"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">validators</span> = <span class="default-value">const []</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-executors"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">executors</span> = <span class="default-value">const []</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-fallbacks"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">fallbacks</span> = <span class="default-value">const []</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-hooks"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Safe7579ModuleInit-class.html">Safe7579ModuleInit</a></span>&gt;</span></span> <span class="parameter-name">hooks</span> = <span class="default-value">const []</span>, </span></li>
-<li><span class="parameter" id="createSafeSmartAccount-param-attesters"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">attesters</span> = <span class="default-value">const []</span>, </span></li>
+<li><span class="parameter" id="createSafeSmartAccount-param-attesters"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span> <span class="parameter-name">attesters</span> = <span class="default-value">const []</span>, </span></li>
 <li><span class="parameter" id="createSafeSmartAccount-param-attestersThreshold"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/int-class.html">int</a></span> <span class="parameter-name">attestersThreshold</span> = <span class="default-value">0</span>, </span></li>
 </ol>})
 
@@ -132,14 +132,14 @@
   required BigInt chainId,
   SafeAddresses? customAddresses,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
   &#47;&#47; ERC-7579 parameters
-  EthAddress? erc7579LaunchpadAddress,
+  EthereumAddress? erc7579LaunchpadAddress,
   List&lt;Safe7579ModuleInit&gt; validators = const [],
   List&lt;Safe7579ModuleInit&gt; executors = const [],
   List&lt;Safe7579ModuleInit&gt; fallbacks = const [],
   List&lt;Safe7579ModuleInit&gt; hooks = const [],
-  List&lt;EthAddress&gt; attesters = const [],
+  List&lt;EthereumAddress&gt; attesters = const [],
   int attestersThreshold = 0,
 }) =&gt;
     SafeSmartAccount(
@@ -188,7 +188,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

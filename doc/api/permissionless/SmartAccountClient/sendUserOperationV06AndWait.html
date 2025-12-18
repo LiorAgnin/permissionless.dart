@@ -60,10 +60,9 @@
 <li><span class="parameter" id="sendUserOperationV06AndWait-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
 <li><span class="parameter" id="sendUserOperationV06AndWait-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span></li>
 <li><span class="parameter" id="sendUserOperationV06AndWait-param-paymasterContext"><span class="type-annotation"><a href="../../permissionless/PaymasterContext-class.html">PaymasterContext</a>?</span> <span class="parameter-name">paymasterContext</span>, </span></li>
-<li><span class="parameter" id="sendUserOperationV06AndWait-param-includeFactoryData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">includeFactoryData</span> = <span class="default-value">true</span>, </span></li>
 <li><span class="parameter" id="sendUserOperationV06AndWait-param-timeout"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">timeout</span> = <span class="default-value">const Duration(seconds: 60)</span>, </span></li>
 <li><span class="parameter" id="sendUserOperationV06AndWait-param-pollingInterval"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Duration-class.html">Duration</a></span> <span class="parameter-name">pollingInterval</span> = <span class="default-value">const Duration(seconds: 2)</span>, </span></li>
-<li><span class="parameter" id="sendUserOperationV06AndWait-param-sender"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
+<li><span class="parameter" id="sendUserOperationV06AndWait-param-sender"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
 </ol>})
 
       
@@ -86,10 +85,9 @@
   required BigInt maxPriorityFeePerGas,
   BigInt? nonce,
   PaymasterContext? paymasterContext,
-  bool includeFactoryData = true,
   Duration timeout = const Duration(seconds: 60),
   Duration pollingInterval = const Duration(seconds: 2),
-  EthAddress? sender,
+  EthereumAddress? sender,
 }) async {
   final hash = await sendUserOperationV06(
     calls: calls,
@@ -97,7 +95,6 @@
     maxPriorityFeePerGas: maxPriorityFeePerGas,
     nonce: nonce,
     paymasterContext: paymasterContext,
-    includeFactoryData: includeFactoryData,
     sender: sender,
   );
 
@@ -134,7 +131,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

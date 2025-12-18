@@ -49,7 +49,7 @@ class PaymasterClient {
   /// used directly for submission without calling `getPaymasterData`.
   Future<PaymasterStubData> getPaymasterStubData({
     required UserOperation userOp,
-    required EthAddress entryPoint,
+    required EthereumAddress entryPoint,
     required BigInt chainId,
     PaymasterContext? context,
   }) async {
@@ -70,7 +70,7 @@ class PaymasterClient {
   /// The returned data contains the paymaster signature.
   Future<PaymasterData> getPaymasterData({
     required UserOperation userOp,
-    required EthAddress entryPoint,
+    required EthereumAddress entryPoint,
     required BigInt chainId,
     PaymasterContext? context,
   }) async {
@@ -94,7 +94,7 @@ class PaymasterClient {
   /// Not all paymasters support this method.
   Future<SponsorUserOperationResult> sponsorUserOperation({
     required UserOperation userOp,
-    required EthAddress entryPoint,
+    required EthereumAddress entryPoint,
     required BigInt chainId,
     PaymasterContext? context,
   }) async {

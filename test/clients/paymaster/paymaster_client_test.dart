@@ -47,7 +47,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -99,7 +101,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -138,7 +142,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -182,7 +188,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.zero,
@@ -217,7 +225,9 @@ void main() {
   group('PaymasterUserOperationExtension', () {
     test('withPaymasterStub applies stub data', () {
       final userOp = UserOperationV07(
-        sender: EthAddress('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -228,7 +238,9 @@ void main() {
       );
 
       final stub = PaymasterStubData(
-        paymaster: EthAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+        paymaster: EthereumAddress.fromHex(
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ),
         paymasterData: '0xstubdata',
         paymasterVerificationGasLimit: BigInt.from(50000),
         paymasterPostOpGasLimit: BigInt.from(20000),
@@ -249,7 +261,9 @@ void main() {
 
     test('withPaymasterData applies final data', () {
       final userOp = UserOperationV07(
-        sender: EthAddress('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -260,7 +274,9 @@ void main() {
       );
 
       final data = PaymasterData(
-        paymaster: EthAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+        paymaster: EthereumAddress.fromHex(
+          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+        ),
         paymasterData: '0xsigneddata',
       );
 
@@ -275,7 +291,9 @@ void main() {
 
     test('withSponsorship applies full sponsorship result', () {
       final userOp = UserOperationV07(
-        sender: EthAddress('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.zero,
@@ -286,7 +304,9 @@ void main() {
       );
 
       final sponsorship = SponsorUserOperationResult(
-        paymaster: EthAddress('0xcccccccccccccccccccccccccccccccccccccccc'),
+        paymaster: EthereumAddress.fromHex(
+          '0xcccccccccccccccccccccccccccccccccccccccc',
+        ),
         paymasterData: '0xsponsordata',
         paymasterVerificationGasLimit: BigInt.from(50000),
         paymasterPostOpGasLimit: BigInt.from(20000),

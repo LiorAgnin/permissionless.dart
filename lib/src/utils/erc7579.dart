@@ -397,7 +397,7 @@ String encode7579ExecuteBatch(List<Call> calls) {
 /// ```
 String encode7579InstallModule({
   required Erc7579ModuleType moduleType,
-  required EthAddress module,
+  required EthereumAddress module,
   String initData = '0x',
 }) {
   // Function signature: installModule(uint256, address, bytes)
@@ -431,7 +431,7 @@ String encode7579InstallModule({
 /// ```
 String encode7579UninstallModule({
   required Erc7579ModuleType moduleType,
-  required EthAddress module,
+  required EthereumAddress module,
   String deInitData = '0x',
 }) {
   // Function signature: uninstallModule(uint256, address, bytes)
@@ -469,7 +469,7 @@ String encode7579UninstallModule({
 /// ```
 String encode7579IsModuleInstalled({
   required Erc7579ModuleType moduleType,
-  required EthAddress module,
+  required EthereumAddress module,
   String additionalContext = '0x',
 }) {
   // Function signature: isModuleInstalled(uint256, address, bytes)
@@ -611,7 +611,7 @@ class InstallModuleConfig {
   final Erc7579ModuleType type;
 
   /// The address of the module contract.
-  final EthAddress address;
+  final EthereumAddress address;
 
   /// Initialization data passed to the module's onInstall function.
   final String initData;
@@ -630,7 +630,7 @@ class UninstallModuleConfig {
   final Erc7579ModuleType type;
 
   /// The address of the module contract.
-  final EthAddress address;
+  final EthereumAddress address;
 
   /// De-initialization data passed to the module's onUninstall function.
   final String deInitData;
@@ -824,7 +824,7 @@ Decoded7579Calls decode7579Calls(String callData) {
 Call _decodeSingleCall(String executionHex) {
   // Address: 20 bytes (40 hex chars)
   final addressHex = executionHex.substring(0, 40);
-  final to = EthAddress('0x$addressHex');
+  final to = EthereumAddress.fromHex('0x$addressHex');
 
   // Value: 32 bytes (64 hex chars)
   final valueHex = executionHex.substring(40, 104);
@@ -878,7 +878,7 @@ List<Call> _decodeBatchCalls(String executionHex) {
     // Address (32 bytes padded)
     final addressHex =
         executionHex.substring(structStart + 24, structStart + 64);
-    final to = EthAddress('0x$addressHex');
+    final to = EthereumAddress.fromHex('0x$addressHex');
 
     // Value (32 bytes)
     final valueHex =

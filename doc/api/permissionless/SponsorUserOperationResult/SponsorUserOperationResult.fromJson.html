@@ -73,7 +73,7 @@
     final paymasterData = &#39;0x${paymasterAndData.substring(42)}&#39;;
 
     return SponsorUserOperationResult(
-      paymaster: EthAddress(paymaster),
+      paymaster: EthereumAddress.fromHex(paymaster),
       paymasterData: paymasterData,
       preVerificationGas: json[&#39;preVerificationGas&#39;] != null
           ? parseBigInt(json[&#39;preVerificationGas&#39;])
@@ -89,7 +89,7 @@
 
   &#47;&#47; Handle v0.7 format (separate paymaster and paymasterData)
   return SponsorUserOperationResult(
-    paymaster: EthAddress(json[&#39;paymaster&#39;] as String),
+    paymaster: EthereumAddress.fromHex(json[&#39;paymaster&#39;] as String),
     paymasterData: json[&#39;paymasterData&#39;] as String,
     paymasterVerificationGasLimit:
         json[&#39;paymasterVerificationGasLimit&#39;] != null
@@ -136,7 +136,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

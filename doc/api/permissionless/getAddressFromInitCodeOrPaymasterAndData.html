@@ -54,7 +54,7 @@
 
     <section class="multi-line-signature">
         
-<span class="returntype"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span>
+<span class="returntype"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span>
 <span class="name ">getAddressFromInitCodeOrPaymasterAndData</span>(<wbr><ol class="parameter-list single-line"> <li><span class="parameter" id="getAddressFromInitCodeOrPaymasterAndData-param-data"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a>?</span> <span class="parameter-name">data</span></span></li>
 </ol>)
 
@@ -92,7 +92,7 @@ final paymasterAddress = getAddressFromInitCodeOrPaymasterAndData(
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">EthAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
+  <pre class="language-dart"><code class="language-dart">EthereumAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
   &#47;&#47; Handle null or empty data
   if (data == null || data.isEmpty || data == &#39;0x&#39;) {
     return null;
@@ -107,7 +107,7 @@ final paymasterAddress = getAddressFromInitCodeOrPaymasterAndData(
   final addressHex = data.substring(0, 42);
 
   try {
-    return EthAddress(addressHex);
+    return EthereumAddress.fromHex(addressHex);
   } catch (_) {
     &#47;&#47; Invalid address format
     return null;
@@ -139,7 +139,7 @@ final paymasterAddress = getAddressFromInitCodeOrPaymasterAndData(
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

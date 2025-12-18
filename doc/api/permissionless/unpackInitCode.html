@@ -86,7 +86,7 @@ print('Data: ${unpacked.factoryData}');
   }
 
   return UnpackedInitCode(
-    factory: EthAddress(&#39;0x${hex.substring(0, 40)}&#39;),
+    factory: EthereumAddress.fromHex(&#39;0x${hex.substring(0, 40)}&#39;),
     factoryData: hex.length &gt; 40 ? &#39;0x${hex.substring(40)}&#39; : &#39;0x&#39;,
   );
 }</code></pre>
@@ -116,7 +116,7 @@ print('Data: ${unpacked.factoryData}');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

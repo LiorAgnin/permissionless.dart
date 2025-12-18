@@ -12,7 +12,7 @@ void main() {
 
     // Mock address for unit tests (avoids RPC calls)
     final mockAddress =
-        EthAddress('0x1234567890123456789012345678901234567890');
+        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
     late SafeSmartAccount account;
     late List<Map<String, dynamic>> bundlerRequests;
@@ -115,6 +115,41 @@ void main() {
           );
         });
 
+    /// Creates a mock PublicClient for testing.
+    /// By default returns empty code (not deployed account).
+    PublicClient createPublicClientMock({bool isDeployed = false}) {
+      final mock = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        final method = body['method'] as String;
+
+        dynamic result;
+        if (method == 'eth_getCode') {
+          // Return code if deployed, empty otherwise
+          result = isDeployed ? '0x6080604052' : '0x';
+        } else if (method == 'eth_call') {
+          // Return nonce for getAccountNonce
+          result =
+              '0x0000000000000000000000000000000000000000000000000000000000000000';
+        }
+
+        return http.Response(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'id': body['id'],
+            'result': result,
+          }),
+          200,
+        );
+      });
+
+      return PublicClient(
+        rpcClient: JsonRpcClient(
+          url: Uri.parse('http://localhost:8545'),
+          httpClient: mock,
+        ),
+      );
+    }
+
     group('getAddress', () {
       test('returns account address', () async {
         final bundler = createBundlerClient(
@@ -126,6 +161,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final address = await client.getAddress();
@@ -146,12 +182,15 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.from(1000000000000000000),
             ),
           ],
@@ -192,12 +231,15 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -248,12 +290,15 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -270,28 +315,62 @@ void main() {
         expect(userOp.paymasterData, equals('0x1234567890abcdef'));
       });
 
-      test('excludes factory data when includeFactoryData is false', () async {
+      test('excludes factory data when account is deployed', () async {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
           entryPoint: EntryPointAddresses.v07,
           httpClient: createBundlerMock(),
         );
 
+        // Mock publicClient that returns code for the account (simulating deployed)
+        final publicClientMock = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final method = body['method'] as String;
+
+          dynamic result;
+          if (method == 'eth_getCode') {
+            // Return non-empty code to simulate deployed account
+            result = '0x6080604052';
+          } else if (method == 'eth_call') {
+            // Return nonce for getAccountNonce
+            result =
+                '0x0000000000000000000000000000000000000000000000000000000000000000';
+          }
+
+          return http.Response(
+            jsonEncode({
+              'jsonrpc': '2.0',
+              'id': body['id'],
+              'result': result,
+            }),
+            200,
+          );
+        });
+
+        final publicClient = PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: publicClientMock,
+          ),
+        );
+
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: publicClient,
         );
 
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
           maxFeePerGas: BigInt.from(1000000000),
           maxPriorityFeePerGas: BigInt.from(1000000000),
-          includeFactoryData: false,
         );
 
         expect(userOp.factory, isNull);
@@ -310,12 +389,15 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final preparedUserOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -342,12 +424,15 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         var userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -377,12 +462,15 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final hash = await client.sendUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.from(1000000000000000000),
             ),
           ],
@@ -416,12 +504,15 @@ void main() {
           account: account,
           bundler: bundler,
           paymaster: paymaster,
+          publicClient: createPublicClientMock(),
         );
 
         await client.sendUserOperation(
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -449,6 +540,7 @@ void main() {
         final client = SmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         final receipt = await client.waitForReceipt(
@@ -473,6 +565,7 @@ void main() {
         final client = createSmartAccountClient(
           account: account,
           bundler: bundler,
+          publicClient: createPublicClientMock(),
         );
 
         expect(client, isA<SmartAccountClient>());
@@ -488,7 +581,7 @@ void main() {
       const testPrivateKey =
           '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
       final mockAddress =
-          EthAddress('0x1234567890123456789012345678901234567890');
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
       final account = createSafeSmartAccount(
         owners: [PrivateKeyOwner(testPrivateKey)],

@@ -37,10 +37,10 @@ class TrustSmartAccountConfig {
   final BigInt index;
 
   /// Optional custom factory address.
-  final EthAddress? customFactoryAddress;
+  final EthereumAddress? customFactoryAddress;
 
   /// Optional custom verification facet address.
-  final EthAddress? customVerificationFacetAddress;
+  final EthereumAddress? customVerificationFacetAddress;
 
   /// Optional custom nonce key.
   final BigInt? nonceKey;
@@ -49,7 +49,7 @@ class TrustSmartAccountConfig {
   final PublicClient? publicClient;
 
   /// Pre-computed account address (optional).
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// A Trust (Barz) smart account implementation for ERC-4337 v0.6.
@@ -75,9 +75,9 @@ class TrustSmartAccount implements SmartAccountV06 {
             TrustAddresses.secp256k1VerificationFacet;
 
   final TrustSmartAccountConfig _config;
-  final EthAddress _factoryAddress;
-  final EthAddress _verificationFacetAddress;
-  EthAddress? _cachedAddress;
+  final EthereumAddress _factoryAddress;
+  final EthereumAddress _verificationFacetAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -91,7 +91,7 @@ class TrustSmartAccount implements SmartAccountV06 {
 
   /// The EntryPoint address (v0.6).
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v06;
+  EthereumAddress get entryPoint => EntryPointAddresses.v06;
 
   /// The nonce key for parallel transaction support.
   @override
@@ -102,7 +102,7 @@ class TrustSmartAccount implements SmartAccountV06 {
   /// Note: Trust uses getSenderAddress via EntryPoint simulation.
   /// This implementation computes a deterministic address locally.
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -144,7 +144,8 @@ class TrustSmartAccount implements SmartAccountV06 {
   ///
   /// Note: Trust only supports v0.6, so this returns v0.6-compatible format.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }
@@ -395,11 +396,11 @@ TrustSmartAccount createTrustSmartAccount({
   required AccountOwner owner,
   required BigInt chainId,
   BigInt? index,
-  EthAddress? customFactoryAddress,
-  EthAddress? customVerificationFacetAddress,
+  EthereumAddress? customFactoryAddress,
+  EthereumAddress? customVerificationFacetAddress,
   BigInt? nonceKey,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     TrustSmartAccount(
       TrustSmartAccountConfig(

@@ -11,7 +11,7 @@ import 'address.dart';
 ///   name: 'My dApp',
 ///   version: '1',
 ///   chainId: BigInt.from(1),
-///   verifyingContract: EthAddress('0x...'),
+///   verifyingContract: EthereumAddress.fromHex('0x...'),
 /// );
 /// ```
 class TypedDataDomain {
@@ -33,7 +33,7 @@ class TypedDataDomain {
   final BigInt? chainId;
 
   /// The address of the contract that will verify the signature.
-  final EthAddress? verifyingContract;
+  final EthereumAddress? verifyingContract;
 
   /// An optional disambiguating salt for the protocol.
   final String? salt;
@@ -85,7 +85,7 @@ class TypedDataField {
 ///     name: 'Ether Mail',
 ///     version: '1',
 ///     chainId: BigInt.from(1),
-///     verifyingContract: EthAddress('0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'),
+///     verifyingContract: EthereumAddress.fromHex('0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'),
 ///   ),
 ///   types: {
 ///     'Person': [

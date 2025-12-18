@@ -135,8 +135,11 @@ void main() {
 
             final prices = await client!.getUserOperationGasPrice();
 
-            // Gas prices should be in a reasonable range (1 gwei to 10000 gwei)
-            final minGas = BigInt.from(1000000000); // 1 gwei
+            // Gas prices should be in a reasonable range
+            // L2s like Base can have very low gas (~0.001 gwei = 1,000,000 wei)
+            // L1s like Sepolia typically have higher gas (1+ gwei)
+            final minGas =
+                BigInt.from(1000); // 0.000001 gwei (very low for L2s)
             final maxGas = BigInt.from(10000000000000); // 10000 gwei
 
             expect(prices.standard.maxFeePerGas, greaterThanBigInt(minGas));

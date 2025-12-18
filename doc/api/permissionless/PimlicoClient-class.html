@@ -108,7 +108,7 @@ final status = await pimlico.getUserOperationStatus(hash);
     <h2>Constructors</h2>
     <dl class="constructor-summary-list">
         <dt id="PimlicoClient.new" class="callable">
-          <span class="name"><a href="../permissionless/PimlicoClient/PimlicoClient.html">PimlicoClient</a></span><span class="signature">({<span class="parameter" id="-param-rpcClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></span> <span class="parameter-name">rpcClient</span>, </span><span class="parameter" id="-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span></span>})</span>
+          <span class="name"><a href="../permissionless/PimlicoClient/PimlicoClient.html">PimlicoClient</a></span><span class="signature">({<span class="parameter" id="-param-rpcClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/JsonRpcClient-class.html">JsonRpcClient</a></span> <span class="parameter-name">rpcClient</span>, </span><span class="parameter" id="-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">entryPoint</span></span>})</span>
         </dt>
         <dd>
           
@@ -123,7 +123,7 @@ final status = await pimlico.getUserOperationStatus(hash);
     <dl class="properties">
         <dt id="entryPoint" class="property inherited">
   <span class="name"><a href="../permissionless/BundlerClient/entryPoint.html">entryPoint</a></span>
-  <span class="signature">&#8594; <a href="../permissionless/EthAddress-class.html">EthAddress</a></span>
+  <span class="signature">&#8594; <a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>
   
 
 </dt>
@@ -205,7 +205,7 @@ final status = await pimlico.getUserOperationStatus(hash);
 </dd>
 
         <dt id="estimateErc20PaymasterCost" class="callable">
-  <span class="name"><a href="../permissionless/PimlicoClient/estimateErc20PaymasterCost.html">estimateErc20PaymasterCost</a></span><span class="signature">(<wbr>{<span class="parameter" id="estimateErc20PaymasterCost-param-userOperation"><span>required</span> <span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span>, </span><span class="parameter" id="estimateErc20PaymasterCost-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span></span>})
+  <span class="name"><a href="../permissionless/PimlicoClient/estimateErc20PaymasterCost.html">estimateErc20PaymasterCost</a></span><span class="signature">(<wbr>{<span class="parameter" id="estimateErc20PaymasterCost-param-userOperation"><span>required</span> <span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span>, </span><span class="parameter" id="estimateErc20PaymasterCost-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span></span>})
     <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/PimlicoErc20PaymasterCost-class.html">PimlicoErc20PaymasterCost</a></span>&gt;</span></span>
   </span>
   
@@ -257,7 +257,7 @@ final status = await pimlico.getUserOperationStatus(hash);
 </dd>
 
         <dt id="getTokenQuotes" class="callable">
-  <span class="name"><a href="../permissionless/PimlicoClient/getTokenQuotes.html">getTokenQuotes</a></span><span class="signature">(<wbr><span class="parameter" id="getTokenQuotes-param-tokens"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">tokens</span></span>)
+  <span class="name"><a href="../permissionless/PimlicoClient/getTokenQuotes.html">getTokenQuotes</a></span><span class="signature">(<wbr><span class="parameter" id="getTokenQuotes-param-tokens"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span> <span class="parameter-name">tokens</span></span>)
     <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/PimlicoTokenQuote-class.html">PimlicoTokenQuote</a></span>&gt;</span></span>&gt;</span></span>
   </span>
   
@@ -335,7 +335,7 @@ final status = await pimlico.getUserOperationStatus(hash);
 </dd>
 
         <dt id="sendCompressedUserOperation" class="callable">
-  <span class="name"><a href="../permissionless/PimlicoClient/sendCompressedUserOperation.html">sendCompressedUserOperation</a></span><span class="signature">(<wbr><span class="parameter" id="sendCompressedUserOperation-param-userOp"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOp</span>, </span><span class="parameter" id="sendCompressedUserOperation-param-inflator"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">inflator</span>, </span><span class="parameter" id="sendCompressedUserOperation-param-compressedCalldata"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">compressedCalldata</span></span>)
+  <span class="name"><a href="../permissionless/PimlicoClient/sendCompressedUserOperation.html">sendCompressedUserOperation</a></span><span class="signature">(<wbr><span class="parameter" id="sendCompressedUserOperation-param-userOp"><span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOp</span>, </span><span class="parameter" id="sendCompressedUserOperation-param-inflator"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">inflator</span>, </span><span class="parameter" id="sendCompressedUserOperation-param-compressedCalldata"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">compressedCalldata</span></span>)
     <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>&gt;</span></span>
   </span>
   
@@ -375,7 +375,7 @@ final status = await pimlico.getUserOperationStatus(hash);
 
         <dt id="supportedEntryPoints" class="callable inherited">
   <span class="name"><a href="../permissionless/BundlerClient/supportedEntryPoints.html">supportedEntryPoints</a></span><span class="signature">(<wbr>)
-    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span>&gt;</span></span>
+    <span class="returntype parameter">&#8594; <a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span>&gt;</span></span>
   </span>
   
 
@@ -488,7 +488,7 @@ final status = await pimlico.getUserOperationStatus(hash);
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

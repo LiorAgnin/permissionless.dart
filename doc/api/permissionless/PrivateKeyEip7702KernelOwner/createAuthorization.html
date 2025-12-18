@@ -61,7 +61,7 @@
   </div>
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/Eip7702Authorization-class.html">Eip7702Authorization</a></span>&gt;</span></span>
 <span class="name ">createAuthorization</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="createAuthorization-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
-<li><span class="parameter" id="createAuthorization-param-contractAddress"><span>required</span> <span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">contractAddress</span>, </span></li>
+<li><span class="parameter" id="createAuthorization-param-contractAddress"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">contractAddress</span>, </span></li>
 <li><span class="parameter" id="createAuthorization-param-nonce"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">nonce</span>, </span></li>
 </ol>})
 
@@ -80,7 +80,7 @@
   <pre class="language-dart"><code class="language-dart">@override
 Future&lt;Eip7702Authorization&gt; createAuthorization({
   required BigInt chainId,
-  required EthAddress contractAddress,
+  required EthereumAddress contractAddress,
   required BigInt nonce,
 }) =&gt;
     Eip7702Authorization.sign(
@@ -116,7 +116,7 @@ Future&lt;Eip7702Authorization&gt; createAuthorization({
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

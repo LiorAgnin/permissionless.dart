@@ -16,7 +16,7 @@ class PaymasterStubData {
 
   factory PaymasterStubData.fromJson(Map<String, dynamic> json) =>
       PaymasterStubData(
-        paymaster: EthAddress(json['paymaster'] as String),
+        paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         paymasterData: json['paymasterData'] as String,
         paymasterVerificationGasLimit:
             json['paymasterVerificationGasLimit'] != null
@@ -29,7 +29,7 @@ class PaymasterStubData {
       );
 
   /// The paymaster contract address.
-  final EthAddress paymaster;
+  final EthereumAddress paymaster;
 
   /// Stub paymaster data (for gas estimation).
   final String paymasterData;
@@ -56,7 +56,7 @@ class PaymasterData {
   });
 
   factory PaymasterData.fromJson(Map<String, dynamic> json) => PaymasterData(
-        paymaster: EthAddress(json['paymaster'] as String),
+        paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         paymasterData: json['paymasterData'] as String,
         paymasterVerificationGasLimit:
             json['paymasterVerificationGasLimit'] != null
@@ -68,7 +68,7 @@ class PaymasterData {
       );
 
   /// The paymaster contract address.
-  final EthAddress paymaster;
+  final EthereumAddress paymaster;
 
   /// Paymaster data with signature.
   final String paymasterData;
@@ -105,7 +105,7 @@ class SponsorUserOperationResult {
       final paymasterData = '0x${paymasterAndData.substring(42)}';
 
       return SponsorUserOperationResult(
-        paymaster: EthAddress(paymaster),
+        paymaster: EthereumAddress.fromHex(paymaster),
         paymasterData: paymasterData,
         preVerificationGas: json['preVerificationGas'] != null
             ? parseBigInt(json['preVerificationGas'])
@@ -121,7 +121,7 @@ class SponsorUserOperationResult {
 
     // Handle v0.7 format (separate paymaster and paymasterData)
     return SponsorUserOperationResult(
-      paymaster: EthAddress(json['paymaster'] as String),
+      paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
       paymasterData: json['paymasterData'] as String,
       paymasterVerificationGasLimit:
           json['paymasterVerificationGasLimit'] != null
@@ -143,7 +143,7 @@ class SponsorUserOperationResult {
   }
 
   /// The paymaster contract address.
-  final EthAddress paymaster;
+  final EthereumAddress paymaster;
 
   /// Paymaster data with signature.
   final String paymasterData;
@@ -203,7 +203,7 @@ class PaymasterContext {
   /// to spend their tokens before submitting the UserOperation.
   ///
   /// Common tokens: USDC, USDT, DAI, etc.
-  final EthAddress? token;
+  final EthereumAddress? token;
 
   /// Additional context data specific to the paymaster.
   final Map<String, dynamic>? extra;

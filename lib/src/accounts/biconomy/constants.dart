@@ -8,20 +8,20 @@ class BiconomyAddresses {
   BiconomyAddresses._();
 
   /// ECDSA Ownership Registry Module address.
-  static final EthAddress ecdsaOwnershipModule =
-      EthAddress('0x0000001c5b32F37F5beA87BDD5374eB2aC54eA8e');
+  static final EthereumAddress ecdsaOwnershipModule =
+      EthereumAddress.fromHex('0x0000001c5b32F37F5beA87BDD5374eB2aC54eA8e');
 
   /// Factory address for account deployment.
-  static final EthAddress factory =
-      EthAddress('0x000000a56Aaca3e9a4C479ea6b6CD0DbcB6634F5');
+  static final EthereumAddress factory =
+      EthereumAddress.fromHex('0x000000a56Aaca3e9a4C479ea6b6CD0DbcB6634F5');
 
   /// Account v2.0 logic/implementation address.
-  static final EthAddress accountV2Logic =
-      EthAddress('0x0000002512019Dafb59528B82CB92D3c5D2423aC');
+  static final EthereumAddress accountV2Logic =
+      EthereumAddress.fromHex('0x0000002512019Dafb59528B82CB92D3c5D2423aC');
 
   /// Default fallback handler address.
-  static final EthAddress defaultFallbackHandler =
-      EthAddress('0x0bBa6d96BD616BedC6BFaa341742FD43c60b83C1');
+  static final EthereumAddress defaultFallbackHandler =
+      EthereumAddress.fromHex('0x0bBa6d96BD616BedC6BFaa341742FD43c60b83C1');
 }
 
 /// Biconomy function selectors.

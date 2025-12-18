@@ -69,7 +69,7 @@ class EtherspotClient extends BundlerClient {
 /// ```
 EtherspotClient createEtherspotClient({
   required String url,
-  required EthAddress entryPoint,
+  required EthereumAddress entryPoint,
   http.Client? httpClient,
   Map<String, String>? headers,
   Duration? timeout,

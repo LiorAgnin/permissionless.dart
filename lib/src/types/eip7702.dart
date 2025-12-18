@@ -44,7 +44,7 @@ class Eip7702Authorization {
   /// The smart contract address to delegate code execution to.
   ///
   /// The EOA will execute code from this contract when the authorization is active.
-  final EthAddress address;
+  final EthereumAddress address;
 
   /// The EOA's nonce at the time of signing.
   ///
@@ -78,7 +78,7 @@ class Eip7702Authorization {
   /// ```
   static Future<Eip7702Authorization> sign({
     required BigInt chainId,
-    required EthAddress contractAddress,
+    required EthereumAddress contractAddress,
     required BigInt nonce,
     required String privateKey,
   }) async {
@@ -116,7 +116,7 @@ class Eip7702Authorization {
   /// Format: keccak256(0x05 || rlp([chain_id, address, nonce]))
   static List<int> _computeAuthorizationHash({
     required BigInt chainId,
-    required EthAddress address,
+    required EthereumAddress address,
     required BigInt nonce,
   }) {
     // RLP encode [chain_id, address, nonce]

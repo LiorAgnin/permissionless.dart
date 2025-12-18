@@ -55,8 +55,8 @@
     <section class="multi-line-signature">
         
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span></span>
-<span class="name ">erc20BalanceOverride</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="erc20BalanceOverride-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span></li>
-<li><span class="parameter" id="erc20BalanceOverride-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">owner</span>, </span></li>
+<span class="name ">erc20BalanceOverride</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="erc20BalanceOverride-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span>, </span></li>
+<li><span class="parameter" id="erc20BalanceOverride-param-owner"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">owner</span>, </span></li>
 <li><span class="parameter" id="erc20BalanceOverride-param-slot"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">slot</span>, </span></li>
 <li><span class="parameter" id="erc20BalanceOverride-param-balance"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">balance</span>, </span></li>
 </ol>})
@@ -98,8 +98,8 @@ final result = await publicClient.call(
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">List&lt;StateOverride&gt; erc20BalanceOverride({
-  required EthAddress token,
-  required EthAddress owner,
+  required EthereumAddress token,
+  required EthereumAddress owner,
   required BigInt slot,
   BigInt? balance,
 }) {
@@ -153,7 +153,7 @@ final result = await publicClient.call(
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

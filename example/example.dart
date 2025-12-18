@@ -20,17 +20,21 @@ void main() async {
     '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
   );
 
+  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
+  final publicClient = createPublicClient(url: rpcUrl);
+
   // 2. Create a Safe smart account
   final account = createSafeSmartAccount(
     owners: [owner],
     version: SafeVersion.v1_4_1,
     entryPointVersion: EntryPointVersion.v07,
     chainId: BigInt.from(11155111), // Sepolia
+    publicClient: publicClient,
   );
 
   // 3. Get the account address (deterministic, works before deployment)
-  final address = await account.getAddress();
-  print('Smart Account Address: ${address.checksummed}');
+  final accountAddress = await account.getAddress();
+  print('Smart Account Address: ${accountAddress.checksummed}');
 
   // 4. Create clients
   final pimlico = createPimlicoClient(
@@ -46,6 +50,7 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 
@@ -53,7 +58,7 @@ void main() async {
   final hash = await client.sendUserOperation(
     calls: [
       Call(
-        to: EthAddress('0x...'),
+        to: accountAddress,
         value: BigInt.zero,
         data: '0x',
       ),

@@ -102,14 +102,15 @@ void main() async {
   final client = SmartAccountClient(
     account: account,
     bundler: pimlico,
-    paymaster: paymaster,
+    publicClient: publicClient,
+    paymaster: paymaster, // optional
   );
 
   // 6. Send a sponsored transaction
   final hash = await client.sendUserOperation(
     calls: [
       Call(
-        to: EthAddress('0x...'),
+        to: EthereumAddress.fromHex('0x...'),
         value: BigInt.zero,
         data: '0x',
       ),
@@ -327,6 +328,7 @@ High-level operations combining account, bundler, and paymaster:
 final client = SmartAccountClient(
   account: account,
   bundler: bundler,
+  publicClient: publicClient,
   paymaster: paymaster,  // Optional
 );
 

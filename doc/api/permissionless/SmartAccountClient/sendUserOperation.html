@@ -60,8 +60,7 @@
 <li><span class="parameter" id="sendUserOperation-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
 <li><span class="parameter" id="sendUserOperation-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span></li>
 <li><span class="parameter" id="sendUserOperation-param-paymasterContext"><span class="type-annotation"><a href="../../permissionless/PaymasterContext-class.html">PaymasterContext</a>?</span> <span class="parameter-name">paymasterContext</span>, </span></li>
-<li><span class="parameter" id="sendUserOperation-param-includeFactoryData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">includeFactoryData</span> = <span class="default-value">true</span>, </span></li>
-<li><span class="parameter" id="sendUserOperation-param-sender"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
+<li><span class="parameter" id="sendUserOperation-param-sender"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
 <li><span class="parameter" id="sendUserOperation-param-stateOverride"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span>?</span> <span class="parameter-name">stateOverride</span>, </span></li>
 </ol>})
 
@@ -82,7 +81,7 @@ to simulate having sufficient token balance before the account is funded.</p>
 <pre class="language-dart"><code class="language-dart">final hash = await client.sendUserOperation(
   calls: [
     Call(
-      to: EthAddress('0x...'),
+      to: EthereumAddress.fromHex('0x...'),
       value: BigInt.from(1000000000000000000), // 1 ETH
     ),
   ],
@@ -102,8 +101,7 @@ to simulate having sufficient token balance before the account is funded.</p>
   required BigInt maxPriorityFeePerGas,
   BigInt? nonce,
   PaymasterContext? paymasterContext,
-  bool includeFactoryData = true,
-  EthAddress? sender,
+  EthereumAddress? sender,
   List&lt;StateOverride&gt;? stateOverride,
 }) async {
   final prepared = await prepareUserOperationWithAuth(
@@ -112,7 +110,6 @@ to simulate having sufficient token balance before the account is funded.</p>
     maxPriorityFeePerGas: maxPriorityFeePerGas,
     nonce: nonce,
     paymasterContext: paymasterContext,
-    includeFactoryData: includeFactoryData,
     sender: sender,
     stateOverride: stateOverride,
   );
@@ -147,7 +144,7 @@ to simulate having sufficient token balance before the account is funded.</p>
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

@@ -60,8 +60,7 @@
 <li><span class="parameter" id="prepareUserOperationWithAuth-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationWithAuth-param-nonce"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonce</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationWithAuth-param-paymasterContext"><span class="type-annotation"><a href="../../permissionless/PaymasterContext-class.html">PaymasterContext</a>?</span> <span class="parameter-name">paymasterContext</span>, </span></li>
-<li><span class="parameter" id="prepareUserOperationWithAuth-param-includeFactoryData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span> <span class="parameter-name">includeFactoryData</span> = <span class="default-value">true</span>, </span></li>
-<li><span class="parameter" id="prepareUserOperationWithAuth-param-sender"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationWithAuth-param-sender"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">sender</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationWithAuth-param-stateOverride"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/StateOverride-class.html">StateOverride</a></span>&gt;</span>?</span> <span class="parameter-name">stateOverride</span>, </span></li>
 </ol>})
 
@@ -104,8 +103,7 @@ final hash = await client.sendPreparedUserOperationWithAuth(
   required BigInt maxPriorityFeePerGas,
   BigInt? nonce,
   PaymasterContext? paymasterContext,
-  bool includeFactoryData = true,
-  EthAddress? sender,
+  EthereumAddress? sender,
   List&lt;StateOverride&gt;? stateOverride,
 }) async {
   sender ??= await account.getAddress();
@@ -114,10 +112,25 @@ final hash = await client.sendPreparedUserOperationWithAuth(
   final authorization = await _createAuthorizationIfNeeded();
   final needsAuth = authorization != null;
 
-  &#47;&#47; Get factory data if account might not be deployed
-  EthAddress? factory;
+  &#47;&#47; Check if account is already deployed (requires publicClient)
+  var isDeployed = false;
+  isDeployed = await publicClient.isDeployed(sender);
+
+  &#47;&#47; Auto-fetch nonce if not provided and publicClient is available
+  BigInt accountNonce;
+  if (nonce != null) {
+    accountNonce = nonce;
+  } else {
+    accountNonce = await publicClient.getAccountNonce(
+      sender,
+      account.entryPoint,
+    );
+  }
+
+  &#47;&#47; Get factory data if account is not yet deployed
+  EthereumAddress? factory;
   String? factoryData;
-  if (includeFactoryData) {
+  if (!isDeployed) {
     if (needsAuth) {
       &#47;&#47; EIP-7702: Use marker factory address to signal authorization needed
       factory = _eip7702FactoryMarker;
@@ -145,7 +158,7 @@ final hash = await client.sendPreparedUserOperationWithAuth(
   &#47;&#47; Build initial UserOperation with stub signature
   var userOp = UserOperationV07(
     sender: sender,
-    nonce: nonce ?? BigInt.zero,
+    nonce: accountNonce,
     factory: factory,
     factoryData: factoryData,
     callData: callData,
@@ -233,7 +246,7 @@ final hash = await client.sendPreparedUserOperationWithAuth(
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

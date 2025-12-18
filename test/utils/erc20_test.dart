@@ -31,8 +31,10 @@ void main() {
 
   group('encodeErc20Approve', () {
     test('encodes approve call correctly', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final spender = EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final spender =
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
       final amount = BigInt.from(1000000);
 
       final call = encodeErc20Approve(
@@ -53,8 +55,10 @@ void main() {
     });
 
     test('encodes maxUint256 approval', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final spender = EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final spender =
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
 
       final call = encodeErc20Approve(
         token: token,
@@ -72,8 +76,10 @@ void main() {
 
   group('encodeErc20Transfer', () {
     test('encodes transfer call correctly', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final to = EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final to =
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
       final amount = BigInt.from(1000000);
 
       final call = encodeErc20Transfer(
@@ -90,8 +96,10 @@ void main() {
 
   group('encodeErc20AllowanceCall', () {
     test('encodes allowance call correctly', () {
-      final owner = EthAddress('0x1234567890123456789012345678901234567890');
-      final spender = EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+      final owner =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final spender =
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
 
       final callData = encodeErc20AllowanceCall(
         owner: owner,
@@ -106,7 +114,8 @@ void main() {
 
   group('encodeErc20BalanceOfCall', () {
     test('encodes balanceOf call correctly', () {
-      final account = EthAddress('0x1234567890123456789012345678901234567890');
+      final account =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
       final callData = encodeErc20BalanceOfCall(account: account);
 
@@ -149,9 +158,10 @@ void main() {
 
   group('createPaymasterApprovalCall', () {
     test('creates approval with default maxUint256', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
       final paymaster =
-          EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
 
       final call = createPaymasterApprovalCall(
         token: token,
@@ -165,9 +175,10 @@ void main() {
     });
 
     test('creates approval with custom amount', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
       final paymaster =
-          EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
+          EthereumAddress.fromHex('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd');
       final amount = BigInt.from(1000000);
 
       final call = createPaymasterApprovalCall(
@@ -184,8 +195,12 @@ void main() {
   group('estimateTokenCost', () {
     test('estimates cost correctly', () {
       final quote = PimlicoTokenQuote(
-        token: EthAddress('0x1234567890123456789012345678901234567890'),
-        paymaster: EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+        token: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+        paymaster: EthereumAddress.fromHex(
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        ),
         postOpGas: BigInt.from(75000),
         exchangeRate: BigInt.from(10).pow(18), // 1:1 rate for simplicity
         exchangeRateNativeToUsd:
@@ -193,7 +208,9 @@ void main() {
       );
 
       final userOp = UserOperationV07(
-        sender: EthAddress('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -218,11 +235,11 @@ void main() {
 
   group('ERC-20 State Override Utilities', () {
     final tokenAddress =
-        EthAddress('0x1234567890123456789012345678901234567890');
+        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
     final ownerAddress =
-        EthAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+        EthereumAddress.fromHex('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     final spenderAddress =
-        EthAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+        EthereumAddress.fromHex('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
 
     group('StateDiff', () {
       test('creates with slot and value', () {

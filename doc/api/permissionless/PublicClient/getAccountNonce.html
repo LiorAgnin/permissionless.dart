@@ -55,8 +55,8 @@
     <section class="multi-line-signature">
       
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>&gt;</span></span>
-<span class="name ">getAccountNonce</span>(<wbr><ol class="parameter-list"> <li><span class="parameter" id="getAccountNonce-param-account"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span></li>
-<li><span class="parameter" id="getAccountNonce-param-entryPoint"><span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span>, {</span></li>
+<span class="name ">getAccountNonce</span>(<wbr><ol class="parameter-list"> <li><span class="parameter" id="getAccountNonce-param-account"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">account</span>, </span></li>
+<li><span class="parameter" id="getAccountNonce-param-entryPoint"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">entryPoint</span>, {</span></li>
 <li><span class="parameter" id="getAccountNonce-param-nonceKey"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">nonceKey</span>, </span></li>
 </ol>})
 
@@ -81,8 +81,8 @@ for sequential transactions).</p>
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;BigInt&gt; getAccountNonce(
-  EthAddress account,
-  EthAddress entryPoint, {
+  EthereumAddress account,
+  EthereumAddress entryPoint, {
   BigInt? nonceKey,
 }) async {
   final key = nonceKey ?? BigInt.zero;
@@ -124,7 +124,7 @@ for sequential transactions).</p>
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

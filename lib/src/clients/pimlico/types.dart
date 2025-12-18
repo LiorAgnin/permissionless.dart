@@ -144,8 +144,8 @@ class PimlicoTokenQuote {
 
   factory PimlicoTokenQuote.fromJson(Map<String, dynamic> json) =>
       PimlicoTokenQuote(
-        token: EthAddress(json['token'] as String),
-        paymaster: EthAddress(json['paymaster'] as String),
+        token: EthereumAddress.fromHex(json['token'] as String),
+        paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         postOpGas: parseBigInt(json['postOpGas']),
         exchangeRate: parseBigInt(json['exchangeRate']),
         exchangeRateNativeToUsd: json['exchangeRateNativeToUsd'] != null
@@ -160,12 +160,12 @@ class PimlicoTokenQuote {
       );
 
   /// The ERC-20 token address.
-  final EthAddress token;
+  final EthereumAddress token;
 
   /// The paymaster contract address for this token.
   ///
   /// Users must approve this address to spend their tokens.
-  final EthAddress paymaster;
+  final EthereumAddress paymaster;
 
   /// Additional gas used in postOp for token transfer.
   ///
@@ -222,14 +222,14 @@ class PimlicoSupportedToken {
 
   factory PimlicoSupportedToken.fromJson(Map<String, dynamic> json) =>
       PimlicoSupportedToken(
-        token: EthAddress(json['token'] as String),
+        token: EthereumAddress.fromHex(json['token'] as String),
         name: json['name'] as String,
         symbol: json['symbol'] as String,
         decimals: json['decimals'] as int,
       );
 
   /// The ERC-20 token contract address.
-  final EthAddress token;
+  final EthereumAddress token;
 
   /// Full human-readable name of the token (e.g., "Dai Stablecoin", "USD Coin").
   final String name;

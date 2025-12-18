@@ -86,7 +86,7 @@ void main() {
 
     // Mock account address (would normally be computed via getSenderAddress)
     final mockAddress =
-        EthAddress('0x1234567890123456789012345678901234567890');
+        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
@@ -137,8 +137,9 @@ void main() {
       });
 
       test('returns provided address', () async {
-        final providedAddress =
-            EthAddress('0x1234567890123456789012345678901234567890');
+        final providedAddress = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
         final accountWithAddress = createEtherspotSmartAccount(
           owner: owner,
           chainId: BigInt.from(1),
@@ -153,8 +154,9 @@ void main() {
       });
 
       test('caches address after first retrieval', () async {
-        final providedAddress =
-            EthAddress('0x1234567890123456789012345678901234567890');
+        final providedAddress = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
         final accountWithAddress = createEtherspotSmartAccount(
           owner: owner,
           chainId: BigInt.from(1),
@@ -206,7 +208,9 @@ void main() {
     group('call encoding', () {
       test('encodes single call with ERC-7579', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(1000000000000000000),
           data: '0xabcdef',
         );
@@ -224,12 +228,16 @@ void main() {
       test('encodes batch calls with ERC-7579', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.zero,
             data: '0x11',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(1000),
             data: '0x22',
           ),
@@ -246,7 +254,9 @@ void main() {
 
       test('single call optimization in encodeCalls', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.zero,
           data: '0x',
         );
@@ -350,7 +360,7 @@ void main() {
 
     group('custom addresses', () {
       test('uses custom meta factory when provided', () {
-        final customFactory = EthAddress(
+        final customFactory = EthereumAddress.fromHex(
           '0x1111111111111111111111111111111111111111',
         );
         final customAccount = createEtherspotSmartAccount(
@@ -365,7 +375,7 @@ void main() {
       });
 
       test('uses custom validator when provided', () {
-        final customValidator = EthAddress(
+        final customValidator = EthereumAddress.fromHex(
           '0x2222222222222222222222222222222222222222',
         );
         final customAccount = createEtherspotSmartAccount(

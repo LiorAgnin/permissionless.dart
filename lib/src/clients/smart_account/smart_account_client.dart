@@ -42,6 +42,7 @@ class PreparedUserOperation {
 /// final client = SmartAccountClient(
 ///   account: safeAccount,
 ///   bundler: bundlerClient,
+///   publicClient: publicClient,
 ///   paymaster: paymasterClient, // optional
 /// );
 ///
@@ -59,8 +60,8 @@ class SmartAccountClient {
   SmartAccountClient({
     required this.account,
     required this.bundler,
+    required this.publicClient,
     this.paymaster,
-    this.publicClient,
   });
 
   /// The smart account to use for operations.
@@ -76,28 +77,28 @@ class SmartAccountClient {
   ///
   /// Required for EIP-7702 accounts to check if delegation is active
   /// and to retrieve the EOA nonce for authorization creation.
-  final PublicClient? publicClient;
+  final PublicClient publicClient;
 
   /// Gets the address of the smart account.
-  Future<EthAddress> getAddress() => account.getAddress();
+  Future<EthereumAddress> getAddress() => account.getAddress();
 
   /// Creates an EIP-7702 authorization if needed.
   ///
   /// Returns null if authorization is not needed (non-EIP-7702 account,
   /// no public client, or delegation already active).
   Future<Eip7702Authorization?> _createAuthorizationIfNeeded() async {
-    if (account is! Eip7702SmartAccount || publicClient == null) {
+    if (account is! Eip7702SmartAccount) {
       return null;
     }
 
     final address = await account.getAddress();
-    final isDeployed = await publicClient!.isDeployed(address);
+    final isDeployed = await publicClient.isDeployed(address);
     if (isDeployed) {
       return null;
     }
 
     // Get EOA nonce for authorization
-    final eoaNonce = await publicClient!.getTransactionCount(address);
+    final eoaNonce = await publicClient.getTransactionCount(address);
     return (account as Eip7702SmartAccount).getAuthorization(nonce: eoaNonce);
   }
 
@@ -106,7 +107,7 @@ class SmartAccountClient {
   /// Used to signal to the bundler that this UserOperation requires
   /// EIP-7702 authorization handling.
   static final _eip7702FactoryMarker =
-      EthAddress('0x7702000000000000000000000000000000000000');
+      EthereumAddress.fromHex('0x7702000000000000000000000000000000000000');
 
   /// Prepares a UserOperation without signing.
   ///
@@ -134,8 +135,7 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
-    EthAddress? sender,
+    EthereumAddress? sender,
     List<StateOverride>? stateOverride,
   }) async {
     final prepared = await prepareUserOperationWithAuth(
@@ -144,7 +144,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
       paymasterContext: paymasterContext,
-      includeFactoryData: includeFactoryData,
       sender: sender,
       stateOverride: stateOverride,
     );
@@ -184,8 +183,7 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
-    EthAddress? sender,
+    EthereumAddress? sender,
     List<StateOverride>? stateOverride,
   }) async {
     sender ??= await account.getAddress();
@@ -194,10 +192,25 @@ class SmartAccountClient {
     final authorization = await _createAuthorizationIfNeeded();
     final needsAuth = authorization != null;
 
-    // Get factory data if account might not be deployed
-    EthAddress? factory;
+    // Check if account is already deployed (requires publicClient)
+    var isDeployed = false;
+    isDeployed = await publicClient.isDeployed(sender);
+
+    // Auto-fetch nonce if not provided and publicClient is available
+    BigInt accountNonce;
+    if (nonce != null) {
+      accountNonce = nonce;
+    } else {
+      accountNonce = await publicClient.getAccountNonce(
+        sender,
+        account.entryPoint,
+      );
+    }
+
+    // Get factory data if account is not yet deployed
+    EthereumAddress? factory;
     String? factoryData;
-    if (includeFactoryData) {
+    if (!isDeployed) {
       if (needsAuth) {
         // EIP-7702: Use marker factory address to signal authorization needed
         factory = _eip7702FactoryMarker;
@@ -225,7 +238,7 @@ class SmartAccountClient {
     // Build initial UserOperation with stub signature
     var userOp = UserOperationV07(
       sender: sender,
-      nonce: nonce ?? BigInt.zero,
+      nonce: accountNonce,
       factory: factory,
       factoryData: factoryData,
       callData: callData,
@@ -348,7 +361,7 @@ class SmartAccountClient {
   /// final hash = await client.sendUserOperation(
   ///   calls: [
   ///     Call(
-  ///       to: EthAddress('0x...'),
+  ///       to: EthereumAddress.fromHex('0x...'),
   ///       value: BigInt.from(1000000000000000000), // 1 ETH
   ///     ),
   ///   ],
@@ -362,8 +375,7 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
-    EthAddress? sender,
+    EthereumAddress? sender,
     List<StateOverride>? stateOverride,
   }) async {
     final prepared = await prepareUserOperationWithAuth(
@@ -372,7 +384,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
       paymasterContext: paymasterContext,
-      includeFactoryData: includeFactoryData,
       sender: sender,
       stateOverride: stateOverride,
     );
@@ -398,10 +409,9 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
     Duration timeout = const Duration(seconds: 60),
     Duration pollingInterval = const Duration(seconds: 2),
-    EthAddress? sender,
+    EthereumAddress? sender,
     List<StateOverride>? stateOverride,
   }) async {
     final hash = await sendUserOperation(
@@ -410,7 +420,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
       paymasterContext: paymasterContext,
-      includeFactoryData: includeFactoryData,
       sender: sender,
       stateOverride: stateOverride,
     );
@@ -455,14 +464,17 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
-    EthAddress? sender,
+    EthereumAddress? sender,
   }) async {
     sender ??= await account.getAddress();
 
-    // Get initCode if account might not be deployed
+    // Check if account is already deployed (requires publicClient)
+    var isDeployed = false;
+    isDeployed = await publicClient.isDeployed(sender);
+
+    // Get initCode if account is not yet deployed
     var initCode = '0x';
-    if (includeFactoryData) {
+    if (!isDeployed) {
       initCode = await account.getInitCode();
     }
 
@@ -532,7 +544,7 @@ class SmartAccountClient {
   /// final hash = await client.sendUserOperationV06(
   ///   calls: [
   ///     Call(
-  ///       to: EthAddress('0x...'),
+  ///       to: EthereumAddress.fromHex('0x...'),
   ///       value: BigInt.from(1000000000000000000), // 1 ETH
   ///     ),
   ///   ],
@@ -546,8 +558,7 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
-    EthAddress? sender,
+    EthereumAddress? sender,
   }) async {
     var userOp = await prepareUserOperationV06(
       calls: calls,
@@ -555,7 +566,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
       paymasterContext: paymasterContext,
-      includeFactoryData: includeFactoryData,
       sender: sender,
     );
 
@@ -573,10 +583,9 @@ class SmartAccountClient {
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    bool includeFactoryData = true,
     Duration timeout = const Duration(seconds: 60),
     Duration pollingInterval = const Duration(seconds: 2),
-    EthAddress? sender,
+    EthereumAddress? sender,
   }) async {
     final hash = await sendUserOperationV06(
       calls: calls,
@@ -584,7 +593,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
       paymasterContext: paymasterContext,
-      includeFactoryData: includeFactoryData,
       sender: sender,
     );
 
@@ -649,12 +657,12 @@ class SmartAccountClient {
 SmartAccountClient createSmartAccountClient({
   required SmartAccount account,
   required BundlerClient bundler,
+  required PublicClient publicClient,
   PaymasterClient? paymaster,
-  PublicClient? publicClient,
 }) =>
     SmartAccountClient(
       account: account,
       bundler: bundler,
-      paymaster: paymaster,
       publicClient: publicClient,
+      paymaster: paymaster,
     );

@@ -67,7 +67,7 @@
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">factory Call.fromJson(Map&lt;String, dynamic&gt; json) =&gt; Call(
-      to: EthAddress(json[&#39;to&#39;] as String),
+      to: EthereumAddress.fromHex(json[&#39;to&#39;] as String),
       value: json[&#39;value&#39;] is BigInt
           ? json[&#39;value&#39;] as BigInt
           : BigInt.parse(json[&#39;value&#39;]?.toString() ?? &#39;0&#39;),
@@ -100,7 +100,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

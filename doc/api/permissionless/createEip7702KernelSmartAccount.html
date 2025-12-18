@@ -59,8 +59,8 @@
 <li><span class="parameter" id="createEip7702KernelSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
 <li><span class="parameter" id="createEip7702KernelSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/KernelVersion.html">KernelVersion</a></span> <span class="parameter-name">version</span> = <span class="default-value">KernelVersion.v0_3_3</span>, </span></li>
 <li><span class="parameter" id="createEip7702KernelSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="createEip7702KernelSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span>, </span></li>
-<li><span class="parameter" id="createEip7702KernelSmartAccount-param-ecdsaValidatorAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">ecdsaValidatorAddress</span>, </span></li>
+<li><span class="parameter" id="createEip7702KernelSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span>, </span></li>
+<li><span class="parameter" id="createEip7702KernelSmartAccount-param-ecdsaValidatorAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">ecdsaValidatorAddress</span>, </span></li>
 </ol>})
 
         
@@ -100,8 +100,8 @@ final auth = await account.getAuthorization(nonce: BigInt.zero);
   required BigInt chainId,
   KernelVersion version = KernelVersion.v0_3_3,
   PublicClient? publicClient,
-  EthAddress? accountLogicAddress,
-  EthAddress? ecdsaValidatorAddress,
+  EthereumAddress? accountLogicAddress,
+  EthereumAddress? ecdsaValidatorAddress,
 }) =&gt;
     Eip7702KernelSmartAccount(
       Eip7702KernelSmartAccountConfig(
@@ -139,7 +139,7 @@ final auth = await account.getAuthorization(nonce: BigInt.zero);
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

@@ -7,12 +7,12 @@ class TrustAddresses {
   TrustAddresses._();
 
   /// Factory address for account deployment.
-  static final EthAddress factory =
-      EthAddress('0x729c310186a57833f622630a16d13f710b83272a');
+  static final EthereumAddress factory =
+      EthereumAddress.fromHex('0x729c310186a57833f622630a16d13f710b83272a');
 
   /// Secp256k1 verification facet address.
-  static final EthAddress secp256k1VerificationFacet =
-      EthAddress('0x81b9E3689390C7e74cF526594A105Dea21a8cdD5');
+  static final EthereumAddress secp256k1VerificationFacet =
+      EthereumAddress.fromHex('0x81b9E3689390C7e74cF526594A105Dea21a8cdD5');
 }
 
 /// Trust function selectors.

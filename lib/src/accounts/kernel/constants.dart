@@ -36,16 +36,16 @@ class KernelAddresses {
   });
 
   /// Account implementation address.
-  final EthAddress accountImplementation;
+  final EthereumAddress accountImplementation;
 
   /// Factory contract address.
-  final EthAddress factory;
+  final EthereumAddress factory;
 
   /// Meta factory for v0.3.x (deploys via factory).
-  final EthAddress? metaFactory;
+  final EthereumAddress? metaFactory;
 
   /// ECDSA validator address (v0.3.x only).
-  final EthAddress? ecdsaValidator;
+  final EthereumAddress? ecdsaValidator;
 }
 
 /// Version-specific Kernel addresses.
@@ -60,13 +60,13 @@ class KernelVersionAddresses {
     // Kernel v0.2.4 (EntryPoint v0.6)
     // Addresses from permissionless.js KERNEL_VERSION_TO_ADDRESSES_MAP
     KernelVersion.v0_2_4: KernelAddresses(
-      accountImplementation: EthAddress(
+      accountImplementation: EthereumAddress.fromHex(
         '0xd3082872F8B06073A021b4602e022d5A070d7cfC',
       ),
-      factory: EthAddress(
+      factory: EthereumAddress.fromHex(
         '0x5de4839a76cf55d0c90e2061ef4386d962E15ae3',
       ),
-      ecdsaValidator: EthAddress(
+      ecdsaValidator: EthereumAddress.fromHex(
         '0xd9AB5096a832b9ce79914329DAEE236f8Eea0390',
       ),
     ),
@@ -74,16 +74,16 @@ class KernelVersionAddresses {
     // Kernel v0.3.1 (EntryPoint v0.7)
     // Addresses from: https://github.com/zerodevapp/kernel
     KernelVersion.v0_3_1: KernelAddresses(
-      accountImplementation: EthAddress(
+      accountImplementation: EthereumAddress.fromHex(
         '0xBAC849bB641841b44E965fB01A4Bf5F074f84b4D',
       ),
-      factory: EthAddress(
+      factory: EthereumAddress.fromHex(
         '0xaac5D4240AF87249B3f71BC8E4A2cae074A3E419',
       ),
-      metaFactory: EthAddress(
+      metaFactory: EthereumAddress.fromHex(
         '0xd703aaE79538628d27099B8c4f621bE4CCd142d5',
       ),
-      ecdsaValidator: EthAddress(
+      ecdsaValidator: EthereumAddress.fromHex(
         '0x845ADb2C711129d4f3966735eD98a9F09fC4cE57',
       ),
     ),
@@ -91,16 +91,16 @@ class KernelVersionAddresses {
     // Kernel v0.3.3 (EntryPoint v0.7, EIP-7702 support)
     // Addresses from permissionless.js KERNEL_VERSION_TO_ADDRESSES_MAP
     KernelVersion.v0_3_3: KernelAddresses(
-      accountImplementation: EthAddress(
+      accountImplementation: EthereumAddress.fromHex(
         '0xd6CEDDe84be40893d153Be9d467CD6aD37875b28',
       ),
-      factory: EthAddress(
+      factory: EthereumAddress.fromHex(
         '0x2577507b78c2008Ff367261CB6285d44ba5eF2E9',
       ),
-      metaFactory: EthAddress(
+      metaFactory: EthereumAddress.fromHex(
         '0xd703aaE79538628d27099B8c4f621bE4CCd142d5',
       ),
-      ecdsaValidator: EthAddress(
+      ecdsaValidator: EthereumAddress.fromHex(
         '0x845ADb2C711129d4f3966735eD98a9F09fC4cE57',
       ),
     ),

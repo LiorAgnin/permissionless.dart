@@ -59,7 +59,7 @@
 <li><span class="parameter" id="createEtherspotSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
 <li><span class="parameter" id="createEtherspotSmartAccount-param-index"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">index</span>, </span></li>
 <li><span class="parameter" id="createEtherspotSmartAccount-param-customAddresses"><span class="type-annotation"><a href="../permissionless/EtherspotCustomAddresses-class.html">EtherspotCustomAddresses</a>?</span> <span class="parameter-name">customAddresses</span>, </span></li>
-<li><span class="parameter" id="createEtherspotSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
+<li><span class="parameter" id="createEtherspotSmartAccount-param-address"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
 <li><span class="parameter" id="createEtherspotSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
 </ol>})
 
@@ -98,7 +98,7 @@ final address = await account.getAddress();
   required BigInt chainId,
   BigInt? index,
   EtherspotCustomAddresses? customAddresses,
-  EthAddress? address,
+  EthereumAddress? address,
   PublicClient? publicClient,
 }) =&gt;
     EtherspotSmartAccount(
@@ -137,7 +137,7 @@ final address = await account.getAddress();
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

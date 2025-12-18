@@ -57,8 +57,8 @@
 <span class="returntype"><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></span>
 <span class="name ">createSmartAccountClient</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="createSmartAccountClient-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccount-class.html">SmartAccount</a></span> <span class="parameter-name">account</span>, </span></li>
 <li><span class="parameter" id="createSmartAccountClient-param-bundler"><span>required</span> <span class="type-annotation"><a href="../permissionless/BundlerClient-class.html">BundlerClient</a></span> <span class="parameter-name">bundler</span>, </span></li>
+<li><span class="parameter" id="createSmartAccountClient-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span></li>
 <li><span class="parameter" id="createSmartAccountClient-param-paymaster"><span class="type-annotation"><a href="../permissionless/PaymasterClient-class.html">PaymasterClient</a>?</span> <span class="parameter-name">paymaster</span>, </span></li>
-<li><span class="parameter" id="createSmartAccountClient-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
 </ol>})
 
         
@@ -91,14 +91,14 @@ delegation detection and authorization handling:</p>
   <pre class="language-dart"><code class="language-dart">SmartAccountClient createSmartAccountClient({
   required SmartAccount account,
   required BundlerClient bundler,
+  required PublicClient publicClient,
   PaymasterClient? paymaster,
-  PublicClient? publicClient,
 }) =&gt;
     SmartAccountClient(
       account: account,
       bundler: bundler,
-      paymaster: paymaster,
       publicClient: publicClient,
+      paymaster: paymaster,
     );</code></pre>
 </section>
 
@@ -126,7 +126,7 @@ delegation detection and authorization handling:</p>
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

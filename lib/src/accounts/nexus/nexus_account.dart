@@ -43,13 +43,13 @@ class NexusSmartAccountConfig {
   final BigInt index;
 
   /// Optional custom factory address.
-  final EthAddress? customFactoryAddress;
+  final EthereumAddress? customFactoryAddress;
 
   /// Optional custom K1 validator address.
-  final EthAddress? customValidatorAddress;
+  final EthereumAddress? customValidatorAddress;
 
   /// Optional attesters for multi-sig validation.
-  final List<EthAddress> attesters;
+  final List<EthereumAddress> attesters;
 
   /// Threshold for multi-sig (0 = no multi-sig).
   final int threshold;
@@ -58,7 +58,7 @@ class NexusSmartAccountConfig {
   final PublicClient? publicClient;
 
   /// Pre-computed account address (optional).
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// A Nexus smart account implementation for ERC-4337 v0.7.
@@ -87,9 +87,9 @@ class NexusSmartAccount implements SmartAccount {
             _config.customValidatorAddress ?? NexusAddresses.k1Validator;
 
   final NexusSmartAccountConfig _config;
-  final EthAddress _factoryAddress;
-  final EthAddress _validatorAddress;
-  EthAddress? _cachedAddress;
+  final EthereumAddress _factoryAddress;
+  final EthereumAddress _validatorAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -106,7 +106,7 @@ class NexusSmartAccount implements SmartAccount {
 
   /// The EntryPoint address (v0.7).
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint => EntryPointAddresses.v07;
 
   /// The nonce key for Nexus accounts.
   ///
@@ -130,7 +130,7 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Gets the deterministic address of this Nexus account.
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -170,7 +170,8 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }
@@ -178,7 +179,7 @@ class NexusSmartAccount implements SmartAccount {
   /// Encodes the createAccount factory call.
   String _encodeCreateAccount() {
     // Sort attesters by address
-    final sortedAttesters = List<EthAddress>.from(_config.attesters)
+    final sortedAttesters = List<EthereumAddress>.from(_config.attesters)
       ..sort((a, b) => a.hex.toLowerCase().compareTo(b.hex.toLowerCase()));
 
     // createAccount(address eoaOwner, uint256 index, address[] attesters, uint8 threshold)
@@ -199,7 +200,7 @@ class NexusSmartAccount implements SmartAccount {
   }
 
   /// Encodes an array of addresses.
-  String _encodeAddressArray(List<EthAddress> addresses) => Hex.concat([
+  String _encodeAddressArray(List<EthereumAddress> addresses) => Hex.concat([
         AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
         ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
       ]);
@@ -420,12 +421,12 @@ NexusSmartAccount createNexusSmartAccount({
   required BigInt chainId,
   String version = '1.0.0',
   BigInt? index,
-  EthAddress? customFactoryAddress,
-  EthAddress? customValidatorAddress,
-  List<EthAddress> attesters = const [],
+  EthereumAddress? customFactoryAddress,
+  EthereumAddress? customValidatorAddress,
+  List<EthereumAddress> attesters = const [],
   int threshold = 0,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     NexusSmartAccount(
       NexusSmartAccountConfig(

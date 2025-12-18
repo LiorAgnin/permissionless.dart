@@ -363,7 +363,7 @@ BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
 ///   userOp.paymasterAndData,
 /// );
 /// ```
-EthAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
+EthereumAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
   // Handle null or empty data
   if (data == null || data.isEmpty || data == '0x') {
     return null;
@@ -378,7 +378,7 @@ EthAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
   final addressHex = data.substring(0, 42);
 
   try {
-    return EthAddress(addressHex);
+    return EthereumAddress.fromHex(addressHex);
   } catch (_) {
     // Invalid address format
     return null;

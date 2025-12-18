@@ -66,7 +66,7 @@ class UserOperationByHashResponse {
   factory UserOperationByHashResponse.fromJson(Map<String, dynamic> json) =>
       UserOperationByHashResponse(
         userOperation: json['userOperation'] as Map<String, dynamic>,
-        entryPoint: EthAddress(json['entryPoint'] as String),
+        entryPoint: EthereumAddress.fromHex(json['entryPoint'] as String),
         blockNumber: json['blockNumber'] != null
             ? parseBigInt(json['blockNumber'])
             : null,
@@ -78,7 +78,7 @@ class UserOperationByHashResponse {
   final Map<String, dynamic> userOperation;
 
   /// The EntryPoint address that processed this UserOperation.
-  final EthAddress entryPoint;
+  final EthereumAddress entryPoint;
 
   /// Block number where the UserOperation was included.
   final BigInt? blockNumber;
@@ -109,7 +109,7 @@ class UserOperationReceipt {
   factory UserOperationReceipt.fromJson(Map<String, dynamic> json) =>
       UserOperationReceipt(
         userOpHash: json['userOpHash'] as String,
-        sender: EthAddress(json['sender'] as String),
+        sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: parseBigInt(json['nonce']),
         success: json['success'] as bool,
         actualGasCost: parseBigInt(json['actualGasCost']),
@@ -129,7 +129,7 @@ class UserOperationReceipt {
   final String userOpHash;
 
   /// Sender (smart account) address.
-  final EthAddress sender;
+  final EthereumAddress sender;
 
   /// Nonce of the UserOperation.
   final BigInt nonce;
@@ -166,7 +166,7 @@ class UserOperationLog {
 
   factory UserOperationLog.fromJson(Map<String, dynamic> json) =>
       UserOperationLog(
-        address: EthAddress(json['address'] as String),
+        address: EthereumAddress.fromHex(json['address'] as String),
         topics:
             (json['topics'] as List<dynamic>).map((t) => t as String).toList(),
         data: json['data'] as String,
@@ -179,7 +179,7 @@ class UserOperationLog {
       );
 
   /// Contract address that emitted the log.
-  final EthAddress address;
+  final EthereumAddress address;
 
   /// Log topics (indexed parameters).
   final List<String> topics;
@@ -216,8 +216,10 @@ class TransactionReceipt {
         transactionHash: json['transactionHash'] as String,
         blockHash: json['blockHash'] as String,
         blockNumber: parseBigInt(json['blockNumber']),
-        from: EthAddress(json['from'] as String),
-        to: json['to'] != null ? EthAddress(json['to'] as String) : null,
+        from: EthereumAddress.fromHex(json['from'] as String),
+        to: json['to'] != null
+            ? EthereumAddress.fromHex(json['to'] as String)
+            : null,
         cumulativeGasUsed: parseBigInt(json['cumulativeGasUsed']),
         gasUsed: parseBigInt(json['gasUsed']),
         status: _parseHexInt(json['status']),
@@ -236,10 +238,10 @@ class TransactionReceipt {
   final BigInt blockNumber;
 
   /// Sender of the bundle transaction (bundler).
-  final EthAddress from;
+  final EthereumAddress from;
 
   /// Recipient (EntryPoint address).
-  final EthAddress? to;
+  final EthereumAddress? to;
 
   /// Cumulative gas used in the block.
   final BigInt cumulativeGasUsed;

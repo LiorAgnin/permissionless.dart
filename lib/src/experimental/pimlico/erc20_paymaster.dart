@@ -16,8 +16,8 @@ import '../../types/user_operation.dart';
 import '../../utils/erc20.dart';
 
 /// Mainnet USDT address - requires special handling (reset to 0 before approve).
-final EthAddress _mainnetUsdtAddress =
-    EthAddress('0xdAC17F958D2ee523a2206206994597C13D831ec7');
+final EthereumAddress _mainnetUsdtAddress =
+    EthereumAddress.fromHex('0xdAC17F958D2ee523a2206206994597C13D831ec7');
 
 /// Configuration for ERC-20 paymaster preparation.
 class Erc20PaymasterConfig {
@@ -97,7 +97,7 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   required SmartAccountClient smartAccountClient,
   required PimlicoClient pimlicoClient,
   required PublicClient publicClient,
-  required EthAddress token,
+  required EthereumAddress token,
   required List<Call> calls,
   required BigInt maxFeePerGas,
   required BigInt maxPriorityFeePerGas,
@@ -304,7 +304,7 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
 /// ```
 Future<Erc20CostEstimate> estimateErc20PaymasterCost({
   required PimlicoClient pimlicoClient,
-  required EthAddress token,
+  required EthereumAddress token,
   required UserOperationV07 userOperation,
 }) async {
   final quotes = await pimlicoClient.getTokenQuotes([token]);
@@ -356,7 +356,7 @@ class Erc20CostEstimate {
   final BigInt postOpGas;
 
   /// The paymaster address to approve.
-  final EthAddress paymasterAddress;
+  final EthereumAddress paymasterAddress;
 
   @override
   String toString() =>

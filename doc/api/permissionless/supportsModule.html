@@ -56,7 +56,7 @@
         
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/bool-class.html">bool</a></span>&gt;</span></span>
 <span class="name ">supportsModule</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="supportsModule-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="supportsModule-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span></li>
+<li><span class="parameter" id="supportsModule-param-account"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">account</span>, </span></li>
 <li><span class="parameter" id="supportsModule-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span></li>
 </ol>})
 
@@ -90,7 +90,7 @@ if (supportsHooks) {
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;bool&gt; supportsModule({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
   required Erc7579ModuleType moduleType,
 }) async {
   final callData = encode7579SupportsModule(moduleType);
@@ -123,7 +123,7 @@ if (supportsHooks) {
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

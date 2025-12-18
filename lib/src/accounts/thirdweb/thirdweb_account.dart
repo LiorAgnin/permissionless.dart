@@ -40,7 +40,7 @@ class ThirdwebSmartAccountConfig {
   final EntryPointVersion entryPointVersion;
 
   /// Optional custom factory address.
-  final EthAddress? customFactoryAddress;
+  final EthereumAddress? customFactoryAddress;
 
   /// Optional custom nonce key.
   final BigInt? nonceKey;
@@ -49,7 +49,7 @@ class ThirdwebSmartAccountConfig {
   final PublicClient? publicClient;
 
   /// Pre-computed account address (optional).
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// A Thirdweb smart account implementation for ERC-4337.
@@ -74,8 +74,8 @@ class ThirdwebSmartAccount implements SmartAccount {
                 : ThirdwebAddresses.factoryV06);
 
   final ThirdwebSmartAccountConfig _config;
-  final EthAddress _factoryAddress;
-  EthAddress? _cachedAddress;
+  final EthereumAddress _factoryAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -89,7 +89,7 @@ class ThirdwebSmartAccount implements SmartAccount {
 
   /// The EntryPoint address.
   @override
-  EthAddress get entryPoint =>
+  EthereumAddress get entryPoint =>
       _config.entryPointVersion == EntryPointVersion.v07
           ? EntryPointAddresses.v07
           : EntryPointAddresses.v06;
@@ -103,7 +103,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// Note: Thirdweb uses an on-chain factory call to compute the address.
   /// This implementation computes a deterministic address locally.
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -143,7 +143,8 @@ class ThirdwebSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }
@@ -445,10 +446,10 @@ ThirdwebSmartAccount createThirdwebSmartAccount({
   required BigInt chainId,
   String salt = '0x',
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
-  EthAddress? customFactoryAddress,
+  EthereumAddress? customFactoryAddress,
   BigInt? nonceKey,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     ThirdwebSmartAccount(
       ThirdwebSmartAccountConfig(

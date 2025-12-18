@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2025-12-18
+
+### Changed
+- **BREAKING**: Replaced custom `EthAddress` class with `EthereumAddress` from the `wallet` package
+  - `EthAddress('0x...')` → `EthereumAddress.fromHex('0x...')`
+  - `EthAddress.zero` → `zeroAddress` (top-level constant)
+  - Added `EthereumAddressExtension` with `.hex`, `.checksummed`, `.bytes`, `.isZero`, `.toAbiEncoded()` methods
+  - Added `StringToAddress` extension: `'0x...'.toAddress()`
+- **BREAKING**: Removed `includeFactoryData` parameter from `SmartAccountClient` methods
+  - `prepareUserOperation`, `prepareUserOperationWithAuth`, `sendUserOperation`, `sendUserOperationAndWait`
+  - `prepareUserOperationV06`, `sendUserOperationV06`, `sendUserOperationV06AndWait`
+  - The SDK now automatically detects deployment status via `publicClient.isDeployed()` and includes factory data only when needed
+  - **Important**: `publicClient` parameter is now required in `SmartAccountClient` constructor for auto-detection to work
+  - This simplifies the API - users no longer need to track deployment status themselves
+- Added `wallet` package as direct dependency for `EthereumAddress` type
+
+### Fixed
+- Improved interoperability with web3dart ecosystem by using standard types
+- Fixed inconsistency between v0.6 and v0.7 UserOperation preparation
+  - v0.6 now properly checks deployment status before including `initCode`, matching v0.7 behavior
+
 ## [0.1.0] - 2025-12-15
 
 Initial release of permissionless.dart - a Dart implementation of permissionless.js for ERC-4337 smart accounts.
@@ -102,7 +123,7 @@ Initial release of permissionless.dart - a Dart implementation of permissionless
 #### Types
 - `UserOperationV06` - EntryPoint v0.6 UserOperation
 - `UserOperationV07` - EntryPoint v0.7 UserOperation
-- `EthAddress` - Ethereum address wrapper with validation and checksum
+- `EthereumAddress` - Ethereum address type (from wallet package) with extensions
 - `Call` - Transaction call representation
 - `TypedData` / `TypedDataDomain` / `TypedDataField` - EIP-712 typed data
 - `CallsStatus` / `CallReceipt` - ERC-5792 response types

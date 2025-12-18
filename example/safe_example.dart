@@ -87,6 +87,7 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: pimlico,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 
@@ -135,8 +136,6 @@ void main(List<String> args) async {
       maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
       sender: accountAddress,
       nonce: nonce,
-      // Skip factory data if account is already deployed
-      includeFactoryData: !isDeployed,
     );
   } on BundlerRpcError catch (e) {
     if (e.message.contains('AA') || e.message.contains('initCode')) {

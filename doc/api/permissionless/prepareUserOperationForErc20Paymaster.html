@@ -58,7 +58,7 @@
 <span class="name ">prepareUserOperationForErc20Paymaster</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-smartAccountClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/SmartAccountClient-class.html">SmartAccountClient</a></span> <span class="parameter-name">smartAccountClient</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-pimlicoClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> <span class="parameter-name">pimlicoClient</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span></li>
+<li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-calls"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Call-class.html">Call</a></span>&gt;</span></span> <span class="parameter-name">calls</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span></li>
 <li><span class="parameter" id="prepareUserOperationForErc20Paymaster-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
@@ -111,7 +111,7 @@ print('Approval injected: ${result.approvalInjected}');
   required SmartAccountClient smartAccountClient,
   required PimlicoClient pimlicoClient,
   required PublicClient publicClient,
-  required EthAddress token,
+  required EthereumAddress token,
   required List&lt;Call&gt; calls,
   required BigInt maxFeePerGas,
   required BigInt maxPriorityFeePerGas,
@@ -325,7 +325,7 @@ print('Approval injected: ${result.approvalInjected}');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

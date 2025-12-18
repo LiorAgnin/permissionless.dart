@@ -75,7 +75,9 @@ void main() {
     group('encode7579SingleCallData', () {
       test('encodes simple ETH transfer', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(1000),
           data: '0x',
         );
@@ -89,7 +91,9 @@ void main() {
 
       test('encodes call with data', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.zero,
           data: '0xabcdef',
         );
@@ -105,7 +109,7 @@ void main() {
       test('includes address without padding', () {
         const address = '0x1234567890123456789012345678901234567890';
         final call = Call(
-          to: EthAddress(address),
+          to: EthereumAddress.fromHex(address),
           value: BigInt.zero,
           data: '0x',
         );
@@ -121,7 +125,9 @@ void main() {
 
       test('encodes value as 32 bytes', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(255),
           data: '0x',
         );
@@ -146,7 +152,9 @@ void main() {
       test('encodes single call in batch format', () {
         final calls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
@@ -162,12 +170,16 @@ void main() {
       test('encodes multiple calls', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.from(100),
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(200),
             data: '0xabcd',
           ),
@@ -185,7 +197,9 @@ void main() {
     group('encode7579Execute', () {
       test('encodes single call execution', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(1000),
           data: '0x',
         );
@@ -202,7 +216,9 @@ void main() {
 
       test('uses call mode for single execution', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.zero,
           data: '0x',
         );
@@ -227,7 +243,9 @@ void main() {
       test('optimizes single call to non-batch encoding', () {
         final calls = [
           Call(
-            to: EthAddress('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
@@ -243,12 +261,16 @@ void main() {
       test('uses batch mode for multiple calls', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
@@ -264,12 +286,16 @@ void main() {
       test('encodes selector correctly', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
@@ -338,7 +364,9 @@ void main() {
 
     group('encode7579InstallModule', () {
       test('encodes install module call correctly', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
 
         final encoded = encode7579InstallModule(
           moduleType: Erc7579ModuleType.validator,
@@ -362,7 +390,9 @@ void main() {
       });
 
       test('encodes with init data', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
         const initData = '0xabcdef';
 
         final encoded = encode7579InstallModule(
@@ -382,7 +412,9 @@ void main() {
       });
 
       test('encodes different module types correctly', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
 
         for (final type in Erc7579ModuleType.values) {
           final encoded = encode7579InstallModule(
@@ -402,7 +434,9 @@ void main() {
 
     group('encode7579UninstallModule', () {
       test('encodes uninstall module call correctly', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
 
         final encoded = encode7579UninstallModule(
           moduleType: Erc7579ModuleType.validator,
@@ -418,7 +452,9 @@ void main() {
       });
 
       test('encodes with de-init data', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
         const deInitData = '0xaabbccdd';
 
         final encoded = encode7579UninstallModule(
@@ -439,7 +475,9 @@ void main() {
 
     group('encode7579IsModuleInstalled', () {
       test('encodes isModuleInstalled query correctly', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
 
         final encoded = encode7579IsModuleInstalled(
           moduleType: Erc7579ModuleType.validator,
@@ -454,7 +492,9 @@ void main() {
       });
 
       test('encodes with additional context', () {
-        final module = EthAddress('0x1234567890123456789012345678901234567890');
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
 
         final withContext = encode7579IsModuleInstalled(
           moduleType: Erc7579ModuleType.validator,
@@ -561,7 +601,9 @@ void main() {
       test('creates config with required fields', () {
         final config = InstallModuleConfig(
           type: Erc7579ModuleType.validator,
-          address: EthAddress('0x1234567890123456789012345678901234567890'),
+          address: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
         );
 
         expect(config.type, equals(Erc7579ModuleType.validator));
@@ -571,7 +613,9 @@ void main() {
       test('creates config with init data', () {
         final config = InstallModuleConfig(
           type: Erc7579ModuleType.executor,
-          address: EthAddress('0x1234567890123456789012345678901234567890'),
+          address: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           initData: '0xabcd',
         );
 
@@ -583,7 +627,9 @@ void main() {
       test('creates config with required fields', () {
         final config = UninstallModuleConfig(
           type: Erc7579ModuleType.hook,
-          address: EthAddress('0x1234567890123456789012345678901234567890'),
+          address: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
         );
 
         expect(config.type, equals(Erc7579ModuleType.hook));
@@ -593,7 +639,9 @@ void main() {
       test('creates config with de-init data', () {
         final config = UninstallModuleConfig(
           type: Erc7579ModuleType.fallback,
-          address: EthAddress('0x1234567890123456789012345678901234567890'),
+          address: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           deInitData: '0xffee',
         );
 
@@ -915,7 +963,9 @@ void main() {
     group('decode7579Calls', () {
       test('decodes single call execution', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(1000),
           data: '0xabcdef',
         );
@@ -939,12 +989,16 @@ void main() {
       test('decodes batch call execution', () {
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.from(100),
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(200),
             data: '0xaabb',
           ),
@@ -969,7 +1023,9 @@ void main() {
 
       test('decodes call with zero value', () {
         final call = Call(
-          to: EthAddress('0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+          to: EthereumAddress.fromHex(
+            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          ),
           value: BigInt.zero,
           data: '0x',
         );
@@ -982,7 +1038,9 @@ void main() {
 
       test('decodes call with large data payload', () {
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.zero,
           data: '0x${'ab' * 256}', // 256 bytes of data
         );
@@ -999,17 +1057,23 @@ void main() {
       test('roundtrips multiple calls', () {
         final calls = [
           Call(
-            to: EthAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+            to: EthereumAddress.fromHex(
+              '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ),
             value: BigInt.from(1000000000000000000), // 1 ETH
             data: '0x12345678',
           ),
           Call(
-            to: EthAddress('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+            to: EthereumAddress.fromHex(
+              '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
           Call(
-            to: EthAddress('0xcccccccccccccccccccccccccccccccccccccccc'),
+            to: EthereumAddress.fromHex(
+              '0xcccccccccccccccccccccccccccccccccccccccc',
+            ),
             value: BigInt.from(5000),
             data: '0xdeadbeefcafe',
           ),
@@ -1071,7 +1135,9 @@ void main() {
           mode: const ExecutionMode(type: Erc7579CallKind.call),
           calls: [
             Call(
-              to: EthAddress('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
               data: '0x',
             ),

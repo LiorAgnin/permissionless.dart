@@ -58,7 +58,7 @@
 <span class="name ">createEip7702SimpleSmartAccount</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="createEip7702SimpleSmartAccount-param-owner"><span>required</span> <span class="type-annotation"><a href="../permissionless/Eip7702SimpleAccountOwner-class.html">Eip7702SimpleAccountOwner</a></span> <span class="parameter-name">owner</span>, </span></li>
 <li><span class="parameter" id="createEip7702SimpleSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
 <li><span class="parameter" id="createEip7702SimpleSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="createEip7702SimpleSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span>, </span></li>
+<li><span class="parameter" id="createEip7702SimpleSmartAccount-param-accountLogicAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">accountLogicAddress</span>, </span></li>
 </ol>})
 
         
@@ -97,7 +97,7 @@ final auth = await account.getAuthorization(nonce: BigInt.zero);
   required Eip7702SimpleAccountOwner owner,
   required BigInt chainId,
   PublicClient? publicClient,
-  EthAddress? accountLogicAddress,
+  EthereumAddress? accountLogicAddress,
 }) =&gt;
     Eip7702SimpleSmartAccount(
       Eip7702SimpleSmartAccountConfig(
@@ -133,7 +133,7 @@ final auth = await account.getAuthorization(nonce: BigInt.zero);
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

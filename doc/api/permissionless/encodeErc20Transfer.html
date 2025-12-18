@@ -55,8 +55,8 @@
     <section class="multi-line-signature">
         
 <span class="returntype"><a href="../permissionless/Call-class.html">Call</a></span>
-<span class="name ">encodeErc20Transfer</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="encodeErc20Transfer-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span></li>
-<li><span class="parameter" id="encodeErc20Transfer-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span></li>
+<span class="name ">encodeErc20Transfer</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="encodeErc20Transfer-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span>, </span></li>
+<li><span class="parameter" id="encodeErc20Transfer-param-to"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">to</span>, </span></li>
 <li><span class="parameter" id="encodeErc20Transfer-param-amount"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">amount</span>, </span></li>
 </ol>})
 
@@ -82,8 +82,8 @@ tokens from the smart account to another address.</p>
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Call encodeErc20Transfer({
-  required EthAddress token,
-  required EthAddress to,
+  required EthereumAddress token,
+  required EthereumAddress to,
   required BigInt amount,
 }) {
   final callData = Hex.concat([
@@ -123,7 +123,7 @@ tokens from the smart account to another address.</p>
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

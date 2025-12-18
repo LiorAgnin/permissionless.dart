@@ -35,16 +35,16 @@ class BiconomySmartAccountConfig {
   final BigInt index;
 
   /// Optional custom factory address.
-  final EthAddress? customFactoryAddress;
+  final EthereumAddress? customFactoryAddress;
 
   /// Optional custom ECDSA module address.
-  final EthAddress? customEcdsaModuleAddress;
+  final EthereumAddress? customEcdsaModuleAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
 
   /// Pre-computed account address (optional).
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// A Biconomy smart account implementation for ERC-4337 v0.6.
@@ -74,9 +74,9 @@ class BiconomySmartAccount implements SmartAccountV06 {
             BiconomyAddresses.ecdsaOwnershipModule;
 
   final BiconomySmartAccountConfig _config;
-  final EthAddress _factoryAddress;
-  final EthAddress _ecdsaModuleAddress;
-  EthAddress? _cachedAddress;
+  final EthereumAddress _factoryAddress;
+  final EthereumAddress _ecdsaModuleAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -93,7 +93,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// The EntryPoint address (v0.6).
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v06;
+  EthereumAddress get entryPoint => EntryPointAddresses.v06;
 
   /// The nonce key (always 0 for Biconomy v0.6).
   @override
@@ -104,7 +104,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   /// The address is computed locally using CREATE2 formula:
   /// `address = keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))[12:]`
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -123,7 +123,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   }
 
   /// Computes the account address using CREATE2.
-  EthAddress _computeAccountAddress() {
+  EthereumAddress _computeAccountAddress() {
     // Build the module setup data: initForSmartAccount(address owner)
     final ecdsaOwnershipInitData = Hex.concat([
       BiconomySelectors.initForSmartAccount,
@@ -170,7 +170,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
     ]);
 
     final addressHash = keccak256(Hex.decode(preImage));
-    return EthAddress(Hex.slice(Hex.fromBytes(addressHash), 12));
+    return EthereumAddress.fromHex(Hex.slice(Hex.fromBytes(addressHash), 12));
   }
 
   /// Returns the Biconomy proxy creation code.
@@ -190,7 +190,8 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// Gets the factory address and data for UserOperation.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeDeployCounterFactualAccount();
     return (factory: _factoryAddress, factoryData: data);
   }
@@ -266,7 +267,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   }
 
   /// Encodes an array of addresses.
-  String _encodeAddressArray(List<EthAddress> addresses) => Hex.concat([
+  String _encodeAddressArray(List<EthereumAddress> addresses) => Hex.concat([
         AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
         ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
       ]);
@@ -398,10 +399,10 @@ BiconomySmartAccount createBiconomySmartAccount({
   required AccountOwner owner,
   required BigInt chainId,
   BigInt? index,
-  EthAddress? customFactoryAddress,
-  EthAddress? customEcdsaModuleAddress,
+  EthereumAddress? customFactoryAddress,
+  EthereumAddress? customEcdsaModuleAddress,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     BiconomySmartAccount(
       BiconomySmartAccountConfig(

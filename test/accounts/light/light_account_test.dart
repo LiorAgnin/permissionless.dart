@@ -3,7 +3,8 @@ import 'package:test/test.dart';
 
 void main() {
   // Mock address for unit tests (avoids RPC calls)
-  final mockAddress = EthAddress('0x1234567890123456789012345678901234567890');
+  final mockAddress =
+      EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
   group('Light Account', () {
     group('LightAccountVersion', () {
@@ -184,10 +185,12 @@ void main() {
       });
 
       test('different salt produces different address', () async {
-        final mockAddress1 =
-            EthAddress('0x1111111111111111111111111111111111111111');
-        final mockAddress2 =
-            EthAddress('0x2222222222222222222222222222222222222222');
+        final mockAddress1 = EthereumAddress.fromHex(
+          '0x1111111111111111111111111111111111111111',
+        );
+        final mockAddress2 = EthereumAddress.fromHex(
+          '0x2222222222222222222222222222222222222222',
+        );
 
         final account1 = createLightSmartAccount(
           owner: owner,
@@ -216,10 +219,12 @@ void main() {
         final owner2 = PrivateKeyOwner(
           '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
         );
-        final mockAddress1 =
-            EthAddress('0x1111111111111111111111111111111111111111');
-        final mockAddress2 =
-            EthAddress('0x2222222222222222222222222222222222222222');
+        final mockAddress1 = EthereumAddress.fromHex(
+          '0x1111111111111111111111111111111111111111',
+        );
+        final mockAddress2 = EthereumAddress.fromHex(
+          '0x2222222222222222222222222222222222222222',
+        );
 
         final account1 = createLightSmartAccount(
           owner: owner,
@@ -271,7 +276,9 @@ void main() {
         );
 
         final call = Call(
-          to: EthAddress('0x1234567890123456789012345678901234567890'),
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           value: BigInt.from(1000),
           data: '0xabcd',
         );
@@ -295,12 +302,16 @@ void main() {
 
         final calls = [
           Call(
-            to: EthAddress('0x1111111111111111111111111111111111111111'),
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
             value: BigInt.zero,
             data: '0x',
           ),
           Call(
-            to: EthAddress('0x2222222222222222222222222222222222222222'),
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
             value: BigInt.from(100),
             data: '0xaabb',
           ),
@@ -386,10 +397,12 @@ void main() {
 
       test('same owner produces different addresses for v0.6 vs v0.7',
           () async {
-        final mockAddress06 =
-            EthAddress('0x1111111111111111111111111111111111111111');
-        final mockAddress07 =
-            EthAddress('0x2222222222222222222222222222222222222222');
+        final mockAddress06 = EthereumAddress.fromHex(
+          '0x1111111111111111111111111111111111111111',
+        );
+        final mockAddress07 = EthereumAddress.fromHex(
+          '0x2222222222222222222222222222222222222222',
+        );
 
         final account06 = createLightSmartAccount(
           owner: owner,

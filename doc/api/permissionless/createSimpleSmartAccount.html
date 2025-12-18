@@ -59,9 +59,9 @@
 <li><span class="parameter" id="createSimpleSmartAccount-param-chainId"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">chainId</span>, </span></li>
 <li><span class="parameter" id="createSimpleSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span></li>
 <li><span class="parameter" id="createSimpleSmartAccount-param-salt"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">salt</span>, </span></li>
-<li><span class="parameter" id="createSimpleSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span></li>
+<li><span class="parameter" id="createSimpleSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span></li>
 <li><span class="parameter" id="createSimpleSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="createSimpleSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
+<li><span class="parameter" id="createSimpleSmartAccount-param-address"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
 </ol>})
 
         
@@ -97,9 +97,9 @@ print('Simple account: $address');
   required BigInt chainId,
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
   BigInt? salt,
-  EthAddress? customFactoryAddress,
+  EthereumAddress? customFactoryAddress,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =&gt;
     SimpleSmartAccount(
       SimpleSmartAccountConfig(
@@ -138,7 +138,7 @@ print('Simple account: $address');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

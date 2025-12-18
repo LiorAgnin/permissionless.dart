@@ -58,7 +58,7 @@ sealed class UserOperation {
   /// The smart account address that will execute this operation.
   ///
   /// This is the counterfactual address if the account isn't deployed yet.
-  EthAddress get sender;
+  EthereumAddress get sender;
 
   /// The account's nonce to prevent replay attacks.
   ///
@@ -127,7 +127,7 @@ class UserOperationV06 implements UserOperation {
   /// Creates from JSON-RPC response.
   factory UserOperationV06.fromJson(Map<String, dynamic> json) =>
       UserOperationV06(
-        sender: EthAddress(json['sender'] as String),
+        sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: Hex.toBigInt(json['nonce'] as String),
         initCode: json['initCode'] as String? ?? '0x',
         callData: json['callData'] as String,
@@ -143,7 +143,7 @@ class UserOperationV06 implements UserOperation {
       );
 
   @override
-  final EthAddress sender;
+  final EthereumAddress sender;
   @override
   final BigInt nonce;
   final String initCode;
@@ -160,7 +160,7 @@ class UserOperationV06 implements UserOperation {
 
   /// Creates a copy with updated fields.
   UserOperationV06 copyWith({
-    EthAddress? sender,
+    EthereumAddress? sender,
     BigInt? nonce,
     String? initCode,
     String? callData,
@@ -253,10 +253,10 @@ class UserOperationV07 implements UserOperation {
   /// Creates from JSON-RPC response.
   factory UserOperationV07.fromJson(Map<String, dynamic> json) =>
       UserOperationV07(
-        sender: EthAddress(json['sender'] as String),
+        sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: Hex.toBigInt(json['nonce'] as String),
         factory: json['factory'] != null
-            ? EthAddress(json['factory'] as String)
+            ? EthereumAddress.fromHex(json['factory'] as String)
             : null,
         factoryData: json['factoryData'] as String?,
         callData: json['callData'] as String,
@@ -268,7 +268,7 @@ class UserOperationV07 implements UserOperation {
         maxPriorityFeePerGas:
             Hex.toBigInt(json['maxPriorityFeePerGas'] as String),
         paymaster: json['paymaster'] != null
-            ? EthAddress(json['paymaster'] as String)
+            ? EthereumAddress.fromHex(json['paymaster'] as String)
             : null,
         paymasterVerificationGasLimit:
             json['paymasterVerificationGasLimit'] != null
@@ -282,10 +282,10 @@ class UserOperationV07 implements UserOperation {
       );
 
   @override
-  final EthAddress sender;
+  final EthereumAddress sender;
   @override
   final BigInt nonce;
-  final EthAddress? factory;
+  final EthereumAddress? factory;
   final String? factoryData;
   @override
   final String callData;
@@ -294,7 +294,7 @@ class UserOperationV07 implements UserOperation {
   final BigInt preVerificationGas;
   final BigInt maxFeePerGas;
   final BigInt maxPriorityFeePerGas;
-  final EthAddress? paymaster;
+  final EthereumAddress? paymaster;
   final BigInt? paymasterVerificationGasLimit;
   final BigInt? paymasterPostOpGasLimit;
   final String? paymasterData;
@@ -303,9 +303,9 @@ class UserOperationV07 implements UserOperation {
 
   /// Creates a copy with updated fields.
   UserOperationV07 copyWith({
-    EthAddress? sender,
+    EthereumAddress? sender,
     BigInt? nonce,
-    EthAddress? factory,
+    EthereumAddress? factory,
     String? factoryData,
     String? callData,
     BigInt? callGasLimit,
@@ -313,7 +313,7 @@ class UserOperationV07 implements UserOperation {
     BigInt? preVerificationGas,
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
-    EthAddress? paymaster,
+    EthereumAddress? paymaster,
     BigInt? paymasterVerificationGasLimit,
     BigInt? paymasterPostOpGasLimit,
     String? paymasterData,
@@ -388,7 +388,7 @@ class UserOperationV07 implements UserOperation {
 /// ```dart
 /// // Simple ETH transfer
 /// final transfer = Call(
-///   to: EthAddress('0x...'),
+///   to: EthereumAddress.fromHex('0x...'),
 ///   value: BigInt.from(1000000000000000000), // 1 ETH in wei
 /// );
 ///
@@ -419,7 +419,7 @@ class Call {
 
   /// Creates a call from a JSON map.
   factory Call.fromJson(Map<String, dynamic> json) => Call(
-        to: EthAddress(json['to'] as String),
+        to: EthereumAddress.fromHex(json['to'] as String),
         value: json['value'] is BigInt
             ? json['value'] as BigInt
             : BigInt.parse(json['value']?.toString() ?? '0'),
@@ -427,7 +427,7 @@ class Call {
       );
 
   /// The target contract or EOA address.
-  final EthAddress to;
+  final EthereumAddress to;
 
   /// Amount of ETH to send in wei.
   final BigInt value;

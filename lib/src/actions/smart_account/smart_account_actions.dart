@@ -65,7 +65,7 @@ extension SmartAccountActions on SmartAccountClient {
   /// Example:
   /// ```dart
   /// final txHash = await client.sendTransaction(
-  ///   to: EthAddress('0x...'),
+  ///   to: EthereumAddress.fromHex('0x...'),
   ///   value: BigInt.from(1000000000000000000), // 1 ETH
   ///   maxFeePerGas: BigInt.from(30000000000),
   ///   maxPriorityFeePerGas: BigInt.from(1000000000),
@@ -73,7 +73,7 @@ extension SmartAccountActions on SmartAccountClient {
   /// print('Transaction: $txHash');
   /// ```
   Future<String> sendTransaction({
-    required EthAddress to,
+    required EthereumAddress to,
     BigInt? value,
     String data = '0x',
     required BigInt maxFeePerGas,
@@ -120,7 +120,7 @@ extension SmartAccountActions on SmartAccountClient {
   /// );
   /// ```
   Future<String> writeContract({
-    required EthAddress address,
+    required EthereumAddress address,
     required String functionSignature,
     List<dynamic> args = const [],
     BigInt? value,
@@ -302,10 +302,12 @@ extension SmartAccountActions on SmartAccountClient {
   /// Encodes a single argument based on its Solidity type.
   String _encodeArg(String type, dynamic value) {
     if (type == 'address') {
-      if (value is EthAddress) {
+      if (value is EthereumAddress) {
         return AbiEncoder.encodeAddress(value);
       }
-      return AbiEncoder.encodeAddress(EthAddress(value.toString()));
+      return AbiEncoder.encodeAddress(
+        EthereumAddress.fromHex(value.toString()),
+      );
     }
 
     if (type.startsWith('uint')) {

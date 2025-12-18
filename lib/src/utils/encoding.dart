@@ -10,7 +10,7 @@ class AbiEncoder {
   AbiEncoder._();
 
   /// Encodes an address (20 bytes, left-padded to 32 bytes).
-  static String encodeAddress(EthAddress address) =>
+  static String encodeAddress(EthereumAddress address) =>
       Hex.padLeft(address.hex, 32);
 
   /// Encodes a uint256 value (32 bytes).
@@ -118,14 +118,14 @@ class SafeSelectors {
 
 /// Encodes a Safe `setup` function call.
 String encodeSafeSetup({
-  required List<EthAddress> owners,
+  required List<EthereumAddress> owners,
   required BigInt threshold,
-  required EthAddress to,
+  required EthereumAddress to,
   required String data,
-  required EthAddress fallbackHandler,
-  required EthAddress paymentToken,
+  required EthereumAddress fallbackHandler,
+  required EthereumAddress paymentToken,
   required BigInt payment,
-  required EthAddress paymentReceiver,
+  required EthereumAddress paymentReceiver,
 }) {
   // Encode owners array
   const ownersOffset = 8 * 32; // 8 parameters * 32 bytes each for static parts
@@ -162,7 +162,7 @@ String encodeSafeSetup({
 }
 
 /// Encodes an array of addresses.
-String _encodeAddressArray(List<EthAddress> addresses) {
+String _encodeAddressArray(List<EthereumAddress> addresses) {
   final parts = <String>[
     AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
     ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
@@ -171,7 +171,7 @@ String _encodeAddressArray(List<EthAddress> addresses) {
 }
 
 /// Encodes an `enableModules` call for Safe module setup.
-String encodeEnableModules(List<EthAddress> modules) {
+String encodeEnableModules(List<EthereumAddress> modules) {
   const modulesOffset = 32; // Single parameter, offset to dynamic array
   final modulesEncoded = _encodeAddressArray(modules);
 
@@ -184,7 +184,7 @@ String encodeEnableModules(List<EthAddress> modules) {
 
 /// Encodes an `executeUserOpWithErrorString` call.
 String encodeExecuteUserOp({
-  required EthAddress to,
+  required EthereumAddress to,
   required BigInt value,
   required String data,
   required int operation,
@@ -205,7 +205,7 @@ String encodeExecuteUserOp({
 
 /// Encodes a `createProxyWithNonce` call.
 String encodeCreateProxyWithNonce({
-  required EthAddress singleton,
+  required EthereumAddress singleton,
   required String initializer,
   required BigInt saltNonce,
 }) {
@@ -250,7 +250,7 @@ class Safe7579Selectors {
 ///
 /// Each ModuleInit is: (address module, bytes initData)
 String _encodeModuleInitArray(
-  List<(EthAddress module, String initData)> modules,
+  List<(EthereumAddress module, String initData)> modules,
 ) {
   if (modules.isEmpty) {
     // Empty array: just the length (0)
@@ -306,15 +306,15 @@ String _encodeModuleInitArray(
 /// ) external;
 /// ```
 String encodeInitSafe7579({
-  required EthAddress safe7579,
-  required List<(EthAddress module, String initData)> executors,
-  required List<(EthAddress module, String initData)> fallbacks,
-  required List<(EthAddress module, String initData)> hooks,
-  required List<EthAddress> attesters,
+  required EthereumAddress safe7579,
+  required List<(EthereumAddress module, String initData)> executors,
+  required List<(EthereumAddress module, String initData)> fallbacks,
+  required List<(EthereumAddress module, String initData)> hooks,
+  required List<EthereumAddress> attesters,
   required int threshold,
 }) {
   // Sort attesters by address (lowercase comparison)
-  final sortedAttesters = List<EthAddress>.from(attesters)
+  final sortedAttesters = List<EthereumAddress>.from(attesters)
     ..sort((a, b) => a.hex.toLowerCase().compareTo(b.hex.toLowerCase()));
 
   // Encode each dynamic array
@@ -358,7 +358,7 @@ String encodeInitSafe7579({
 /// ```
 String encodePreValidationSetup({
   required String initHash,
-  required EthAddress to,
+  required EthereumAddress to,
   required String preInit,
 }) {
   const preInitOffset = 3 * 32; // 3 static parameters
@@ -386,13 +386,13 @@ class Safe7579InitData {
     required this.callData,
   });
 
-  final EthAddress singleton;
-  final List<EthAddress> owners;
+  final EthereumAddress singleton;
+  final List<EthereumAddress> owners;
   final BigInt threshold;
-  final EthAddress setupTo;
+  final EthereumAddress setupTo;
   final String setupData;
-  final EthAddress safe7579;
-  final List<(EthAddress module, String initData)> validators;
+  final EthereumAddress safe7579;
+  final List<(EthereumAddress module, String initData)> validators;
   final String callData;
 }
 

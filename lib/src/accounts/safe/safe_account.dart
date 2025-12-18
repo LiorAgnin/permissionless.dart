@@ -79,7 +79,7 @@ class SafeSmartAccountConfig {
   final PublicClient? publicClient;
 
   /// Pre-computed account address (optional).
-  final EthAddress? address;
+  final EthereumAddress? address;
 
   // ============================================================================
   // ERC-7579 Configuration
@@ -93,7 +93,7 @@ class SafeSmartAccountConfig {
   /// - Uses the launchpad for initial deployment with module configuration
   ///
   /// Use [Safe7579Addresses.erc7579LaunchpadAddress] for the default address.
-  final EthAddress? erc7579LaunchpadAddress;
+  final EthereumAddress? erc7579LaunchpadAddress;
 
   /// Validator modules to install during deployment (ERC-7579 mode only).
   ///
@@ -121,7 +121,7 @@ class SafeSmartAccountConfig {
   /// approved by the required number of attesters can be installed.
   ///
   /// Use [Safe7579Addresses.rhinestoneAttester] for Rhinestone attestation.
-  final List<EthAddress> attesters;
+  final List<EthereumAddress> attesters;
 
   /// Minimum number of attester approvals required (ERC-7579 mode only).
   ///
@@ -138,7 +138,7 @@ class SafeSmartAccount implements SmartAccount {
 
   final SafeSmartAccountConfig _config;
   final SafeAddresses _addresses;
-  EthAddress? _cachedAddress;
+  EthereumAddress? _cachedAddress;
 
   static SafeAddresses _resolveAddresses(SafeSmartAccountConfig config) {
     if (config.customAddresses != null) {
@@ -175,7 +175,7 @@ class SafeSmartAccount implements SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthAddress get entryPoint =>
+  EthereumAddress get entryPoint =>
       EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
@@ -189,7 +189,7 @@ class SafeSmartAccount implements SmartAccount {
   ///
   /// In ERC-7579 mode, this returns the Safe7579 module address.
   /// Otherwise, it returns the standard Safe 4337 module.
-  EthAddress get _safe4337ModuleAddress => isErc7579Enabled
+  EthereumAddress get _safe4337ModuleAddress => isErc7579Enabled
       ? Safe7579Addresses.safe7579ModuleAddress
       : _addresses.safe4337ModuleAddress;
 
@@ -199,7 +199,7 @@ class SafeSmartAccount implements SmartAccount {
   /// it can be known before the account is actually deployed and works even
   /// for accounts that are already deployed.
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -227,7 +227,7 @@ class SafeSmartAccount implements SmartAccount {
   /// - bytecode = proxyCreationCode ++ abi.encode(singleton)
   ///
   /// In ERC-7579 mode, the singleton is the launchpad address (not the Safe singleton).
-  EthAddress _computeCreate2Address() {
+  EthereumAddress _computeCreate2Address() {
     final salt = _computeSalt();
 
     // In 7579 mode, the proxy points to the launchpad which handles setup
@@ -257,7 +257,7 @@ class SafeSmartAccount implements SmartAccount {
     // Take last 20 bytes (40 hex chars) of the hash
     final addressHex = '0x${Hex.fromBytes(addressHash).substring(26)}';
 
-    return EthAddress(addressHex);
+    return EthereumAddress.fromHex(addressHex);
   }
 
   /// Computes the salt for CREATE2 address derivation.
@@ -320,9 +320,9 @@ class SafeSmartAccount implements SmartAccount {
       to: _addresses.multiSendAddress, // MultiSend contract
       data: multiSendCallData, // Wrapped enableModules call
       fallbackHandler: _addresses.safe4337ModuleAddress,
-      paymentToken: EthAddress.zero,
+      paymentToken: zeroAddress,
       payment: BigInt.zero,
-      paymentReceiver: EthAddress.zero,
+      paymentReceiver: zeroAddress,
     );
   }
 
@@ -341,7 +341,7 @@ class SafeSmartAccount implements SmartAccount {
     // - preInit: empty for standard setup
     return encodePreValidationSetup(
       initHash: initHash,
-      to: EthAddress.zero, // Must be zeroAddress per permissionless.js
+      to: zeroAddress, // Must be zeroAddress per permissionless.js
       preInit: '0x',
     );
   }
@@ -378,13 +378,13 @@ class SafeSmartAccount implements SmartAccount {
 
   /// ABI-encodes the InitData struct and returns its keccak256 hash.
   String _encodeInitDataAndHash({
-    required EthAddress singleton,
-    required List<EthAddress> owners,
+    required EthereumAddress singleton,
+    required List<EthereumAddress> owners,
     required BigInt threshold,
-    required EthAddress setupTo,
+    required EthereumAddress setupTo,
     required String setupData,
-    required EthAddress safe7579,
-    required List<(EthAddress, String)> validators,
+    required EthereumAddress safe7579,
+    required List<(EthereumAddress, String)> validators,
   }) {
     // Static part has 7 slots (7 * 32 = 224 bytes):
     // singleton, owners_offset, threshold, setupTo, setupData_offset, safe7579, validators_offset
@@ -421,7 +421,7 @@ class SafeSmartAccount implements SmartAccount {
   }
 
   /// Encodes an array of addresses for struct encoding.
-  String _encodeAddressArrayForStruct(List<EthAddress> addresses) {
+  String _encodeAddressArrayForStruct(List<EthereumAddress> addresses) {
     final parts = <String>[
       AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
       ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
@@ -430,7 +430,9 @@ class SafeSmartAccount implements SmartAccount {
   }
 
   /// Encodes a ModuleInit array for struct encoding.
-  String _encodeModuleInitArrayForStruct(List<(EthAddress, String)> modules) {
+  String _encodeModuleInitArrayForStruct(
+    List<(EthereumAddress, String)> modules,
+  ) {
     if (modules.isEmpty) {
       return AbiEncoder.encodeUint256(BigInt.zero);
     }
@@ -513,7 +515,8 @@ class SafeSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final initializer = _getInitializer();
 
     // In 7579 mode, the proxy points to the launchpad
@@ -729,7 +732,7 @@ class SafeSmartAccount implements SmartAccount {
   /// Computes the SafeOp hash for EIP-712 signing.
   String _computeSafeOpHash(
     UserOperationV07 userOp,
-    EthAddress accountAddress,
+    EthereumAddress accountAddress,
   ) {
     // IMPORTANT: Domain separator uses the Safe4337Module address as verifyingContract
     // (not the Safe account address!) because Safe's fallback uses 'call' not 'delegatecall',
@@ -777,7 +780,7 @@ class SafeSmartAccount implements SmartAccount {
   /// Computes the SafeOp struct hash for EIP-712.
   String _computeSafeOpStructHash(
     UserOperationV07 userOp,
-    EthAddress accountAddress,
+    EthereumAddress accountAddress,
   ) {
     // SafeOp type hash for v0.7
     const safeOpTypeString =
@@ -893,14 +896,14 @@ SafeSmartAccount createSafeSmartAccount({
   required BigInt chainId,
   SafeAddresses? customAddresses,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
   // ERC-7579 parameters
-  EthAddress? erc7579LaunchpadAddress,
+  EthereumAddress? erc7579LaunchpadAddress,
   List<Safe7579ModuleInit> validators = const [],
   List<Safe7579ModuleInit> executors = const [],
   List<Safe7579ModuleInit> fallbacks = const [],
   List<Safe7579ModuleInit> hooks = const [],
-  List<EthAddress> attesters = const [],
+  List<EthereumAddress> attesters = const [],
   int attestersThreshold = 0,
 }) =>
     SafeSmartAccount(

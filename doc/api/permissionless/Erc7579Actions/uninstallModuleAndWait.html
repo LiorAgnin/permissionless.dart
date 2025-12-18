@@ -56,7 +56,7 @@
       
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/UserOperationReceipt-class.html">UserOperationReceipt</a>?</span>&gt;</span></span>
 <span class="name ">uninstallModuleAndWait</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="uninstallModuleAndWait-param-type"><span>required</span> <span class="type-annotation"><a href="../../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">type</span>, </span></li>
-<li><span class="parameter" id="uninstallModuleAndWait-param-address"><span>required</span> <span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">address</span>, </span></li>
+<li><span class="parameter" id="uninstallModuleAndWait-param-address"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">address</span>, </span></li>
 <li><span class="parameter" id="uninstallModuleAndWait-param-deInitData"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">deInitData</span> = <span class="default-value">&#39;0x&#39;</span>, </span></li>
 <li><span class="parameter" id="uninstallModuleAndWait-param-maxFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxFeePerGas</span>, </span></li>
 <li><span class="parameter" id="uninstallModuleAndWait-param-maxPriorityFeePerGas"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">maxPriorityFeePerGas</span>, </span></li>
@@ -81,7 +81,7 @@
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;UserOperationReceipt?&gt; uninstallModuleAndWait({
   required Erc7579ModuleType type,
-  required EthAddress address,
+  required EthereumAddress address,
   String deInitData = &#39;0x&#39;,
   required BigInt maxFeePerGas,
   required BigInt maxPriorityFeePerGas,
@@ -131,7 +131,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

@@ -264,10 +264,10 @@ String _encodePrimitive(String type, dynamic value) {
 
   // address
   if (type == 'address') {
-    if (value is EthAddress) {
+    if (value is EthereumAddress) {
       return AbiEncoder.encodeAddress(value);
     }
-    return AbiEncoder.encodeAddress(EthAddress(value as String));
+    return AbiEncoder.encodeAddress(EthereumAddress.fromHex(value as String));
   }
 
   // bytes1 through bytes32

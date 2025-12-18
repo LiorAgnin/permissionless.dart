@@ -56,7 +56,7 @@
         
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/Erc20CostEstimate-class.html">Erc20CostEstimate</a></span>&gt;</span></span>
 <span class="name ">estimateErc20PaymasterCost</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="estimateErc20PaymasterCost-param-pimlicoClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PimlicoClient-class.html">PimlicoClient</a></span> <span class="parameter-name">pimlicoClient</span>, </span></li>
-<li><span class="parameter" id="estimateErc20PaymasterCost-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span></li>
+<li><span class="parameter" id="estimateErc20PaymasterCost-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span>, </span></li>
 <li><span class="parameter" id="estimateErc20PaymasterCost-param-userOperation"><span>required</span> <span class="type-annotation"><a href="../permissionless/UserOperationV07-class.html">UserOperationV07</a></span> <span class="parameter-name">userOperation</span>, </span></li>
 </ol>})
 
@@ -86,7 +86,7 @@ print('Exchange rate: ${estimate.exchangeRate}');
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;Erc20CostEstimate&gt; estimateErc20PaymasterCost({
   required PimlicoClient pimlicoClient,
-  required EthAddress token,
+  required EthereumAddress token,
   required UserOperationV07 userOperation,
 }) async {
   final quotes = await pimlicoClient.getTokenQuotes([token]);
@@ -144,7 +144,7 @@ print('Exchange rate: ${estimate.exchangeRate}');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

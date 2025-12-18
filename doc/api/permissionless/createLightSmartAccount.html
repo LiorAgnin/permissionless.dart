@@ -60,9 +60,9 @@
 <li><span class="parameter" id="createLightSmartAccount-param-entryPointVersion"><span class="type-annotation"><a href="../permissionless/EntryPointVersion.html">EntryPointVersion</a></span> <span class="parameter-name">entryPointVersion</span> = <span class="default-value">EntryPointVersion.v07</span>, </span></li>
 <li><span class="parameter" id="createLightSmartAccount-param-version"><span class="type-annotation"><a href="../permissionless/LightAccountVersion.html">LightAccountVersion</a>?</span> <span class="parameter-name">version</span>, </span></li>
 <li><span class="parameter" id="createLightSmartAccount-param-salt"><span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a>?</span> <span class="parameter-name">salt</span>, </span></li>
-<li><span class="parameter" id="createLightSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span></li>
+<li><span class="parameter" id="createLightSmartAccount-param-customFactoryAddress"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">customFactoryAddress</span>, </span></li>
 <li><span class="parameter" id="createLightSmartAccount-param-publicClient"><span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a>?</span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="createLightSmartAccount-param-address"><span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
+<li><span class="parameter" id="createLightSmartAccount-param-address"><span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a>?</span> <span class="parameter-name">address</span>, </span></li>
 </ol>})
 
         
@@ -99,9 +99,9 @@ print('Light account: $address');
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
   LightAccountVersion? version,
   BigInt? salt,
-  EthAddress? customFactoryAddress,
+  EthereumAddress? customFactoryAddress,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =&gt;
     LightSmartAccount(
       LightSmartAccountConfig(
@@ -141,7 +141,7 @@ print('Light account: $address');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

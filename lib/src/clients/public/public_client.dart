@@ -40,7 +40,7 @@ class PublicClient {
   ///
   /// Returns '0x' if no code is deployed at the address.
   Future<String> getCode(
-    EthAddress address, {
+    EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
     final result = await rpcClient.call(
@@ -53,14 +53,14 @@ class PublicClient {
   /// Checks if an account is deployed (has code).
   ///
   /// Returns true if the address has bytecode, false otherwise.
-  Future<bool> isDeployed(EthAddress address) async {
+  Future<bool> isDeployed(EthereumAddress address) async {
     final code = await getCode(address);
     return code != '0x' && code.length > 2;
   }
 
   /// Gets the ETH balance of an address in wei.
   Future<BigInt> getBalance(
-    EthAddress address, {
+    EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
     final result = await rpcClient.call(
@@ -95,7 +95,7 @@ class PublicClient {
   ///
   /// Note: For smart account nonces, use [getAccountNonce] instead.
   Future<BigInt> getTransactionCount(
-    EthAddress address, {
+    EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
     final result = await rpcClient.call(
@@ -158,8 +158,8 @@ class PublicClient {
   /// );
   /// ```
   Future<BigInt> getAccountNonce(
-    EthAddress account,
-    EthAddress entryPoint, {
+    EthereumAddress account,
+    EthereumAddress entryPoint, {
     BigInt? nonceKey,
   }) async {
     final key = nonceKey ?? BigInt.zero;
@@ -195,9 +195,9 @@ class PublicClient {
   ///
   /// Throws [PublicRpcError] if the initCode is invalid or the call fails
   /// for reasons other than the expected SenderAddressResult revert.
-  Future<EthAddress> getSenderAddress({
+  Future<EthereumAddress> getSenderAddress({
     required String initCode,
-    required EthAddress entryPoint,
+    required EthereumAddress entryPoint,
   }) async {
     // EntryPoint.getSenderAddress(bytes initCode) selector: 0x9b249f69
     final callData = Hex.concat([
@@ -231,7 +231,7 @@ class PublicClient {
         // Extract address from bytes 4-36 (after selector)
         // Address is at offset 4 (selector) + 12 (padding) = 16
         final addressHex = '0x${data.substring(34, 74)}';
-        return EthAddress(addressHex);
+        return EthereumAddress.fromHex(addressHex);
       }
 
       // Check for alternative error format (some nodes wrap the error)
@@ -240,7 +240,7 @@ class PublicClient {
         if (selectorIndex != -1 && data.length >= selectorIndex + 72) {
           final addressHex =
               '0x${data.substring(selectorIndex + 32, selectorIndex + 72)}';
-          return EthAddress(addressHex);
+          return EthereumAddress.fromHex(addressHex);
         }
       }
 
@@ -281,7 +281,7 @@ PublicClient createPublicClient({
     );
 
 /// ABI-encodes an address (left-padded to 32 bytes).
-String _abiEncodeAddress(EthAddress address) =>
+String _abiEncodeAddress(EthereumAddress address) =>
     Hex.padLeft(address.hex.substring(2), 32);
 
 /// Pads hex data to a 32-byte (64 char) word boundary.

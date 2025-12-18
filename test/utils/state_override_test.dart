@@ -4,8 +4,10 @@ import 'package:test/test.dart';
 void main() {
   group('erc20BalanceOverride', () {
     test('returns correct structure for valid inputs', () {
-      final token = EthAddress('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
-      final owner = EthAddress('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
+      final token =
+          EthereumAddress.fromHex('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
+      final owner =
+          EthereumAddress.fromHex('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
       final slot = BigInt.one;
       final balance = BigInt.from(1000);
 
@@ -39,8 +41,10 @@ void main() {
     });
 
     test('uses default balance when none provided', () {
-      final token = EthAddress('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
-      final owner = EthAddress('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
+      final token =
+          EthereumAddress.fromHex('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
+      final owner =
+          EthereumAddress.fromHex('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
       final slot = BigInt.one;
 
       final result = erc20BalanceOverride(
@@ -62,8 +66,10 @@ void main() {
     });
 
     test('computes deterministic storage slot', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1234567890123456789012345678901234567890');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
       final slot = BigInt.zero;
 
       final result = erc20BalanceOverride(
@@ -86,9 +92,12 @@ void main() {
     });
 
     test('different owners produce different slots', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner1 = EthAddress('0x1111111111111111111111111111111111111111');
-      final owner2 = EthAddress('0x2222222222222222222222222222222222222222');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner1 =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final owner2 =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
       final slot = BigInt.zero;
 
       final result1 = erc20BalanceOverride(
@@ -112,9 +121,12 @@ void main() {
 
   group('erc20AllowanceOverride', () {
     test('returns correct structure for valid inputs', () {
-      final token = EthAddress('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
-      final owner = EthAddress('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
-      final spender = EthAddress('0xDDdDddDdDdddDDddDDddDDDDdDdDDdDDdDDDDDDd');
+      final token =
+          EthereumAddress.fromHex('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
+      final owner =
+          EthereumAddress.fromHex('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
+      final spender =
+          EthereumAddress.fromHex('0xDDdDddDdDdddDDddDDddDDDDdDdDDdDDdDDDDDDd');
       final slot = BigInt.one;
       final amount = BigInt.from(100);
 
@@ -149,9 +161,12 @@ void main() {
     });
 
     test('uses default amount when none provided', () {
-      final token = EthAddress('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
-      final owner = EthAddress('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
-      final spender = EthAddress('0xDDdDddDdDdddDDddDDddDDDDdDdDDdDDdDDDDDDd');
+      final token =
+          EthereumAddress.fromHex('0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF');
+      final owner =
+          EthereumAddress.fromHex('0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE');
+      final spender =
+          EthereumAddress.fromHex('0xDDdDddDdDdddDDddDDddDDDDdDdDDdDDdDDDDDDd');
       final slot = BigInt.one;
 
       final result = erc20AllowanceOverride(
@@ -174,9 +189,12 @@ void main() {
     });
 
     test('computes deterministic storage slot for nested mapping', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
-      final spender = EthAddress('0x2222222222222222222222222222222222222222');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final spender =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
       final slot = BigInt.one;
 
       final result = erc20AllowanceOverride(
@@ -201,10 +219,14 @@ void main() {
     });
 
     test('different spenders produce different slots', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
-      final spender1 = EthAddress('0x2222222222222222222222222222222222222222');
-      final spender2 = EthAddress('0x3333333333333333333333333333333333333333');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final spender1 =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
+      final spender2 =
+          EthereumAddress.fromHex('0x3333333333333333333333333333333333333333');
       final slot = BigInt.one;
 
       final result1 = erc20AllowanceOverride(
@@ -228,8 +250,10 @@ void main() {
     });
 
     test('allowance slot differs from balance slot', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
       final slot = BigInt.zero;
 
       final balanceResult = erc20BalanceOverride(
@@ -256,9 +280,12 @@ void main() {
 
   group('erc20PaymasterOverride', () {
     test('creates combined balance and allowance overrides', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
-      final spender = EthAddress('0x2222222222222222222222222222222222222222');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final spender =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
       final balanceSlot = BigInt.zero;
       final allowanceSlot = BigInt.one;
 
@@ -289,9 +316,12 @@ void main() {
     });
 
     test('uses custom balance and allowance values', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
-      final spender = EthAddress('0x2222222222222222222222222222222222222222');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final spender =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
       final balance = BigInt.from(1000000);
       final allowance = BigInt.from(500000);
 
@@ -320,9 +350,12 @@ void main() {
 
   group('mergeStateOverrides', () {
     test('merges overrides for different addresses', () {
-      final token1 = EthAddress('0x1111111111111111111111111111111111111111');
-      final token2 = EthAddress('0x2222222222222222222222222222222222222222');
-      final owner = EthAddress('0x3333333333333333333333333333333333333333');
+      final token1 =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final token2 =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
+      final owner =
+          EthereumAddress.fromHex('0x3333333333333333333333333333333333333333');
 
       final override1 = erc20BalanceOverride(
         token: token1,
@@ -344,9 +377,12 @@ void main() {
     });
 
     test('merges stateDiffs for same address', () {
-      final token = EthAddress('0x1111111111111111111111111111111111111111');
-      final owner = EthAddress('0x2222222222222222222222222222222222222222');
-      final spender = EthAddress('0x3333333333333333333333333333333333333333');
+      final token =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final owner =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
+      final spender =
+          EthereumAddress.fromHex('0x3333333333333333333333333333333333333333');
 
       final balanceOverride = erc20BalanceOverride(
         token: token,
@@ -374,8 +410,10 @@ void main() {
 
   group('stateOverridesToJson', () {
     test('converts override to JSON format', () {
-      final token = EthAddress('0x1234567890123456789012345678901234567890');
-      final owner = EthAddress('0x1111111111111111111111111111111111111111');
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
 
       final override = erc20BalanceOverride(
         token: token,
@@ -397,7 +435,9 @@ void main() {
   group('StateOverride', () {
     test('toJson includes all fields when set', () {
       final override = StateOverride(
-        address: EthAddress('0x1234567890123456789012345678901234567890'),
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         balance: BigInt.from(1000),
         nonce: BigInt.from(5),
         code: '0x1234',
@@ -421,7 +461,9 @@ void main() {
 
     test('toJson excludes null fields', () {
       final override = StateOverride(
-        address: EthAddress('0x1234567890123456789012345678901234567890'),
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
       );
 
       final json = override.toJson();

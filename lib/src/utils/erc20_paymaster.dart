@@ -34,9 +34,9 @@ const int erc20PaymasterGasBuffer = 75000;
 /// ```
 Future<BigInt> getTokenAllowance({
   required PublicClient publicClient,
-  required EthAddress token,
-  required EthAddress owner,
-  required EthAddress spender,
+  required EthereumAddress token,
+  required EthereumAddress owner,
+  required EthereumAddress spender,
 }) async {
   final callData = encodeErc20AllowanceCall(owner: owner, spender: spender);
   final result = await publicClient.call(Call(to: token, data: callData));
@@ -58,8 +58,8 @@ Future<BigInt> getTokenAllowance({
 /// ```
 Future<BigInt> getTokenBalance({
   required PublicClient publicClient,
-  required EthAddress token,
-  required EthAddress account,
+  required EthereumAddress token,
+  required EthereumAddress account,
 }) async {
   final callData = encodeErc20BalanceOfCall(account: account);
   final result = await publicClient.call(Call(to: token, data: callData));
@@ -90,8 +90,8 @@ Future<BigInt> getTokenBalance({
 /// );
 /// ```
 Call createPaymasterApprovalCall({
-  required EthAddress token,
-  required EthAddress paymaster,
+  required EthereumAddress token,
+  required EthereumAddress paymaster,
   BigInt? amount,
 }) =>
     encodeErc20Approve(
@@ -162,9 +162,9 @@ BigInt estimateTokenCost({
 /// ```
 Future<Call?> getApprovalCallIfNeeded({
   required PublicClient publicClient,
-  required EthAddress token,
-  required EthAddress owner,
-  required EthAddress spender,
+  required EthereumAddress token,
+  required EthereumAddress owner,
+  required EthereumAddress spender,
   required BigInt requiredAmount,
   BigInt? approvalAmount,
 }) async {

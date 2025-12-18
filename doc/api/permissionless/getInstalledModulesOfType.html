@@ -54,11 +54,11 @@
 
     <section class="multi-line-signature">
         
-<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span>&gt;</span></span>
+<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span>&gt;</span></span>
 <span class="name ">getInstalledModulesOfType</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="getInstalledModulesOfType-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="getInstalledModulesOfType-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span></li>
+<li><span class="parameter" id="getInstalledModulesOfType-param-account"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">account</span>, </span></li>
 <li><span class="parameter" id="getInstalledModulesOfType-param-moduleType"><span>required</span> <span class="type-annotation"><a href="../permissionless/Erc7579ModuleType.html">Erc7579ModuleType</a></span> <span class="parameter-name">moduleType</span>, </span></li>
-<li><span class="parameter" id="getInstalledModulesOfType-param-candidateModules"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">candidateModules</span>, </span></li>
+<li><span class="parameter" id="getInstalledModulesOfType-param-candidateModules"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span> <span class="parameter-name">candidateModules</span>, </span></li>
 </ol>})
 
         
@@ -87,13 +87,13 @@ print('Installed validators: $installedValidators');
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;List&lt;EthAddress&gt;&gt; getInstalledModulesOfType({
+  <pre class="language-dart"><code class="language-dart">Future&lt;List&lt;EthereumAddress&gt;&gt; getInstalledModulesOfType({
   required PublicClient publicClient,
-  required EthAddress account,
+  required EthereumAddress account,
   required Erc7579ModuleType moduleType,
-  required List&lt;EthAddress&gt; candidateModules,
+  required List&lt;EthereumAddress&gt; candidateModules,
 }) async {
-  final installed = &lt;EthAddress&gt;[];
+  final installed = &lt;EthereumAddress&gt;[];
 
   for (final module in candidateModules) {
     final isInstalled = await isModuleInstalled(
@@ -136,7 +136,7 @@ print('Installed validators: $installedValidators');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

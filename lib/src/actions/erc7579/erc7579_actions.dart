@@ -46,7 +46,7 @@ extension Erc7579Actions on SmartAccountClient {
   /// ```
   Future<String> installModule({
     required Erc7579ModuleType type,
-    required EthAddress address,
+    required EthereumAddress address,
     String initData = '0x',
     required BigInt maxFeePerGas,
     required BigInt maxPriorityFeePerGas,
@@ -141,7 +141,7 @@ extension Erc7579Actions on SmartAccountClient {
   /// ```
   Future<String> uninstallModule({
     required Erc7579ModuleType type,
-    required EthAddress address,
+    required EthereumAddress address,
     String deInitData = '0x',
     required BigInt maxFeePerGas,
     required BigInt maxPriorityFeePerGas,
@@ -222,7 +222,7 @@ extension Erc7579Actions on SmartAccountClient {
   /// Returns the UserOperation receipt, or null if timed out.
   Future<UserOperationReceipt?> installModuleAndWait({
     required Erc7579ModuleType type,
-    required EthAddress address,
+    required EthereumAddress address,
     String initData = '0x',
     required BigInt maxFeePerGas,
     required BigInt maxPriorityFeePerGas,
@@ -253,7 +253,7 @@ extension Erc7579Actions on SmartAccountClient {
   /// Returns the UserOperation receipt, or null if timed out.
   Future<UserOperationReceipt?> uninstallModuleAndWait({
     required Erc7579ModuleType type,
-    required EthAddress address,
+    required EthereumAddress address,
     String deInitData = '0x',
     required BigInt maxFeePerGas,
     required BigInt maxPriorityFeePerGas,
@@ -370,7 +370,7 @@ extension Erc7579Actions on SmartAccountClient {
   Future<bool> isModuleInstalled({
     required PublicClient publicClient,
     required Erc7579ModuleType type,
-    required EthAddress address,
+    required EthereumAddress address,
     String additionalContext = '0x',
   }) async {
     final accountAddress = await getAddress();

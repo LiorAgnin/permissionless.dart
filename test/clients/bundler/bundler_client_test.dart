@@ -65,7 +65,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -99,7 +101,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -140,7 +144,9 @@ void main() {
         );
 
         final userOp = UserOperationV07(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.zero,
@@ -182,7 +188,9 @@ void main() {
         );
 
         final userOp = UserOperationV06(
-          sender: EthAddress('0x1234567890123456789012345678901234567890'),
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
           nonce: BigInt.zero,
           initCode: '0x',
           callData: '0x',

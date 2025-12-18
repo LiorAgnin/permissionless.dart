@@ -20,7 +20,7 @@ import 'constants.dart';
 /// This owner can sign both messages and EIP-7702 authorizations.
 abstract class Eip7702SimpleAccountOwner {
   /// The Ethereum address of this owner (the EOA).
-  EthAddress get address;
+  EthereumAddress get address;
 
   /// Signs a message hash and returns the signature.
   Future<String> signHash(String messageHash);
@@ -34,7 +34,7 @@ abstract class Eip7702SimpleAccountOwner {
   /// the specified contract address.
   Future<Eip7702Authorization> createAuthorization({
     required BigInt chainId,
-    required EthAddress contractAddress,
+    required EthereumAddress contractAddress,
     required BigInt nonce,
   });
 }
@@ -49,7 +49,8 @@ class PrivateKeyEip7702Owner implements Eip7702SimpleAccountOwner {
   final String _privateKeyHex;
 
   @override
-  EthAddress get address => EthAddress(_privateKey.address.eip55With0x);
+  EthereumAddress get address =>
+      EthereumAddress.fromHex(_privateKey.address.eip55With0x);
 
   @override
   Future<String> signHash(String messageHash) async {
@@ -86,7 +87,7 @@ class PrivateKeyEip7702Owner implements Eip7702SimpleAccountOwner {
   @override
   Future<Eip7702Authorization> createAuthorization({
     required BigInt chainId,
-    required EthAddress contractAddress,
+    required EthereumAddress contractAddress,
     required BigInt nonce,
   }) =>
       Eip7702Authorization.sign(
@@ -103,7 +104,7 @@ class Eip7702SimpleSmartAccountConfig {
     required this.owner,
     required this.chainId,
     this.publicClient,
-    EthAddress? accountLogicAddress,
+    EthereumAddress? accountLogicAddress,
   }) : accountLogicAddress =
             accountLogicAddress ?? Simple7702AccountAddresses.defaultLogic;
 
@@ -122,7 +123,7 @@ class Eip7702SimpleSmartAccountConfig {
   /// The Simple7702Account logic contract address.
   ///
   /// Defaults to the official eth-infinitism Simple7702Account.
-  final EthAddress accountLogicAddress;
+  final EthereumAddress accountLogicAddress;
 }
 
 /// An EIP-7702 Simple smart account implementation.
@@ -159,7 +160,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
 
   /// The Simple7702Account logic contract address.
   @override
-  EthAddress get accountLogicAddress => _config.accountLogicAddress;
+  EthereumAddress get accountLogicAddress => _config.accountLogicAddress;
 
   /// Whether this account uses EIP-7702 code delegation.
   @override
@@ -174,7 +175,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v08;
+  EthereumAddress get entryPoint => EntryPointAddresses.v08;
 
   /// The nonce key for parallel transaction support.
   @override
@@ -184,7 +185,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   ///
   /// For EIP-7702 accounts, this is the same as the owner's EOA address.
   @override
-  Future<EthAddress> getAddress() async => _config.owner.address;
+  Future<EthereumAddress> getAddress() async => _config.owner.address;
 
   /// Gets the init code for deploying this account.
   ///
@@ -197,8 +198,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   ///
   /// For EIP-7702 accounts, this returns null as no factory is used.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async =>
-      null;
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async => null;
 
   /// Creates an EIP-7702 authorization for this account.
   ///
@@ -245,7 +246,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   }
 
   /// Encodes a single execute call.
-  String _encodeExecute(EthAddress to, BigInt value, String data) {
+  String _encodeExecute(EthereumAddress to, BigInt value, String data) {
     // execute(address dest, uint256 value, bytes calldata func)
     const dataOffset = 3 * 32;
     final dataEncoded = AbiEncoder.encodeBytes(data);
@@ -508,7 +509,7 @@ Eip7702SimpleSmartAccount createEip7702SimpleSmartAccount({
   required Eip7702SimpleAccountOwner owner,
   required BigInt chainId,
   PublicClient? publicClient,
-  EthAddress? accountLogicAddress,
+  EthereumAddress? accountLogicAddress,
 }) =>
     Eip7702SimpleSmartAccount(
       Eip7702SimpleSmartAccountConfig(

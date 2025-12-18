@@ -16,7 +16,7 @@ import '../utils/message_hash.dart';
 /// - EIP-712 typed data signing for accounts like Safe
 abstract class AccountOwner {
   /// The Ethereum address of this owner.
-  EthAddress get address;
+  EthereumAddress get address;
 
   /// Signs a hash with EIP-191 personal message prefix.
   ///
@@ -70,7 +70,7 @@ class PrivateKeyOwner implements AccountOwner {
   final EthPrivateKey _privateKey;
 
   @override
-  EthAddress get address => EthAddress(_privateKey.address.eip55With0x);
+  EthereumAddress get address => _privateKey.address;
 
   /// The public key (64 bytes, uncompressed without 04 prefix).
   ///

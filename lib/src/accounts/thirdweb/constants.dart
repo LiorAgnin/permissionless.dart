@@ -7,12 +7,12 @@ class ThirdwebAddresses {
   ThirdwebAddresses._();
 
   /// Factory address for EntryPoint v0.6.
-  static final EthAddress factoryV06 =
-      EthAddress('0x85e23b94e7F5E9cC1fF78BCe78cfb15B81f0DF00');
+  static final EthereumAddress factoryV06 =
+      EthereumAddress.fromHex('0x85e23b94e7F5E9cC1fF78BCe78cfb15B81f0DF00');
 
   /// Factory address for EntryPoint v0.7.
-  static final EthAddress factoryV07 =
-      EthAddress('0x4be0ddfebca9a5a4a617dee4dece99e7c862dceb');
+  static final EthereumAddress factoryV07 =
+      EthereumAddress.fromHex('0x4be0ddfebca9a5a4a617dee4dece99e7c862dceb');
 }
 
 /// Thirdweb function selectors.

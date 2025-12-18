@@ -62,8 +62,8 @@ final BigInt maxUint256 = (BigInt.one << 256) - BigInt.one;
 /// final calls = [approveCall, transferCall];
 /// ```
 Call encodeErc20Approve({
-  required EthAddress token,
-  required EthAddress spender,
+  required EthereumAddress token,
+  required EthereumAddress spender,
   required BigInt amount,
 }) {
   final callData = Hex.concat([
@@ -92,8 +92,8 @@ Call encodeErc20Approve({
 /// );
 /// ```
 Call encodeErc20Transfer({
-  required EthAddress token,
-  required EthAddress to,
+  required EthereumAddress token,
+  required EthereumAddress to,
   required BigInt amount,
 }) {
   final callData = Hex.concat([
@@ -128,8 +128,8 @@ Call encodeErc20Transfer({
 /// final allowance = decodeUint256Result(result);
 /// ```
 String encodeErc20AllowanceCall({
-  required EthAddress owner,
-  required EthAddress spender,
+  required EthereumAddress owner,
+  required EthereumAddress spender,
 }) =>
     Hex.concat([
       Erc20Selectors.allowance,
@@ -152,7 +152,7 @@ String encodeErc20AllowanceCall({
 /// final balance = decodeUint256Result(result);
 /// ```
 String encodeErc20BalanceOfCall({
-  required EthAddress account,
+  required EthereumAddress account,
 }) =>
     Hex.concat([
       Erc20Selectors.balanceOf,
@@ -231,7 +231,7 @@ class StateOverride {
   });
 
   /// The address to override.
-  final EthAddress address;
+  final EthereumAddress address;
 
   /// Override the account balance (in wei).
   final BigInt? balance;
@@ -327,9 +327,9 @@ final BigInt _defaultOverrideBalance = BigInt.parse(
 /// );
 /// ```
 List<StateOverride> erc20AllowanceOverride({
-  required EthAddress token,
-  required EthAddress owner,
-  required EthAddress spender,
+  required EthereumAddress token,
+  required EthereumAddress owner,
+  required EthereumAddress spender,
   required BigInt slot,
   BigInt? amount,
 }) {
@@ -398,8 +398,8 @@ List<StateOverride> erc20AllowanceOverride({
 /// );
 /// ```
 List<StateOverride> erc20BalanceOverride({
-  required EthAddress token,
-  required EthAddress owner,
+  required EthereumAddress token,
+  required EthereumAddress owner,
   required BigInt slot,
   BigInt? balance,
 }) {
@@ -514,9 +514,9 @@ List<StateOverride> mergeStateOverrides(List<StateOverride> overrides) {
 /// );
 /// ```
 List<StateOverride> erc20PaymasterOverride({
-  required EthAddress token,
-  required EthAddress owner,
-  required EthAddress spender,
+  required EthereumAddress token,
+  required EthereumAddress owner,
+  required EthereumAddress spender,
   required BigInt balanceSlot,
   required BigInt allowanceSlot,
   BigInt? balance,

@@ -88,6 +88,7 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: pimlico,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 
@@ -137,7 +138,6 @@ void main(List<String> args) async {
       maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
       sender: accountAddress,
       nonce: nonce,
-      includeFactoryData: !isDeployed,
     );
   } on BundlerRpcError catch (e) {
     print('\n⚠️  UserOperation preparation failed!');

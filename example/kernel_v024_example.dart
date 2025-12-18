@@ -93,6 +93,7 @@ void main(List<String> args) async {
   final smartAccountClient = SmartAccountClient(
     account: account,
     bundler: bundler,
+    publicClient: publicClient,
     paymaster: paymaster,
   );
 
@@ -155,7 +156,6 @@ void main(List<String> args) async {
       maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
       sender: accountAddress,
       nonce: nonce,
-      includeFactoryData: !isDeployed,
     );
   } on BundlerRpcError catch (e) {
     if (e.message.contains('AA') || e.message.contains('initCode')) {
@@ -182,7 +182,7 @@ void main(List<String> args) async {
 
   if (userOp.paymasterAndData != '0x' && userOp.paymasterAndData.length > 2) {
     // Extract paymaster address from paymasterAndData (first 20 bytes)
-    final paymasterAddress = EthAddress(
+    final paymasterAddress = EthereumAddress.fromHex(
       '0x${userOp.paymasterAndData.substring(2, 42)}',
     );
     print('Paymaster: ${paymasterAddress.checksummed} (SPONSORED)');

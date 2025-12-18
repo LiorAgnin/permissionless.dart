@@ -55,14 +55,14 @@
     <section class="multi-line-signature">
         
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span>
-<span class="name ">encodeSafeSetup</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="encodeSafeSetup-param-owners"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span> <span class="parameter-name">owners</span>, </span></li>
+<span class="name ">encodeSafeSetup</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="encodeSafeSetup-param-owners"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/List-class.html">List</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span> <span class="parameter-name">owners</span>, </span></li>
 <li><span class="parameter" id="encodeSafeSetup-param-threshold"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">threshold</span>, </span></li>
-<li><span class="parameter" id="encodeSafeSetup-param-to"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">to</span>, </span></li>
+<li><span class="parameter" id="encodeSafeSetup-param-to"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">to</span>, </span></li>
 <li><span class="parameter" id="encodeSafeSetup-param-data"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">data</span>, </span></li>
-<li><span class="parameter" id="encodeSafeSetup-param-fallbackHandler"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">fallbackHandler</span>, </span></li>
-<li><span class="parameter" id="encodeSafeSetup-param-paymentToken"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">paymentToken</span>, </span></li>
+<li><span class="parameter" id="encodeSafeSetup-param-fallbackHandler"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">fallbackHandler</span>, </span></li>
+<li><span class="parameter" id="encodeSafeSetup-param-paymentToken"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">paymentToken</span>, </span></li>
 <li><span class="parameter" id="encodeSafeSetup-param-payment"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span> <span class="parameter-name">payment</span>, </span></li>
-<li><span class="parameter" id="encodeSafeSetup-param-paymentReceiver"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">paymentReceiver</span>, </span></li>
+<li><span class="parameter" id="encodeSafeSetup-param-paymentReceiver"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">paymentReceiver</span>, </span></li>
 </ol>})
 
         
@@ -78,14 +78,14 @@
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">String encodeSafeSetup({
-  required List&lt;EthAddress&gt; owners,
+  required List&lt;EthereumAddress&gt; owners,
   required BigInt threshold,
-  required EthAddress to,
+  required EthereumAddress to,
   required String data,
-  required EthAddress fallbackHandler,
-  required EthAddress paymentToken,
+  required EthereumAddress fallbackHandler,
+  required EthereumAddress paymentToken,
   required BigInt payment,
-  required EthAddress paymentReceiver,
+  required EthereumAddress paymentReceiver,
 }) {
   &#47;&#47; Encode owners array
   const ownersOffset = 8 * 32; &#47;&#47; 8 parameters * 32 bytes each for static parts
@@ -146,7 +146,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

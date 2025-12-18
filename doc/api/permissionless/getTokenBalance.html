@@ -56,8 +56,8 @@
         
 <span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://api.dart.dev/stable/3.10.4/dart-core/BigInt-class.html">BigInt</a></span>&gt;</span></span>
 <span class="name ">getTokenBalance</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="getTokenBalance-param-publicClient"><span>required</span> <span class="type-annotation"><a href="../permissionless/PublicClient-class.html">PublicClient</a></span> <span class="parameter-name">publicClient</span>, </span></li>
-<li><span class="parameter" id="getTokenBalance-param-token"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">token</span>, </span></li>
-<li><span class="parameter" id="getTokenBalance-param-account"><span>required</span> <span class="type-annotation"><a href="../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">account</span>, </span></li>
+<li><span class="parameter" id="getTokenBalance-param-token"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">token</span>, </span></li>
+<li><span class="parameter" id="getTokenBalance-param-account"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">account</span>, </span></li>
 </ol>})
 
         
@@ -83,8 +83,8 @@ print('Balance: $balance');
   <h2><span>Implementation</span></h2>
   <pre class="language-dart"><code class="language-dart">Future&lt;BigInt&gt; getTokenBalance({
   required PublicClient publicClient,
-  required EthAddress token,
-  required EthAddress account,
+  required EthereumAddress token,
+  required EthereumAddress account,
 }) async {
   final callData = encodeErc20BalanceOfCall(account: account);
   final result = await publicClient.call(Call(to: token, data: callData));
@@ -116,7 +116,7 @@ print('Balance: $balance');
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

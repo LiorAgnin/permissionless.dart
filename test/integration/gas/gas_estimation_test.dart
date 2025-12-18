@@ -12,16 +12,30 @@ void main() {
     for (final chain in TestChain.values) {
       group(chain.name, () {
         PimlicoClient? bundler;
+        PaymasterClient? paymaster;
+        PublicClient? publicClient;
         SafeSmartAccount? safeAccount;
         SimpleSmartAccount? simpleAccount;
 
         setUp(() {
           if (!TestConfig.hasApiKeys) return;
 
+          final rpcClient = JsonRpcClient(
+            url: Uri.parse(chain.pimlicoUrl),
+            timeout: TestTimeouts.mediumNetwork,
+          );
+
           bundler = createPimlicoClient(
             url: chain.pimlicoUrl,
             entryPoint: chain.entryPointV07,
             timeout: TestTimeouts.mediumNetwork,
+          );
+
+          // Pimlico provides paymaster on the same endpoint
+          paymaster = PaymasterClient(rpcClient: rpcClient);
+
+          publicClient = PublicClient(
+            rpcClient: JsonRpcClient(url: Uri.parse(chain.rpcUrl)),
           );
 
           safeAccount = createSafeSmartAccount(
@@ -34,12 +48,26 @@ void main() {
             owner: PrivateKeyOwner(TestConfig.hardhatTestKey),
             chainId: chain.chainIdBigInt,
             salt: BigInt.from(888888),
+            publicClient: publicClient,
           );
         });
 
         tearDown(() {
           bundler?.close();
+          publicClient?.close();
         });
+
+        /// Helper to get a sponsored UserOperation with paymaster stub data.
+        Future<UserOperationV07> getSponsoredUserOp(
+          UserOperationV07 userOp,
+        ) async {
+          final stubData = await paymaster!.getPaymasterStubData(
+            userOp: userOp,
+            entryPoint: chain.entryPointV07,
+            chainId: chain.chainIdBigInt,
+          );
+          return userOp.withPaymasterStub(stubData);
+        }
 
         group('SafeSmartAccount', () {
           test(
@@ -56,7 +84,9 @@ void main() {
               // Create a simple ETH transfer UserOp
               final callData = safeAccount!.encodeCall(
                 Call(
-                  to: EthAddress('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                   data: '0x',
                 ),
@@ -64,7 +94,7 @@ void main() {
 
               final gasPrices = await bundler!.getUserOperationGasPrice();
 
-              final userOp = UserOperationV07(
+              var userOp = UserOperationV07(
                 sender: address,
                 nonce: BigInt.zero,
                 factory: factoryData?.factory,
@@ -77,6 +107,9 @@ void main() {
                 maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
                 signature: safeAccount!.getStubSignature(),
               );
+
+              // Add paymaster sponsorship for gas estimation
+              userOp = await getSponsoredUserOp(userOp);
 
               final estimate = await bundler!.estimateUserOperationGas(userOp);
 
@@ -116,14 +149,16 @@ void main() {
 
               final callData = safeAccount!.encodeCall(
                 Call(
-                  to: EthAddress('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                 ),
               );
 
               final gasPrices = await bundler!.getUserOperationGasPrice();
 
-              final userOp = UserOperationV07(
+              var userOp = UserOperationV07(
                 sender: address,
                 nonce: BigInt.zero,
                 factory: factoryData?.factory,
@@ -136,6 +171,9 @@ void main() {
                 maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
                 signature: safeAccount!.getStubSignature(),
               );
+
+              // Add paymaster sponsorship for gas estimation
+              userOp = await getSponsoredUserOp(userOp);
 
               final estimate = await bundler!.estimateUserOperationGas(userOp);
 
@@ -171,7 +209,9 @@ void main() {
 
               final callData = simpleAccount!.encodeCall(
                 Call(
-                  to: EthAddress('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                   data: '0x',
                 ),
@@ -179,7 +219,7 @@ void main() {
 
               final gasPrices = await bundler!.getUserOperationGasPrice();
 
-              final userOp = UserOperationV07(
+              var userOp = UserOperationV07(
                 sender: address,
                 nonce: BigInt.zero,
                 factory: factoryData?.factory,
@@ -192,6 +232,9 @@ void main() {
                 maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
                 signature: simpleAccount!.getStubSignature(),
               );
+
+              // Add paymaster sponsorship for gas estimation
+              userOp = await getSponsoredUserOp(userOp);
 
               final estimate = await bundler!.estimateUserOperationGas(userOp);
 
@@ -226,14 +269,16 @@ void main() {
 
             final callData = safeAccount!.encodeCall(
               Call(
-                to: EthAddress('0x0000000000000000000000000000000000000001'),
+                to: EthereumAddress.fromHex(
+                  '0x0000000000000000000000000000000000000001',
+                ),
                 value: BigInt.zero,
               ),
             );
 
             final gasPrices = await bundler!.getUserOperationGasPrice();
 
-            final userOp = UserOperationV07(
+            var userOp = UserOperationV07(
               sender: address,
               nonce: BigInt.zero,
               factory: factoryData?.factory,
@@ -247,12 +292,21 @@ void main() {
               signature: safeAccount!.getStubSignature(),
             );
 
+            // Add paymaster sponsorship for gas estimation
+            userOp = await getSponsoredUserOp(userOp);
+
             final estimate = await bundler!.estimateUserOperationGas(userOp);
 
-            // Verify totalGasLimit calculation
-            final expectedTotal = estimate.preVerificationGas +
+            // Verify totalGasLimit calculation (includes paymaster gas if present)
+            var expectedTotal = estimate.preVerificationGas +
                 estimate.verificationGasLimit +
                 estimate.callGasLimit;
+            if (estimate.paymasterVerificationGasLimit != null) {
+              expectedTotal += estimate.paymasterVerificationGasLimit!;
+            }
+            if (estimate.paymasterPostOpGasLimit != null) {
+              expectedTotal += estimate.paymasterPostOpGasLimit!;
+            }
 
             expect(estimate.totalGasLimit, equals(expectedTotal));
           },
@@ -272,14 +326,16 @@ void main() {
 
             final callData = safeAccount!.encodeCall(
               Call(
-                to: EthAddress('0x0000000000000000000000000000000000000001'),
+                to: EthereumAddress.fromHex(
+                  '0x0000000000000000000000000000000000000001',
+                ),
                 value: BigInt.zero,
               ),
             );
 
             final gasPrices = await bundler!.getUserOperationGasPrice();
 
-            final userOp = UserOperationV07(
+            var userOp = UserOperationV07(
               sender: address,
               nonce: BigInt.zero,
               factory: factoryData?.factory,
@@ -292,6 +348,9 @@ void main() {
               maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
               signature: safeAccount!.getStubSignature(),
             );
+
+            // Add paymaster sponsorship for gas estimation
+            userOp = await getSponsoredUserOp(userOp);
 
             final estimate = await bundler!.estimateUserOperationGas(userOp);
 

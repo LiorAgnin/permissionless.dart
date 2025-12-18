@@ -54,9 +54,9 @@
 
     <section class="multi-line-signature">
       
-<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span>&gt;</span></span>
+<span class="returntype"><a href="https://api.dart.dev/stable/3.10.4/dart-core/Future-class.html">Future</a><span class="signature">&lt;<wbr><span class="type-parameter"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span>&gt;</span></span>
 <span class="name ">getSenderAddress</span>(<wbr>{<ol class="parameter-list"> <li><span class="parameter" id="getSenderAddress-param-initCode"><span>required</span> <span class="type-annotation"><a href="https://api.dart.dev/stable/3.10.4/dart-core/String-class.html">String</a></span> <span class="parameter-name">initCode</span>, </span></li>
-<li><span class="parameter" id="getSenderAddress-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="../../permissionless/EthAddress-class.html">EthAddress</a></span> <span class="parameter-name">entryPoint</span>, </span></li>
+<li><span class="parameter" id="getSenderAddress-param-entryPoint"><span>required</span> <span class="type-annotation"><a href="https://pub.dev/documentation/wallet/0.0.18/wallet/EthereumAddress-class.html">EthereumAddress</a></span> <span class="parameter-name">entryPoint</span>, </span></li>
 </ol>})
 
       
@@ -85,9 +85,9 @@ for reasons other than the expected SenderAddressResult revert.</p>
     
 <section class="summary source-code" id="source">
   <h2><span>Implementation</span></h2>
-  <pre class="language-dart"><code class="language-dart">Future&lt;EthAddress&gt; getSenderAddress({
+  <pre class="language-dart"><code class="language-dart">Future&lt;EthereumAddress&gt; getSenderAddress({
   required String initCode,
-  required EthAddress entryPoint,
+  required EthereumAddress entryPoint,
 }) async {
   &#47;&#47; EntryPoint.getSenderAddress(bytes initCode) selector: 0x9b249f69
   final callData = Hex.concat([
@@ -121,7 +121,7 @@ for reasons other than the expected SenderAddressResult revert.</p>
       &#47;&#47; Extract address from bytes 4-36 (after selector)
       &#47;&#47; Address is at offset 4 (selector) + 12 (padding) = 16
       final addressHex = &#39;0x${data.substring(34, 74)}&#39;;
-      return EthAddress(addressHex);
+      return EthereumAddress.fromHex(addressHex);
     }
 
     &#47;&#47; Check for alternative error format (some nodes wrap the error)
@@ -130,7 +130,7 @@ for reasons other than the expected SenderAddressResult revert.</p>
       if (selectorIndex != -1 &amp;&amp; data.length &gt;= selectorIndex + 72) {
         final addressHex =
             &#39;0x${data.substring(selectorIndex + 32, selectorIndex + 72)}&#39;;
-        return EthAddress(addressHex);
+        return EthereumAddress.fromHex(addressHex);
       }
     }
 
@@ -169,7 +169,7 @@ for reasons other than the expected SenderAddressResult revert.</p>
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

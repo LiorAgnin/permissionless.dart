@@ -68,8 +68,8 @@
       transactionHash: json[&#39;transactionHash&#39;] as String,
       blockHash: json[&#39;blockHash&#39;] as String,
       blockNumber: parseBigInt(json[&#39;blockNumber&#39;]),
-      from: EthAddress(json[&#39;from&#39;] as String),
-      to: json[&#39;to&#39;] != null ? EthAddress(json[&#39;to&#39;] as String) : null,
+      from: EthereumAddress.fromHex(json[&#39;from&#39;] as String),
+      to: json[&#39;to&#39;] != null ? EthereumAddress.fromHex(json[&#39;to&#39;] as String) : null,
       cumulativeGasUsed: parseBigInt(json[&#39;cumulativeGasUsed&#39;]),
       gasUsed: parseBigInt(json[&#39;gasUsed&#39;]),
       status: _parseHexInt(json[&#39;status&#39;]),
@@ -104,7 +104,7 @@
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

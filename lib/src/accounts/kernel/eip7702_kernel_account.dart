@@ -21,7 +21,7 @@ import 'constants.dart';
 /// This owner can sign messages, typed data, and EIP-7702 authorizations.
 abstract class Eip7702KernelOwner {
   /// The Ethereum address of this owner (the EOA).
-  EthAddress get address;
+  EthereumAddress get address;
 
   /// Signs a raw message hash and returns the signature.
   Future<String> signHash(String messageHash);
@@ -32,7 +32,7 @@ abstract class Eip7702KernelOwner {
   /// Creates an EIP-7702 authorization for this owner.
   Future<Eip7702Authorization> createAuthorization({
     required BigInt chainId,
-    required EthAddress contractAddress,
+    required EthereumAddress contractAddress,
     required BigInt nonce,
   });
 }
@@ -47,7 +47,8 @@ class PrivateKeyEip7702KernelOwner implements Eip7702KernelOwner {
   final String _privateKeyHex;
 
   @override
-  EthAddress get address => EthAddress(_privateKey.address.eip55With0x);
+  EthereumAddress get address =>
+      EthereumAddress.fromHex(_privateKey.address.eip55With0x);
 
   @override
   Future<String> signHash(String messageHash) async {
@@ -86,7 +87,7 @@ class PrivateKeyEip7702KernelOwner implements Eip7702KernelOwner {
   @override
   Future<Eip7702Authorization> createAuthorization({
     required BigInt chainId,
-    required EthAddress contractAddress,
+    required EthereumAddress contractAddress,
     required BigInt nonce,
   }) =>
       Eip7702Authorization.sign(
@@ -104,8 +105,8 @@ class Eip7702KernelSmartAccountConfig {
     required this.chainId,
     this.version = KernelVersion.v0_3_3,
     this.publicClient,
-    EthAddress? accountLogicAddress,
-    EthAddress? ecdsaValidatorAddress,
+    EthereumAddress? accountLogicAddress,
+    EthereumAddress? ecdsaValidatorAddress,
   })  : accountLogicAddress = accountLogicAddress ??
             KernelVersionAddresses.getAddresses(version)!.accountImplementation,
         ecdsaValidatorAddress = ecdsaValidatorAddress ??
@@ -134,10 +135,10 @@ class Eip7702KernelSmartAccountConfig {
   final PublicClient? publicClient;
 
   /// The Kernel account logic contract address for delegation.
-  final EthAddress accountLogicAddress;
+  final EthereumAddress accountLogicAddress;
 
   /// The ECDSA validator address.
-  final EthAddress ecdsaValidatorAddress;
+  final EthereumAddress ecdsaValidatorAddress;
 }
 
 /// An EIP-7702 Kernel smart account implementation.
@@ -175,7 +176,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
   /// The Kernel account logic contract address.
   @override
-  EthAddress get accountLogicAddress => _config.accountLogicAddress;
+  EthereumAddress get accountLogicAddress => _config.accountLogicAddress;
 
   /// Whether this account uses EIP-7702 code delegation.
   @override
@@ -190,7 +191,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint => EntryPointAddresses.v07;
 
   /// The nonce key for this account.
   ///
@@ -219,7 +220,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   ///
   /// For EIP-7702 accounts, this is the same as the owner's EOA address.
   @override
-  Future<EthAddress> getAddress() async => _config.owner.address;
+  Future<EthereumAddress> getAddress() async => _config.owner.address;
 
   /// Gets the init code for deploying this account.
   ///
@@ -231,8 +232,8 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   ///
   /// For EIP-7702 accounts, this returns null as no factory is used.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async =>
-      null;
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async => null;
 
   /// Creates an EIP-7702 authorization for this account.
   ///
@@ -502,8 +503,8 @@ Eip7702KernelSmartAccount createEip7702KernelSmartAccount({
   required BigInt chainId,
   KernelVersion version = KernelVersion.v0_3_3,
   PublicClient? publicClient,
-  EthAddress? accountLogicAddress,
-  EthAddress? ecdsaValidatorAddress,
+  EthereumAddress? accountLogicAddress,
+  EthereumAddress? ecdsaValidatorAddress,
 }) =>
     Eip7702KernelSmartAccount(
       Eip7702KernelSmartAccountConfig(

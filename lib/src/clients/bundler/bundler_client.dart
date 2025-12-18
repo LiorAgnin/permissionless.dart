@@ -37,7 +37,7 @@ class BundlerClient {
   final JsonRpcClient rpcClient;
 
   /// The EntryPoint address to use for operations.
-  final EthAddress entryPoint;
+  final EthereumAddress entryPoint;
 
   /// Submits a UserOperation to the bundler.
   ///
@@ -178,10 +178,10 @@ class BundlerClient {
   }
 
   /// Gets the list of EntryPoints supported by this bundler.
-  Future<List<EthAddress>> supportedEntryPoints() async {
+  Future<List<EthereumAddress>> supportedEntryPoints() async {
     final result = await rpcClient.call('eth_supportedEntryPoints');
     return (result as List<dynamic>)
-        .map((addr) => EthAddress(addr as String))
+        .map((addr) => EthereumAddress.fromHex(addr as String))
         .toList();
   }
 
@@ -231,7 +231,7 @@ class BundlerClient {
 /// ```
 BundlerClient createBundlerClient({
   required String url,
-  required EthAddress entryPoint,
+  required EthereumAddress entryPoint,
   http.Client? httpClient,
   Map<String, String>? headers,
   Duration? timeout,

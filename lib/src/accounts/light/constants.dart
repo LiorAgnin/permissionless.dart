@@ -41,13 +41,15 @@ class LightAccountFactoryAddresses {
   LightAccountFactoryAddresses._();
 
   /// Factory for Light Account v1.1.0 (EntryPoint v0.6).
-  static final v110 = EthAddress('0x00004EC70002a32400f8ae005A26081065620D20');
+  static final v110 =
+      EthereumAddress.fromHex('0x00004EC70002a32400f8ae005A26081065620D20');
 
   /// Factory for Light Account v2.0.0 (EntryPoint v0.7).
-  static final v200 = EthAddress('0x0000000000400CdFef5E2714E63d8040b700BC24');
+  static final v200 =
+      EthereumAddress.fromHex('0x0000000000400CdFef5E2714E63d8040b700BC24');
 
   /// Gets the factory address for a Light Account version.
-  static EthAddress fromVersion(LightAccountVersion version) {
+  static EthereumAddress fromVersion(LightAccountVersion version) {
     switch (version) {
       case LightAccountVersion.v110:
         return v110;

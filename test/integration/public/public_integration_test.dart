@@ -38,7 +38,9 @@ void main() {
           () async {
             // Zero address should return a BigInt (possibly zero)
             final balance = await client.getBalance(
-              EthAddress('0x0000000000000000000000000000000000000000'),
+              EthereumAddress.fromHex(
+                '0x0000000000000000000000000000000000000000',
+              ),
             );
 
             expect(balance, isA<BigInt>());
@@ -72,7 +74,9 @@ void main() {
           () async {
             // Random address unlikely to have code
             final deployed = await client.isDeployed(
-              EthAddress('0x1234567890123456789012345678901234567890'),
+              EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
             );
             expect(deployed, isFalse);
           },

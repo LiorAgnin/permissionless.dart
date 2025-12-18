@@ -37,7 +37,7 @@ class SimpleSmartAccountConfig {
   final BigInt salt;
 
   /// Optional custom factory address.
-  final EthAddress? customFactoryAddress;
+  final EthereumAddress? customFactoryAddress;
 
   /// Public client for computing the account address via RPC.
   ///
@@ -49,7 +49,7 @@ class SimpleSmartAccountConfig {
   ///
   /// If provided, this address will be used instead of RPC computation.
   /// Use when you already know the account address.
-  final EthAddress? address;
+  final EthereumAddress? address;
 }
 
 /// A Simple smart account implementation for ERC-4337.
@@ -78,8 +78,8 @@ class SimpleSmartAccount implements SmartAccount {
             );
 
   final SimpleSmartAccountConfig _config;
-  final EthAddress _factoryAddress;
-  EthAddress? _cachedAddress;
+  final EthereumAddress _factoryAddress;
+  EthereumAddress? _cachedAddress;
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -96,7 +96,7 @@ class SimpleSmartAccount implements SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthAddress get entryPoint =>
+  EthereumAddress get entryPoint =>
       EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
@@ -107,7 +107,7 @@ class SimpleSmartAccount implements SmartAccount {
   ///
   /// The address is computed via RPC using [PublicClient.getSenderAddress].
   @override
-  Future<EthAddress> getAddress() async {
+  Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) {
       return _cachedAddress!;
     }
@@ -186,7 +186,8 @@ class SimpleSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }
@@ -222,7 +223,7 @@ class SimpleSmartAccount implements SmartAccount {
   }
 
   /// Encodes a single execute call.
-  String _encodeExecute(EthAddress to, BigInt value, String data) {
+  String _encodeExecute(EthereumAddress to, BigInt value, String data) {
     // execute(address dest, uint256 value, bytes calldata func)
     // Layout: selector + dest + value + offset + length + data
     const dataOffset = 3 * 32; // 3 static parameters before dynamic data
@@ -266,7 +267,7 @@ class SimpleSmartAccount implements SmartAccount {
   }
 
   /// Encodes an array of addresses.
-  String _encodeAddressArray(List<EthAddress> addresses) => Hex.concat([
+  String _encodeAddressArray(List<EthereumAddress> addresses) => Hex.concat([
         AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
         ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
       ]);
@@ -434,9 +435,9 @@ SimpleSmartAccount createSimpleSmartAccount({
   required BigInt chainId,
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
   BigInt? salt,
-  EthAddress? customFactoryAddress,
+  EthereumAddress? customFactoryAddress,
   PublicClient? publicClient,
-  EthAddress? address,
+  EthereumAddress? address,
 }) =>
     SimpleSmartAccount(
       SimpleSmartAccountConfig(

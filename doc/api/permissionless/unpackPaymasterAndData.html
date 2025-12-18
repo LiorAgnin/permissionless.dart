@@ -89,7 +89,7 @@ if (unpacked.paymaster != null) {
   }
 
   return UnpackedPaymasterAndData(
-    paymaster: EthAddress(&#39;0x${hex.substring(0, 40)}&#39;),
+    paymaster: EthereumAddress.fromHex(&#39;0x${hex.substring(0, 40)}&#39;),
     paymasterVerificationGasLimit:
         BigInt.parse(hex.substring(40, 72), radix: 16),
     paymasterPostOpGasLimit: BigInt.parse(hex.substring(72, 104), radix: 16),
@@ -122,7 +122,7 @@ if (unpacked.paymaster != null) {
 <footer>
   <span class="no-break">
     permissionless
-      0.1.0
+      0.1.1
   </span>
   
 </footer>

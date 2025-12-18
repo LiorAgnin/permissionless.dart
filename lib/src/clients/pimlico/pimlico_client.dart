@@ -85,7 +85,7 @@ class PimlicoClient extends BundlerClient {
   /// Returns the UserOperation hash.
   Future<String> sendCompressedUserOperation(
     UserOperationV07 userOp,
-    EthAddress inflator,
+    EthereumAddress inflator,
     String compressedCalldata,
   ) async {
     final packedUserOp = _packUserOperationV07(userOp);
@@ -154,7 +154,7 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoTokenQuote>> getTokenQuotes(
-    List<EthAddress> tokens,
+    List<EthereumAddress> tokens,
   ) async {
     final chain = await chainId();
     final result = await rpcClient.call(
@@ -234,7 +234,7 @@ class PimlicoClient extends BundlerClient {
   /// ```
   Future<PimlicoErc20PaymasterCost> estimateErc20PaymasterCost({
     required UserOperationV07 userOperation,
-    required EthAddress token,
+    required EthereumAddress token,
   }) async {
     final packedUserOp = _packUserOperationV07(userOperation);
 
@@ -316,7 +316,7 @@ class PimlicoClient extends BundlerClient {
 /// ```
 PimlicoClient createPimlicoClient({
   required String url,
-  required EthAddress entryPoint,
+  required EthereumAddress entryPoint,
   http.Client? httpClient,
   Map<String, String>? headers,
   Duration? timeout,
