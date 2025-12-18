@@ -169,7 +169,8 @@ class LightSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }

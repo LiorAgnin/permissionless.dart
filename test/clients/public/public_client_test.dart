@@ -156,7 +156,9 @@ void main() {
 
         final result = await client.call(
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             data: '0x70a08231', // balanceOf selector
           ),
         );
@@ -179,7 +181,9 @@ void main() {
 
         await client.call(
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.from(1000000000000000000),
             data: '0x',
           ),

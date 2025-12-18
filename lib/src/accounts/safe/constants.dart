@@ -98,56 +98,78 @@ class SafeVersionAddresses {
       _addressMap = {
     SafeVersion.v1_4_1: {
       EntryPointVersion.v06: SafeAddresses(
-        safeModuleSetupAddress:
-            EthereumAddress.fromHex('0x8EcD4ec46D4D2a6B64fE960B3D64e8B94B2234eb'),
-        safe4337ModuleAddress:
-            EthereumAddress.fromHex('0xa581c4A4DB7175302464fF3C06380BC3270b4037'),
-        safeProxyFactoryAddress:
-            EthereumAddress.fromHex('0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67'),
-        safeSingletonAddress:
-            EthereumAddress.fromHex('0x41675C099F32341bf84BFc5382aF534df5C7461a'),
-        multiSendAddress:
-            EthereumAddress.fromHex('0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526'),
-        multiSendCallOnlyAddress:
-            EthereumAddress.fromHex('0x9641d764fc13c8B624c04430C7356C1C7C8102e2'),
+        safeModuleSetupAddress: EthereumAddress.fromHex(
+          '0x8EcD4ec46D4D2a6B64fE960B3D64e8B94B2234eb',
+        ),
+        safe4337ModuleAddress: EthereumAddress.fromHex(
+          '0xa581c4A4DB7175302464fF3C06380BC3270b4037',
+        ),
+        safeProxyFactoryAddress: EthereumAddress.fromHex(
+          '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+        ),
+        safeSingletonAddress: EthereumAddress.fromHex(
+          '0x41675C099F32341bf84BFc5382aF534df5C7461a',
+        ),
+        multiSendAddress: EthereumAddress.fromHex(
+          '0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526',
+        ),
+        multiSendCallOnlyAddress: EthereumAddress.fromHex(
+          '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
+        ),
       ),
       EntryPointVersion.v07: SafeAddresses(
-        safeModuleSetupAddress:
-            EthereumAddress.fromHex('0x2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47'),
-        safe4337ModuleAddress:
-            EthereumAddress.fromHex('0x75cf11467937ce3F2f357CE24ffc3DBF8fD5c226'),
-        safeProxyFactoryAddress:
-            EthereumAddress.fromHex('0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67'),
-        safeSingletonAddress:
-            EthereumAddress.fromHex('0x41675C099F32341bf84BFc5382aF534df5C7461a'),
-        multiSendAddress:
-            EthereumAddress.fromHex('0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526'),
-        multiSendCallOnlyAddress:
-            EthereumAddress.fromHex('0x9641d764fc13c8B624c04430C7356C1C7C8102e2'),
-        webAuthnSharedSignerAddress:
-            EthereumAddress.fromHex('0xfD90FAd33ee8b58f32c00aceEad1358e4AFC23f9'),
-        safeP256VerifierAddress:
-            EthereumAddress.fromHex('0x445a0683e494ea0c5AF3E83c5159fBE47Cf9e765'),
+        safeModuleSetupAddress: EthereumAddress.fromHex(
+          '0x2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47',
+        ),
+        safe4337ModuleAddress: EthereumAddress.fromHex(
+          '0x75cf11467937ce3F2f357CE24ffc3DBF8fD5c226',
+        ),
+        safeProxyFactoryAddress: EthereumAddress.fromHex(
+          '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+        ),
+        safeSingletonAddress: EthereumAddress.fromHex(
+          '0x41675C099F32341bf84BFc5382aF534df5C7461a',
+        ),
+        multiSendAddress: EthereumAddress.fromHex(
+          '0x38869bf66a61cF6bDB996A6aE40D5853Fd43B526',
+        ),
+        multiSendCallOnlyAddress: EthereumAddress.fromHex(
+          '0x9641d764fc13c8B624c04430C7356C1C7C8102e2',
+        ),
+        webAuthnSharedSignerAddress: EthereumAddress.fromHex(
+          '0xfD90FAd33ee8b58f32c00aceEad1358e4AFC23f9',
+        ),
+        safeP256VerifierAddress: EthereumAddress.fromHex(
+          '0x445a0683e494ea0c5AF3E83c5159fBE47Cf9e765',
+        ),
       ),
     },
     SafeVersion.v1_5_0: {
       EntryPointVersion.v07: SafeAddresses(
-        safeModuleSetupAddress:
-            EthereumAddress.fromHex('0x2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47'),
-        safe4337ModuleAddress:
-            EthereumAddress.fromHex('0x75cf11467937ce3F2f357CE24ffc3DBF8fD5c226'),
-        safeProxyFactoryAddress:
-            EthereumAddress.fromHex('0x14F2982D601c9458F93bd70B218933A6f8165e7b'),
-        safeSingletonAddress:
-            EthereumAddress.fromHex('0xFf51A5898e281Db6DfC7855790607438dF2ca44b'),
-        multiSendAddress:
-            EthereumAddress.fromHex('0x218543288004CD07832472D464648173c77D7eB7'),
-        multiSendCallOnlyAddress:
-            EthereumAddress.fromHex('0x0c28E9886f79618371c5Af86aA7e5Cf62dddd8dC'),
-        webAuthnSharedSignerAddress:
-            EthereumAddress.fromHex('0xfD90FAd33ee8b58f32c00aceEad1358e4AFC23f9'),
-        safeP256VerifierAddress:
-            EthereumAddress.fromHex('0x445a0683e494ea0c5AF3E83c5159fBE47Cf9e765'),
+        safeModuleSetupAddress: EthereumAddress.fromHex(
+          '0x2dd68b007B46fBe91B9A7c3EDa5A7a1063cB5b47',
+        ),
+        safe4337ModuleAddress: EthereumAddress.fromHex(
+          '0x75cf11467937ce3F2f357CE24ffc3DBF8fD5c226',
+        ),
+        safeProxyFactoryAddress: EthereumAddress.fromHex(
+          '0x14F2982D601c9458F93bd70B218933A6f8165e7b',
+        ),
+        safeSingletonAddress: EthereumAddress.fromHex(
+          '0xFf51A5898e281Db6DfC7855790607438dF2ca44b',
+        ),
+        multiSendAddress: EthereumAddress.fromHex(
+          '0x218543288004CD07832472D464648173c77D7eB7',
+        ),
+        multiSendCallOnlyAddress: EthereumAddress.fromHex(
+          '0x0c28E9886f79618371c5Af86aA7e5Cf62dddd8dC',
+        ),
+        webAuthnSharedSignerAddress: EthereumAddress.fromHex(
+          '0xfD90FAd33ee8b58f32c00aceEad1358e4AFC23f9',
+        ),
+        safeP256VerifierAddress: EthereumAddress.fromHex(
+          '0x445a0683e494ea0c5AF3E83c5159fBE47Cf9e765',
+        ),
       ),
     },
   };

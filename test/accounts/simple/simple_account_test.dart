@@ -55,8 +55,9 @@ void main() {
       });
 
       test('creates account with custom factory address', () {
-        final customFactory =
-            EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+        final customFactory = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
         account = createSimpleSmartAccount(
           owner: owner,
           chainId: BigInt.from(1),
@@ -109,10 +110,12 @@ void main() {
       });
 
       test('different salt produces different address', () async {
-        final mockAddress1 =
-            EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
-        final mockAddress2 =
-            EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
+        final mockAddress1 = EthereumAddress.fromHex(
+          '0x1111111111111111111111111111111111111111',
+        );
+        final mockAddress2 = EthereumAddress.fromHex(
+          '0x2222222222222222222222222222222222222222',
+        );
 
         final account1 = createSimpleSmartAccount(
           owner: owner,
@@ -194,7 +197,9 @@ void main() {
 
         final callData = account.encodeCall(
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             value: BigInt.from(1000000000000000000), // 1 ETH
             data: '0xabcdef',
           ),
@@ -213,7 +218,9 @@ void main() {
 
         final callData = account.encodeCall(
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             data: '0x12345678',
           ),
         );
@@ -233,7 +240,9 @@ void main() {
 
         final callData = account.encodeCalls([
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             data: '0xabcdef',
           ),
         ]);
@@ -251,11 +260,15 @@ void main() {
 
         final callData = account.encodeCalls([
           Call(
-            to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
             data: '0xabcdef',
           ),
           Call(
-            to: EthereumAddress.fromHex('0x2345678901234567890123456789012345678901'),
+            to: EthereumAddress.fromHex(
+              '0x2345678901234567890123456789012345678901',
+            ),
             value: BigInt.from(1000),
             data: '0x123456',
           ),
@@ -403,7 +416,9 @@ void main() {
           maxFeePerGas: BigInt.from(1000000000),
           maxPriorityFeePerGas: BigInt.from(100000000),
           signature: '0x',
-          paymaster: EthereumAddress.fromHex('0xaaaa567890123456789012345678901234567890'),
+          paymaster: EthereumAddress.fromHex(
+            '0xaaaa567890123456789012345678901234567890',
+          ),
           paymasterData: '0x1234',
           paymasterVerificationGasLimit: BigInt.from(50000),
           paymasterPostOpGasLimit: BigInt.from(25000),

@@ -305,7 +305,9 @@ extension SmartAccountActions on SmartAccountClient {
       if (value is EthereumAddress) {
         return AbiEncoder.encodeAddress(value);
       }
-      return AbiEncoder.encodeAddress(EthereumAddress.fromHex(value.toString()));
+      return AbiEncoder.encodeAddress(
+        EthereumAddress.fromHex(value.toString()),
+      );
     }
 
     if (type.startsWith('uint')) {

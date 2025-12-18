@@ -261,7 +261,9 @@ void main() {
   group('getRequiredPrefund (v0.7)', () {
     test('calculates prefund for basic UserOperation', () {
       final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -280,7 +282,9 @@ void main() {
 
     test('includes paymaster gas limits when present', () {
       final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -288,7 +292,9 @@ void main() {
         preVerificationGas: BigInt.from(50000),
         maxFeePerGas: BigInt.from(50000000000),
         maxPriorityFeePerGas: BigInt.from(2000000000),
-        paymaster: EthereumAddress.fromHex('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+        paymaster: EthereumAddress.fromHex(
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        ),
         paymasterVerificationGasLimit: BigInt.from(75000),
         paymasterPostOpGasLimit: BigInt.from(25000),
       );
@@ -301,7 +307,9 @@ void main() {
 
     test('handles large gas values without overflow', () {
       final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.parse('10000000000'),
@@ -325,7 +333,9 @@ void main() {
   group('getRequiredPrefundV06 (v0.6)', () {
     test('calculates prefund without paymaster', () {
       final userOp = UserOperationV06(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -344,7 +354,9 @@ void main() {
 
     test('uses 3x multiplier with paymaster', () {
       final userOp = UserOperationV06(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),
@@ -364,7 +376,9 @@ void main() {
 
     test('treats empty paymasterAndData as no paymaster', () {
       final userOp = UserOperationV06(
-        sender: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
         nonce: BigInt.zero,
         callData: '0x',
         callGasLimit: BigInt.from(100000),

@@ -144,7 +144,8 @@ class TrustSmartAccount implements SmartAccountV06 {
   ///
   /// Note: Trust only supports v0.6, so this returns v0.6-compatible format.
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }

@@ -217,7 +217,9 @@ class TransactionReceipt {
         blockHash: json['blockHash'] as String,
         blockNumber: parseBigInt(json['blockNumber']),
         from: EthereumAddress.fromHex(json['from'] as String),
-        to: json['to'] != null ? EthereumAddress.fromHex(json['to'] as String) : null,
+        to: json['to'] != null
+            ? EthereumAddress.fromHex(json['to'] as String)
+            : null,
         cumulativeGasUsed: parseBigInt(json['cumulativeGasUsed']),
         gasUsed: parseBigInt(json['gasUsed']),
         status: _parseHexInt(json['status']),

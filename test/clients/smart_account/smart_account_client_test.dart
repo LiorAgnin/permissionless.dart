@@ -188,7 +188,9 @@ void main() {
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.from(1000000000000000000),
             ),
           ],
@@ -235,7 +237,9 @@ void main() {
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -292,7 +296,9 @@ void main() {
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -327,7 +333,8 @@ void main() {
             result = '0x6080604052';
           } else if (method == 'eth_call') {
             // Return nonce for getAccountNonce
-            result = '0x0000000000000000000000000000000000000000000000000000000000000000';
+            result =
+                '0x0000000000000000000000000000000000000000000000000000000000000000';
           }
 
           return http.Response(
@@ -356,7 +363,9 @@ void main() {
         final userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -386,7 +395,9 @@ void main() {
         final preparedUserOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -419,7 +430,9 @@ void main() {
         var userOp = await client.prepareUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],
@@ -455,7 +468,9 @@ void main() {
         final hash = await client.sendUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.from(1000000000000000000),
             ),
           ],
@@ -495,7 +510,9 @@ void main() {
         await client.sendUserOperation(
           calls: [
             Call(
-              to: EthereumAddress.fromHex('0x1234567890123456789012345678901234567890'),
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
               value: BigInt.zero,
             ),
           ],

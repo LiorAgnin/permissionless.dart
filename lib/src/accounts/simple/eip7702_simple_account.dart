@@ -49,7 +49,8 @@ class PrivateKeyEip7702Owner implements Eip7702SimpleAccountOwner {
   final String _privateKeyHex;
 
   @override
-  EthereumAddress get address => EthereumAddress.fromHex(_privateKey.address.eip55With0x);
+  EthereumAddress get address =>
+      EthereumAddress.fromHex(_privateKey.address.eip55With0x);
 
   @override
   Future<String> signHash(String messageHash) async {
@@ -197,8 +198,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   ///
   /// For EIP-7702 accounts, this returns null as no factory is used.
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async =>
-      null;
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async => null;
 
   /// Creates an EIP-7702 authorization for this account.
   ///

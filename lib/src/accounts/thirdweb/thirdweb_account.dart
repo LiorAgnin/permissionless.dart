@@ -143,7 +143,8 @@ class ThirdwebSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeCreateAccount();
     return (factory: _factoryAddress, factoryData: data);
   }

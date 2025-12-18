@@ -237,8 +237,9 @@ void main() {
         name: 'Test App',
         version: '1',
         chainId: BigInt.from(1),
-        verifyingContract:
-            EthereumAddress.fromHex('0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC'),
+        verifyingContract: EthereumAddress.fromHex(
+          '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+        ),
         salt:
             '0x0000000000000000000000000000000000000000000000000000000000000001',
       );

@@ -5,17 +5,22 @@ void main() {
   group('EthereumAddress', () {
     group('creation', () {
       test('creates from valid lowercase address', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(addr.hex, equals('0xd8da6bf26964af9d7eed9e03e53415d37aa96045'));
       });
 
       test('creates from valid mixed-case address', () {
-        final addr = EthereumAddress.fromHex('0xD8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
+        final addr = EthereumAddress.fromHex(
+          '0xD8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        );
         expect(addr.hex, equals('0xd8da6bf26964af9d7eed9e03e53415d37aa96045'));
       });
 
       test('creates from address without 0x prefix', () {
-        final addr = EthereumAddress.fromHex('d8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr =
+            EthereumAddress.fromHex('d8da6bf26964af9d7eed9e03e53415d37aa96045');
         expect(addr.hex, equals('0xd8da6bf26964af9d7eed9e03e53415d37aa96045'));
       });
 
@@ -28,7 +33,8 @@ void main() {
 
       test('throws on invalid characters', () {
         expect(
-          () => EthereumAddress.fromHex('0xghijklmnopqrstuvwxyz1234567890123456'),
+          () =>
+              EthereumAddress.fromHex('0xghijklmnopqrstuvwxyz1234567890123456'),
           throwsArgumentError,
         );
       });
@@ -47,14 +53,18 @@ void main() {
       });
 
       test('isZero returns false for non-zero address', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(addr.isZero, isFalse);
       });
     });
 
     group('checksummed', () {
       test('returns EIP-55 checksummed address', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(
           addr.checksummed,
           equals('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045'),
@@ -71,12 +81,16 @@ void main() {
 
     group('bytes', () {
       test('returns 20 bytes', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(addr.bytes.length, equals(20));
       });
 
       test('bytes are correct', () {
-        final addr = EthereumAddress.fromHex('0xff00000000000000000000000000000000000001');
+        final addr = EthereumAddress.fromHex(
+          '0xff00000000000000000000000000000000000001',
+        );
         expect(addr.bytes.first, equals(0xff));
         expect(addr.bytes.last, equals(0x01));
       });
@@ -84,42 +98,65 @@ void main() {
 
     group('equality', () {
       test('equal addresses are equal', () {
-        final addr1 = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
-        final addr2 = EthereumAddress.fromHex('0xD8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
+        final addr1 = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
+        final addr2 = EthereumAddress.fromHex(
+          '0xD8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+        );
         expect(addr1, equals(addr2));
       });
 
       test('different addresses are not equal', () {
-        final addr1 = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
-        final addr2 = EthereumAddress.fromHex('0x0000000000000000000000000000000000000001');
+        final addr1 = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
+        final addr2 = EthereumAddress.fromHex(
+          '0x0000000000000000000000000000000000000001',
+        );
         expect(addr1, isNot(equals(addr2)));
       });
 
       test('equals string comparison via hex', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         // Use .hex for string comparison since extensions can't override operators
-        expect(addr.hex == '0xd8da6bf26964af9d7eed9e03e53415d37aa96045', isTrue);
+        expect(
+          addr.hex == '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+          isTrue,
+        );
       });
     });
 
     group('comparison', () {
       test('compares addresses numerically', () {
-        final lower = EthereumAddress.fromHex('0x0000000000000000000000000000000000000001');
-        final higher = EthereumAddress.fromHex('0x0000000000000000000000000000000000000002');
+        final lower = EthereumAddress.fromHex(
+          '0x0000000000000000000000000000000000000001',
+        );
+        final higher = EthereumAddress.fromHex(
+          '0x0000000000000000000000000000000000000002',
+        );
         expect(lower.compareTo(higher), lessThan(0));
         expect(higher.compareTo(lower), greaterThan(0));
       });
 
       test('equal addresses compare as 0', () {
-        final addr1 = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
-        final addr2 = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr1 = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
+        final addr2 = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(addr1.compareTo(addr2), equals(0));
       });
     });
 
     group('toAbiEncoded', () {
       test('left-pads to 32 bytes', () {
-        final addr = EthereumAddress.fromHex('0xd8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         final encoded = addr.toAbiEncoded();
         expect(encoded.length, equals(66)); // 0x + 64 hex chars
         expect(encoded.startsWith('0x000000000000000000000000'), isTrue);

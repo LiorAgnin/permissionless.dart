@@ -155,7 +155,8 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     // Factory: createAccount(bytes32 salt, bytes initCode)
     final salt = Hex.fromBigInt(index, byteLength: 32);
     final initCode = _encodeInitCode();
@@ -199,16 +200,14 @@ class EtherspotSmartAccount implements SmartAccount {
 
     // Build executors array with zero address (matching TS implementation)
     final zeroOnInstall = _encodeOnInstall('0x');
-    final executorConfig =
-        _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
+    final executorConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
 
     // Hook - single BootstrapConfig (not array)
     final hookConfig =
         _encodeBootstrapConfigTuple(zeroAddress, _encodeOnInstall('0x'));
 
     // Fallbacks array with zero address (matching TS implementation)
-    final fallbackConfig =
-        _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
+    final fallbackConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
 
     // Calculate offsets for dynamic parameters
     // Header: 4 offsets * 32 = 128 bytes
@@ -295,7 +294,9 @@ class EtherspotSmartAccount implements SmartAccount {
   int _calculateTupleSize(String encodedTuple) => Hex.byteLength(encodedTuple);
 
   /// Calculates size of a BootstrapConfig array encoding.
-  int _calculateArraySize(List<({EthereumAddress module, String data})> configs) {
+  int _calculateArraySize(
+    List<({EthereumAddress module, String data})> configs,
+  ) {
     if (configs.isEmpty) return 32; // Just length = 0
 
     // Array structure:

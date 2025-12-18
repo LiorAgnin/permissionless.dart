@@ -280,7 +280,8 @@ class KernelSmartAccount implements SmartAccount {
   }
 
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     if (_config.version == KernelVersion.v0_2_4) {
       return _getFactoryDataV2();
     } else {
@@ -288,7 +289,8 @@ class KernelSmartAccount implements SmartAccount {
     }
   }
 
-  Future<({EthereumAddress factory, String factoryData})> _getFactoryDataV2() async {
+  Future<({EthereumAddress factory, String factoryData})>
+      _getFactoryDataV2() async {
     // Build the full initialize calldata including selector
     final initializeCalldata = _encodeInitializeV2();
 
@@ -305,7 +307,8 @@ class KernelSmartAccount implements SmartAccount {
     return (factory: _addresses.factory, factoryData: factoryData);
   }
 
-  Future<({EthereumAddress factory, String factoryData})> _getFactoryDataV3() async {
+  Future<({EthereumAddress factory, String factoryData})>
+      _getFactoryDataV3() async {
     final initializeData = _encodeInitializeV3();
 
     // Full initialize calldata (with selector) for the factory

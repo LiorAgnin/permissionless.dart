@@ -214,7 +214,9 @@ void main() {
                   data: '0x',
                 ),
                 Call(
-                  to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                   data: '0x',
                 ),

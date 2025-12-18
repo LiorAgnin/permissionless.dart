@@ -430,7 +430,9 @@ class SafeSmartAccount implements SmartAccount {
   }
 
   /// Encodes a ModuleInit array for struct encoding.
-  String _encodeModuleInitArrayForStruct(List<(EthereumAddress, String)> modules) {
+  String _encodeModuleInitArrayForStruct(
+    List<(EthereumAddress, String)> modules,
+  ) {
     if (modules.isEmpty) {
       return AbiEncoder.encodeUint256(BigInt.zero);
     }
@@ -513,7 +515,8 @@ class SafeSmartAccount implements SmartAccount {
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final initializer = _getInitializer();
 
     // In 7579 mode, the proxy points to the launchpad

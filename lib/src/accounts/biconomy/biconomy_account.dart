@@ -190,7 +190,8 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// Gets the factory address and data for UserOperation.
   @override
-  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() async {
+  Future<({EthereumAddress factory, String factoryData})?>
+      getFactoryData() async {
     final data = _encodeDeployCounterFactualAccount();
     return (factory: _factoryAddress, factoryData: data);
   }

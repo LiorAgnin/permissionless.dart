@@ -58,7 +58,9 @@ void main() {
         });
 
         /// Helper to get a sponsored UserOperation with paymaster stub data.
-        Future<UserOperationV07> getSponsoredUserOp(UserOperationV07 userOp) async {
+        Future<UserOperationV07> getSponsoredUserOp(
+          UserOperationV07 userOp,
+        ) async {
           final stubData = await paymaster!.getPaymasterStubData(
             userOp: userOp,
             entryPoint: chain.entryPointV07,
@@ -82,7 +84,9 @@ void main() {
               // Create a simple ETH transfer UserOp
               final callData = safeAccount!.encodeCall(
                 Call(
-                  to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                   data: '0x',
                 ),
@@ -145,7 +149,9 @@ void main() {
 
               final callData = safeAccount!.encodeCall(
                 Call(
-                  to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                 ),
               );
@@ -203,7 +209,9 @@ void main() {
 
               final callData = simpleAccount!.encodeCall(
                 Call(
-                  to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                  to: EthereumAddress.fromHex(
+                    '0x0000000000000000000000000000000000000001',
+                  ),
                   value: BigInt.zero,
                   data: '0x',
                 ),
@@ -261,7 +269,9 @@ void main() {
 
             final callData = safeAccount!.encodeCall(
               Call(
-                to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                to: EthereumAddress.fromHex(
+                  '0x0000000000000000000000000000000000000001',
+                ),
                 value: BigInt.zero,
               ),
             );
@@ -316,7 +326,9 @@ void main() {
 
             final callData = safeAccount!.encodeCall(
               Call(
-                to: EthereumAddress.fromHex('0x0000000000000000000000000000000000000001'),
+                to: EthereumAddress.fromHex(
+                  '0x0000000000000000000000000000000000000001',
+                ),
                 value: BigInt.zero,
               ),
             );
