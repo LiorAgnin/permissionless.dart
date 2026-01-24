@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0-dev.1] - 2025-01-24
+
+### Changed
+- **Monorepo**: Restructured as a Dart pub workspace monorepo
+  - Package moved to `packages/permissionless/`
+  - Uses native Dart pub workspaces (`resolution: workspace`)
+  - Melos 7.x for workspace management
+- **SDK**: Minimum SDK version bumped to `>=3.5.0` (required for pub workspaces)
+
+### Added
+- **Passkeys Package**: New `permissionless_passkeys` sibling package for WebAuthn/Passkeys support
+
 ## [0.1.3] - 2025-12-29
 
 ### Fixed
