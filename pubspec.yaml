@@ -1,31 +1,58 @@
-name: permissionless
-description: >-
-  A Dart implementation of permissionless.js for ERC-4337 smart accounts.
-  Supports Safe, Simple, Kernel, and Etherspot accounts with bundler and
-  paymaster clients.
-version: 0.1.2
-homepage: https://github.com/LiorAgnin/permissionless.dart
-repository: https://github.com/LiorAgnin/permissionless.dart
-issue_tracker: https://github.com/LiorAgnin/permissionless.dart/issues
-topics:
-  - account-abstraction
-  - erc4337
-  - erc7579
-  - smart-accounts
-  - web3
+name: permissionless_dart_workspace
+publish_to: none
 
 environment:
-  sdk: ^3.0.0
+  sdk: ">=3.5.0 <4.0.0"
 
-dependencies:
-  # Ethereum utilities
-  web3dart: ^3.0.1
-  wallet: ^0.0.18
-  # Hex encoding/decoding
-  convert: ^3.1.2
-  # HTTP client for RPC calls
-  http: ^1.6.0
+workspace:
+  # packages
+  - packages/permissionless
+  - packages/permissionless_passkeys
+
+  # examples
+  - packages/permissionless_passkeys/example
 
 dev_dependencies:
-  test: ^1.25.0
-  lints: ^6.0.0
+  melos: ^7.0.0
+
+melos:
+  name: permissionless_dart
+  repository: https://github.com/LiorAgnin/permissionless.dart
+
+  command:
+    version:
+      linkToCommits: true
+      workspaceChangelog: false
+
+  scripts:
+    analyze:
+      description: Run static analysis on all packages
+      run: dart analyze
+
+    test:
+      description: Run tests in all packages
+      run: melos exec -- flutter test
+
+    test:coverage:
+      description: Run tests with coverage
+      run: melos exec -- flutter test --coverage
+
+    format:
+      description: Format all Dart files
+      run: dart format .
+
+    format:check:
+      description: Check formatting of all Dart files
+      run: dart format --set-exit-if-changed .
+
+    clean:
+      description: Clean all packages
+      run: melos exec -- flutter clean
+
+    pub:get:
+      description: Get dependencies for all packages
+      run: dart pub get
+
+    build:runner:
+      description: Run build_runner for packages that need it
+      run: melos exec --depends-on="build_runner" -- dart run build_runner build --delete-conflicting-outputs

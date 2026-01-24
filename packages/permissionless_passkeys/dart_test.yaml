@@ -1,0 +1,6 @@
+# Dart Test Configuration for permissionless_passkeys
+#
+# Run tests: flutter test
+
+# Default timeout multiplier (base is 30s)
+timeout: 2x
