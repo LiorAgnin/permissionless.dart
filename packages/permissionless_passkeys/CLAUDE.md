@@ -83,7 +83,7 @@ validAfter (6 bytes) + validUntil (6 bytes) + ABI-encoded(authenticatorData, cli
 
 ## P256 Precompile (RIP-7212)
 
-Chains with the P256 precompile at `0x0000...0100` verify signatures in ~200k gas vs ~800k without.
+Chains with the P256 precompile at `0x0000...0100` verify signatures in ~3.5k gas vs ~800k without.
 
 Supported chains: Mainnet, Sepolia, Base, Optimism, Polygon, Arbitrum, Scroll, Linea, Zora
 

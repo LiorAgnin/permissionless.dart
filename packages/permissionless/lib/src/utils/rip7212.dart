@@ -6,12 +6,9 @@
 /// This enables cheap (~3,450 gas vs ~800k gas) verification of WebAuthn/Passkey
 /// signatures that use the P256 curve.
 ///
-/// **WARNING:** As of late 2024, some chains (including testnets like Sepolia)
-/// have unreliable RIP-7212 precompile behavior - they work in `eth_call` but
-/// return empty data in actual transactions. The [supportsRip7212] function
-/// lists chains that have announced RIP-7212 support, but this does NOT
-/// guarantee the precompile works reliably. When in doubt, use on-chain P256
-/// verification (`usePrecompiled: false`).
+/// **Note:** As of January 2026, Ethereum mainnet supports RIP-7212 via the
+/// Fusaka upgrade. Most L2s also support it. The [supportsRip7212] function
+/// lists chains known to have the precompile deployed.
 ///
 /// See: https://github.com/ethereum/RIPs/blob/master/RIPS/rip-7212.md
 /// See also: https://github.com/ethereum-optimism/developers/discussions/791
@@ -24,16 +21,16 @@ const p256PrecompileAddress = '0x0000000000000000000000000000000000000100';
 
 /// Chain IDs known to support RIP-7212 P256 precompile.
 ///
-/// This list is based on official announcements and deployments as of late 2024.
-/// Chains are added here after RIP-7212 is confirmed deployed on mainnet.
+/// This list is based on official announcements and deployments as of January 2026.
+/// Chains are added here after RIP-7212 is confirmed deployed.
 ///
 /// Sources:
 /// - Optimism Fjord upgrade: https://specs.optimism.io/protocol/precompiles.html
 /// - Polygon: https://polygon.technology
 /// - Base, Arbitrum, Scroll, Linea, Zora: Various L2 announcements
 const Set<int> rip7212SupportedChainIds = {
-  // Ethereum Mainnet (pending Osaka hardfork)
-  // 1,
+  // Ethereum Mainnet (added in Fusaka upgrade, Jan 2026)
+  1,
 
   // Ethereum Testnets
   11155111, // Sepolia

@@ -268,14 +268,17 @@ For gas-efficient signature verification, use chains with the P256 precompile:
 
 | Chain | Precompile Support |
 |-------|-------------------|
-| Ethereum Mainnet | ❌ |
+| Ethereum Mainnet | ✅ (Fusaka) |
 | Sepolia | ✅ |
 | Base | ✅ |
 | Optimism | ✅ |
 | Polygon | ✅ |
 | Arbitrum | ✅ |
+| Scroll | ✅ |
+| Linea | ✅ |
+| zkSync Era | ✅ |
 
-Without the precompile, signature verification falls back to Solidity-based P256, which uses more gas.
+Without the precompile, signature verification falls back to Solidity-based P256, which uses ~800k gas vs ~3.5k with the precompile.
 
 ## Example
 

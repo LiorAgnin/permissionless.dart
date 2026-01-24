@@ -33,9 +33,9 @@ void main() {
         expect(supportsRip7212(chainId: BigInt.from(999)), isFalse);
       });
 
-      test('returns false for Ethereum Mainnet (pending Osaka)', () {
-        // Ethereum mainnet doesn't have RIP-7212 yet (pending Osaka hardfork)
-        expect(supportsRip7212(chainId: BigInt.from(1)), isFalse);
+      test('returns true for Ethereum Mainnet (Fusaka)', () {
+        // Ethereum mainnet supports RIP-7212 since Fusaka upgrade (Jan 2026)
+        expect(supportsRip7212(chainId: BigInt.from(1)), isTrue);
       });
     });
 
@@ -43,7 +43,7 @@ void main() {
       test('returns same as supportsRip7212', () {
         final testChainIds = [
           BigInt.from(10), // Optimism - supported
-          BigInt.from(1), // Mainnet - not yet
+          BigInt.from(1), // Mainnet - supported (Fusaka)
           BigInt.from(11155111), // Sepolia - supported
         ];
 

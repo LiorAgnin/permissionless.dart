@@ -12,8 +12,8 @@ resolution: workspace
 dependencies:
   flutter:
     sdk: flutter
-  permissionless_passkeys: ^0.1.0-dev.1
-  permissionless: ^0.2.0-dev.1
+  permissionless_passkeys: ^0.1.0-dev.2
+  permissionless: ^0.2.0-dev.2
   web3_signers: ^1.0.0
   flutter_riverpod: ^2.6.1
   shared_preferences: ^2.3.0
