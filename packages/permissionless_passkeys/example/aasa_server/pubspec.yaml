@@ -1,0 +1,7 @@
+name: aasa_server
+description: Simple server for hosting Apple App Site Association file for WebAuthn testing
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: ^3.0.0

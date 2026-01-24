@@ -1,0 +1,36 @@
+name: permissionless_passkeys
+description: >-
+  WebAuthn/Passkeys support for permissionless.dart ERC-4337 smart accounts.
+  Enables biometric authentication with Kernel and Safe accounts using P256 signatures.
+version: 0.1.0
+homepage: https://github.com/LiorAgnin/permissionless.dart
+repository: https://github.com/LiorAgnin/permissionless.dart
+issue_tracker: https://github.com/LiorAgnin/permissionless.dart/issues
+topics:
+  - account-abstraction
+  - erc4337
+  - passkeys
+  - webauthn
+  - smart-accounts
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Core ERC-4337 package (sibling in monorepo)
+  permissionless: ^0.1.2
+  # PassKeySigner, P256 utilities (brings: passkeys, asn1lib, pointycastle)
+  # Using local fork with macOS/Windows platform support
+  web3_signers: ^1.0.0
+  # Ethereum types (EthereumAddress, keccak256, etc.)
+  web3dart: ^3.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

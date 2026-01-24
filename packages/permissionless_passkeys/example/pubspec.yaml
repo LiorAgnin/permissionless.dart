@@ -1,0 +1,27 @@
+name: permissionless_passkeys_example
+description: Example app demonstrating WebAuthn passkey authentication with smart accounts
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+resolution: workspace
+
+dependencies:
+  flutter:
+    sdk: flutter
+  permissionless_passkeys: ^0.1.0
+  permissionless: ^0.1.2
+  web3_signers: ^1.0.0
+  flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

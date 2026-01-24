@@ -1,0 +1,26 @@
+# Dart Test Configuration
+# Run tests: dart test
+# Run with preset: dart test -P ci
+# Run specific tags: dart test -t integration
+
+# Default timeout multiplier (base is 30s)
+timeout: 2x
+
+# Tag definitions with per-tag configuration
+tags:
+  # Integration tests - require network/external services
+  integration:
+    timeout: 2x
+  # Funded tests - require funded test accounts
+  funded:
+    timeout: 2x
+
+# Named configuration presets
+presets:
+  # CI preset - use with: dart test -P ci
+  ci:
+    timeout: 3x
+    reporter: expanded
+  # Quick local testing - excludes slow tests
+  quick:
+    exclude_tags: "integration || funded"
