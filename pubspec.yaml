@@ -13,7 +13,7 @@ workspace:
   - packages/permissionless_passkeys/example
 
 dev_dependencies:
-  melos: ^7.4.0
+  melos: ^7.6.0
 
 melos:
   name: permissionless_dart
