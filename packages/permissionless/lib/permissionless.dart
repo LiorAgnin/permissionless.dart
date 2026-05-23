@@ -63,6 +63,7 @@ export 'src/utils/gas.dart';
 export 'src/utils/message_hash.dart';
 export 'src/utils/multisend.dart';
 export 'src/utils/packed_user_operation.dart';
+export 'src/utils/paymaster_signature.dart';
 export 'src/utils/rip7212.dart';
 export 'src/utils/units.dart';
 export 'src/utils/webauthn_encoding.dart';

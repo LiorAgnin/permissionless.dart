@@ -4,5 +4,6 @@
 /// to enable gasless transactions for users.
 library;
 
+export '../../utils/paymaster_signature.dart';
 export 'paymaster_client.dart';
 export 'types.dart';
