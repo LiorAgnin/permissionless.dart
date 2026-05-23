@@ -123,14 +123,16 @@ class Eip7702SimpleSmartAccountConfig {
   ///
   /// Optional parameters:
   /// - [publicClient]: Client for checking deployment status (EIP-1271)
+  /// - [entryPointVersion]: EntryPoint version, v0.8 by default; v0.9 opt-in
   /// - [accountLogicAddress]: Override the default Simple7702Account logic
   Eip7702SimpleSmartAccountConfig({
     required this.owner,
     required this.chainId,
     this.publicClient,
+    this.entryPointVersion = EntryPointVersion.v08,
     EthereumAddress? accountLogicAddress,
-  }) : accountLogicAddress =
-            accountLogicAddress ?? Simple7702AccountAddresses.defaultLogic;
+  }) : accountLogicAddress = accountLogicAddress ??
+            Simple7702AccountAddresses.fromVersion(entryPointVersion);
 
   /// The owner of this EIP-7702 account (the EOA).
   final Eip7702SimpleAccountOwner owner;
@@ -143,6 +145,11 @@ class Eip7702SimpleSmartAccountConfig {
   /// Required for EIP-1271 signature validation to check if the account
   /// has been delegated (deployed) before signing messages/typed data.
   final PublicClient? publicClient;
+
+  /// EntryPoint version used by this account.
+  ///
+  /// Defaults to v0.8. v0.9 must be selected explicitly.
+  final EntryPointVersion entryPointVersion;
 
   /// The Simple7702Account logic contract address.
   ///
@@ -157,8 +164,8 @@ class Eip7702SimpleSmartAccountConfig {
 ///
 /// - **Account address = EOA address**: No separate smart account deployment
 /// - **No factory needed**: The authorization delegates code on-demand
-/// - **EntryPoint v0.8**: Required for native EIP-7702 support
-/// - **Typed data signing**: v0.8 uses EIP-712 typed data for UserOperation signing
+/// - **EntryPoint v0.8 by default**: v0.9 is available as explicit opt-in
+/// - **Typed data signing**: Uses EIP-712 typed data for UserOperation signing
 ///
 /// Example:
 /// ```dart
@@ -194,8 +201,10 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   @override
   bool get isEip7702 => true;
 
-  /// The EntryPoint version (always v0.8 for EIP-7702).
-  EntryPointVersion get entryPointVersion => EntryPointVersion.v08;
+  /// The EntryPoint version.
+  ///
+  /// Defaults to v0.8 unless v0.9 was explicitly configured.
+  EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The chain ID.
   @override
@@ -203,7 +212,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v08;
+  EthereumAddress get entryPoint =>
+      EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -519,7 +529,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
 /// an EOA to function as a smart account without deploying a separate contract.
 ///
 /// **Requirements:**
-/// - EntryPoint v0.8 (automatically used)
+/// - EntryPoint v0.8 by default, or v0.9 when explicitly configured
 /// - Bundler with EIP-7702 support
 /// - Chain with EIP-7702 enabled
 ///
@@ -540,6 +550,7 @@ Eip7702SimpleSmartAccount createEip7702SimpleSmartAccount({
   required Eip7702SimpleAccountOwner owner,
   required BigInt chainId,
   PublicClient? publicClient,
+  EntryPointVersion entryPointVersion = EntryPointVersion.v08,
   EthereumAddress? accountLogicAddress,
 }) =>
     Eip7702SimpleSmartAccount(
@@ -547,6 +558,7 @@ Eip7702SimpleSmartAccount createEip7702SimpleSmartAccount({
         owner: owner,
         chainId: chainId,
         publicClient: publicClient,
+        entryPointVersion: entryPointVersion,
         accountLogicAddress: accountLogicAddress,
       ),
     );

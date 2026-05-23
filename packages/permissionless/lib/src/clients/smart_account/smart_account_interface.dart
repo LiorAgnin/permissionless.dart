@@ -139,7 +139,7 @@ abstract class SmartAccountV06 implements SmartAccount {
 /// - Account address equals the owner's EOA address
 /// - No factory deployment needed (`getFactoryData()` returns null)
 /// - Requires EIP-7702 authorization to be included in transactions
-/// - Uses EntryPoint v0.8
+/// - Uses an EIP-7702-capable EntryPoint version
 ///
 /// Example:
 /// ```dart

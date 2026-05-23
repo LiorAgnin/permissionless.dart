@@ -11,7 +11,7 @@
 //   dart run example/eip7702_simple_example.dart --self-fund  # Self-funded
 //
 // REQUIREMENTS:
-// - A bundler that supports EIP-7702 (EntryPoint v0.8)
+// - A bundler that supports EIP-7702 (EntryPoint v0.9 in this example)
 // - A chain with EIP-7702 enabled (Sepolia after Prague upgrade)
 //
 // KEY FEATURES:
@@ -37,12 +37,12 @@ void main(List<String> args) async {
   //
   // EIP-7702 requires:
   // - A chain that supports EIP-7702 (Prague upgrade)
-  // - A bundler that supports EntryPoint v0.8
+  // - A bundler that supports EntryPoint v0.9
 
   const chainId = 11155111; // Sepolia
   const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
 
-  // NOTE: Replace with a bundler URL that supports EntryPoint v0.8
+  // NOTE: Replace with a bundler URL that supports EntryPoint v0.9
   const pimlicoUrl = 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY';
 
   // ================================================================
@@ -75,7 +75,7 @@ void main(List<String> args) async {
   // - The account address IS the owner's EOA address
   // - No factory deployment needed
   // - Code is delegated via signed authorization
-  // - Uses EntryPoint v0.8
+  // - Explicitly opts into EntryPoint v0.9
 
   // Create public client first - needed for EIP-7702 delegation checks
   final publicClient = createPublicClient(url: rpcUrl);
@@ -84,6 +84,7 @@ void main(List<String> args) async {
     owner: owner,
     chainId: BigInt.from(chainId),
     publicClient: publicClient,
+    entryPointVersion: EntryPointVersion.v09,
   );
 
   // ================================================================
@@ -98,12 +99,12 @@ void main(List<String> args) async {
 
   final bundler = createBundlerClient(
     url: pimlicoUrl,
-    entryPoint: EntryPointAddresses.v08,
+    entryPoint: EntryPointAddresses.v09,
   );
 
   final pimlico = createPimlicoClient(
     url: pimlicoUrl,
-    entryPoint: EntryPointAddresses.v08,
+    entryPoint: EntryPointAddresses.v09,
   );
 
   // Paymaster for sponsored transactions (optional)
@@ -151,7 +152,7 @@ void main(List<String> args) async {
   // Get the EntryPoint nonce for the smart account
   final nonce = await publicClient.getAccountNonce(
     accountAddress,
-    EntryPointAddresses.v08,
+    EntryPointAddresses.v09,
   );
   print('EntryPoint nonce: $nonce');
 
@@ -201,10 +202,10 @@ void main(List<String> args) async {
   } on BundlerRpcError catch (e) {
     print('\nUserOperation preparation failed: ${e.message}');
     print('\nThis likely means:');
-    print('  - The bundler does not support EntryPoint v0.8');
+    print('  - The bundler does not support EntryPoint v0.9');
     print('  - The bundler does not support EIP-7702 authorization');
     print('\nFor EIP-7702 to work, you may need:');
-    print('  - A bundler with explicit EIP-7702/v0.8 support');
+    print('  - A bundler with explicit EIP-7702/v0.9 support');
     print('  - A chain with EIP-7702 enabled');
 
     smartAccountClient.close();
@@ -301,7 +302,7 @@ void main(List<String> args) async {
   print('Key takeaways:');
   print('  - Account address = Owner\'s EOA address');
   print('  - SmartAccountClient handles authorization automatically');
-  print('  - Uses EntryPoint v0.8');
+  print('  - Uses EntryPoint v0.9');
   print('  - Uses EIP-712 typed data signing');
   print('='.padRight(60, '='));
 

@@ -144,6 +144,7 @@ permissionless-dart/
 
 ### Core Package (`permissionless`)
 - **SimpleSmartAccount** - Minimal ERC-4337 account
+- **Eip7702SimpleSmartAccount** - EIP-7702 Simple account with v0.9 opt-in support
 - **SafeSmartAccount** - Safe (Gnosis Safe) smart account
 - **KernelSmartAccount** - ZeroDev Kernel smart account
 
