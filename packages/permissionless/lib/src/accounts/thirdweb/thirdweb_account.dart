@@ -84,9 +84,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v07
-                ? ThirdwebAddresses.factoryV07
-                : ThirdwebAddresses.factoryV06);
+            _factoryAddressFor(_config.entryPointVersion);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -104,10 +102,28 @@ class ThirdwebSmartAccount implements SmartAccount {
 
   /// The EntryPoint address.
   @override
-  EthereumAddress get entryPoint =>
-      _config.entryPointVersion == EntryPointVersion.v07
-          ? EntryPointAddresses.v07
-          : EntryPointAddresses.v06;
+  EthereumAddress get entryPoint => switch (_config.entryPointVersion) {
+        EntryPointVersion.v06 => EntryPointAddresses.v06,
+        EntryPointVersion.v07 => EntryPointAddresses.v07,
+        EntryPointVersion.v08 => throw ArgumentError(
+            'Thirdweb account does not support EntryPoint v0.8.',
+          ),
+        EntryPointVersion.v09 => throw ArgumentError(
+            'Thirdweb account does not support EntryPoint v0.9.',
+          ),
+      };
+
+  static EthereumAddress _factoryAddressFor(EntryPointVersion version) =>
+      switch (version) {
+        EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
+        EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
+        EntryPointVersion.v08 => throw ArgumentError(
+            'Thirdweb account does not support EntryPoint v0.8.',
+          ),
+        EntryPointVersion.v09 => throw ArgumentError(
+            'Thirdweb account does not support EntryPoint v0.9.',
+          ),
+      };
 
   /// The nonce key for parallel transaction support.
   @override
