@@ -70,7 +70,8 @@ class BundlerClient {
   ///
   /// Returns the UserOperation hash.
   ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// **Note**: Requires a bundler that supports the selected EntryPoint version
+  /// and EIP-7702.
   Future<String> sendUserOperationWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList,
@@ -118,7 +119,8 @@ class BundlerClient {
   /// Similar to [estimateUserOperationGas] but includes the authorization
   /// inside the UserOperation for accurate gas estimation of EIP-7702 accounts.
   ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// **Note**: Requires a bundler that supports the selected EntryPoint version
+  /// and EIP-7702.
   Future<UserOperationGasEstimate> estimateUserOperationGasWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList, {

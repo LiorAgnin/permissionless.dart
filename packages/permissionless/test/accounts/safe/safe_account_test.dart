@@ -133,6 +133,19 @@ void main() {
           throwsArgumentError,
         );
       });
+
+      test('throws for unsupported EntryPoint v0.9 combination', () {
+        final owner = PrivateKeyOwner(testPrivateKey);
+
+        expect(
+          () => createSafeSmartAccount(
+            owners: [owner],
+            entryPointVersion: EntryPointVersion.v09,
+            chainId: BigInt.from(1),
+          ),
+          throwsArgumentError,
+        );
+      });
     });
 
     group('getAddress', () {

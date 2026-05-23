@@ -83,14 +83,34 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// Prefer using [createThirdwebSmartAccount] factory function instead
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
-      : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v07
-                ? ThirdwebAddresses.factoryV07
-                : ThirdwebAddresses.factoryV06);
+      : _factoryAddress = _resolveFactoryAddress(_config);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
   EthereumAddress? _cachedAddress;
+
+  static EthereumAddress _resolveFactoryAddress(
+    ThirdwebSmartAccountConfig config,
+  ) {
+    if (config.customFactoryAddress != null) {
+      return config.customFactoryAddress!;
+    }
+
+    return switch (config.entryPointVersion) {
+      EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
+      EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
+      EntryPointVersion.v08 => throw UnsupportedError(
+          'ThirdwebSmartAccount does not have an official EntryPoint v0.8 '
+          'factory deployment. Provide a customFactoryAddress for '
+          'user-supplied experimentation.',
+        ),
+      EntryPointVersion.v09 => throw UnsupportedError(
+          'ThirdwebSmartAccount does not have an official EntryPoint v0.9 '
+          'factory deployment. Provide a customFactoryAddress for '
+          'user-supplied experimentation.',
+        ),
+    };
+  }
 
   /// The owner of this account.
   AccountOwner get owner => _config.owner;
@@ -105,9 +125,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// The EntryPoint address.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointVersion == EntryPointVersion.v07
-          ? EntryPointAddresses.v07
-          : EntryPointAddresses.v06;
+      EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override

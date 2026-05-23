@@ -32,6 +32,12 @@ enum LightAccountVersion {
           'Light Account does not support EntryPoint v0.8. '
           'Use Eip7702SimpleSmartAccount for EIP-7702 support.',
         );
+      case EntryPointVersion.v09:
+        throw ArgumentError(
+          'Light Account does not have an official EntryPoint v0.9 '
+          'deployment. Provide a customFactoryAddress and explicit '
+          'LightAccountVersion only for user-supplied experimentation.',
+        );
     }
   }
 }

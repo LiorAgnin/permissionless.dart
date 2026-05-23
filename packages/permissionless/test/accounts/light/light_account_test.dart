@@ -22,6 +22,13 @@ void main() {
         );
       });
 
+      test('v0.9 does not auto-select an official Light version', () {
+        expect(
+          () => LightAccountVersion.forEntryPoint(EntryPointVersion.v09),
+          throwsArgumentError,
+        );
+      });
+
       test('v110 has version string "1.1.0"', () {
         expect(LightAccountVersion.v110.version, equals('1.1.0'));
       });
@@ -161,6 +168,36 @@ void main() {
         );
 
         expect(account.entryPointVersion, equals(EntryPointVersion.v06));
+      });
+
+      test('rejects EntryPoint v0.9 without explicit custom configuration', () {
+        expect(
+          () => createLightSmartAccount(
+            owner: owner,
+            chainId: BigInt.from(1),
+            entryPointVersion: EntryPointVersion.v09,
+            address: mockAddress,
+          ),
+          throwsArgumentError,
+        );
+      });
+
+      test('allows custom EntryPoint v0.9 factory experimentation', () {
+        final customFactory = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
+
+        final account = createLightSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          entryPointVersion: EntryPointVersion.v09,
+          version: LightAccountVersion.v200,
+          customFactoryAddress: customFactory,
+          address: mockAddress,
+        );
+
+        expect(account.entryPointVersion, equals(EntryPointVersion.v09));
+        expect(account.entryPoint, equals(EntryPointAddresses.v09));
       });
 
       test('address is deterministic', () async {
