@@ -26,6 +26,11 @@ class SimpleAccountFactoryAddresses {
         EntryPointVersion.v06 => v06,
         EntryPointVersion.v07 => v07,
         EntryPointVersion.v08 => v08,
+        EntryPointVersion.v09 => throw ArgumentError(
+            'SimpleAccountFactory does not have an official EntryPoint v0.9 '
+            'deployment. Use a custom factory address for user-supplied '
+            'deployments.',
+          ),
       };
 }
 

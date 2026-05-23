@@ -22,6 +22,20 @@ void main() {
         );
       });
 
+      test('EntryPoint v0.8 is unsupported', () {
+        expect(
+          () => LightAccountVersion.forEntryPoint(EntryPointVersion.v08),
+          throwsArgumentError,
+        );
+      });
+
+      test('EntryPoint v0.9 is unsupported', () {
+        expect(
+          () => LightAccountVersion.forEntryPoint(EntryPointVersion.v09),
+          throwsArgumentError,
+        );
+      });
+
       test('v110 has version string "1.1.0"', () {
         expect(LightAccountVersion.v110.version, equals('1.1.0'));
       });

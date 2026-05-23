@@ -88,6 +88,43 @@ void main() {
         );
       });
 
+      test('uses configured v0.9 EntryPoint address', () async {
+        const expectedHash =
+            '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+        final mockClient = createMockClient((_) => expectedHash);
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v09,
+          httpClient: mockClient,
+        );
+
+        final userOp = UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        final result = await client.sendUserOperation(userOp);
+
+        expect(result, equals(expectedHash));
+        expect(
+          capturedRequests.single['method'],
+          equals('eth_sendUserOperation'),
+        );
+        expect(
+          capturedRequests.single['params'][1],
+          equals(EntryPointAddresses.v09.hex),
+        );
+      });
+
       test('throws BundlerRpcError on validation failure', () async {
         final mockClient = createErrorMockClient(
           -32602,
@@ -170,6 +207,46 @@ void main() {
         expect(
           capturedRequests[0]['method'],
           equals('eth_estimateUserOperationGas'),
+        );
+      });
+
+      test('uses configured v0.9 EntryPoint address', () async {
+        final mockClient = createMockClient(
+          (_) => {
+            'preVerificationGas': '0x5208',
+            'verificationGasLimit': '0x186a0',
+            'callGasLimit': '0x186a0',
+          },
+        );
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v09,
+          httpClient: mockClient,
+        );
+
+        final userOp = UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.zero,
+          verificationGasLimit: BigInt.zero,
+          preVerificationGas: BigInt.zero,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        final estimate = await client.estimateUserOperationGas(userOp);
+
+        expect(estimate.preVerificationGas, equals(BigInt.from(21000)));
+        expect(
+          capturedRequests.single['method'],
+          equals('eth_estimateUserOperationGas'),
+        );
+        expect(
+          capturedRequests.single['params'][1],
+          equals(EntryPointAddresses.v09.hex),
         );
       });
 

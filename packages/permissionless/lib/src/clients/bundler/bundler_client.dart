@@ -34,7 +34,7 @@ class BundlerClient {
   /// calling this constructor directly, as it handles RPC client setup.
   ///
   /// - [rpcClient]: The JSON-RPC client for bundler communication
-  /// - [entryPoint]: The EntryPoint contract address (v0.6 or v0.7)
+  /// - [entryPoint]: The EntryPoint contract address.
   BundlerClient({
     required this.rpcClient,
     required this.entryPoint,
@@ -70,7 +70,7 @@ class BundlerClient {
   ///
   /// Returns the UserOperation hash.
   ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// **Note**: Requires a bundler that supports EIP-7702.
   Future<String> sendUserOperationWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList,
@@ -118,7 +118,7 @@ class BundlerClient {
   /// Similar to [estimateUserOperationGas] but includes the authorization
   /// inside the UserOperation for accurate gas estimation of EIP-7702 accounts.
   ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// **Note**: Requires a bundler that supports EIP-7702.
   Future<UserOperationGasEstimate> estimateUserOperationGasWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList, {

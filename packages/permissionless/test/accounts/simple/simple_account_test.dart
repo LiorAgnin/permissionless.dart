@@ -541,6 +541,17 @@ void main() {
         SimpleAccountFactoryAddresses.fromVersion(EntryPointVersion.v07),
         equals(SimpleAccountFactoryAddresses.v07),
       );
+      expect(
+        SimpleAccountFactoryAddresses.fromVersion(EntryPointVersion.v08),
+        equals(SimpleAccountFactoryAddresses.v08),
+      );
+    });
+
+    test('EntryPoint v0.9 is unsupported without a custom factory', () {
+      expect(
+        () => SimpleAccountFactoryAddresses.fromVersion(EntryPointVersion.v09),
+        throwsArgumentError,
+      );
     });
   });
 
