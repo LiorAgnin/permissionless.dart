@@ -8,26 +8,30 @@ Build account abstraction applications in Dart with support for multiple smart a
 
 ### Smart Accounts
 
-| Account             | Provider       | EntryPoint       | ERC-7579   | Description                         |
-| ------------------- | -------------- | ---------------- | ---------- | ----------------------------------- |
-| **Safe**            | Gnosis         | v0.6, v0.7       | Optional*  | Battle-tested multi-sig account     |
-| **Kernel**          | ZeroDev        | v0.6, v0.7       | v0.3.x     | Modular account with plugins        |
-| **Nexus**           | Biconomy       | v0.7             | Yes        | ERC-7579 modular account            |
-| **Light**           | Alchemy        | v0.6, v0.7       | No         | Gas-efficient single-owner          |
-| **Simple**          | eth-infinitism | v0.6, v0.7, v0.8 | No         | Minimal reference implementation    |
-| **Simple7702**      | eth-infinitism | v0.8, v0.9       | No         | EIP-7702 Simple account delegation  |
-| **Thirdweb**        | Thirdweb       | v0.6, v0.7       | No         | SDK ecosystem integration           |
-| **Trust**           | Trust Wallet   | v0.6             | No         | Diamond architecture (Barz)         |
-| **Etherspot**       | Etherspot      | v0.7             | Internal** | ModularEtherspotWallet              |
-| **Biconomy**        | Biconomy       | v0.6             | No         | *Deprecated - use Nexus*            |
+| Account       | Provider       | EntryPoint             | ERC-7579   | Description                      |
+| ------------- | -------------- | ---------------------- | ---------- | -------------------------------- |
+| **Safe**      | Gnosis         | v0.6, v0.7             | Optional*  | Battle-tested multi-sig account  |
+| **Kernel**    | ZeroDev        | v0.6, v0.7             | v0.3.x     | Modular account with plugins     |
+| **Nexus**     | Biconomy       | v0.7                   | Yes        | ERC-7579 modular account         |
+| **Light**     | Alchemy        | v0.6, v0.7             | No         | Gas-efficient single-owner       |
+| **Simple**    | eth-infinitism | v0.6, v0.7             | No         | Minimal reference implementation |
+| **Simple7702** | eth-infinitism | v0.8, v0.9 opt-in      | No         | EIP-7702 delegated Simple account |
+| **Thirdweb**  | Thirdweb       | v0.6, v0.7             | No         | SDK ecosystem integration        |
+| **Trust**     | Trust Wallet   | v0.6                   | No         | Diamond architecture (Barz)      |
+| **Etherspot** | Etherspot      | v0.7                   | Internal** | ModularEtherspotWallet           |
+| **Biconomy**  | Biconomy       | v0.6                   | No         | *Deprecated - use Nexus*         |
 
 \* Safe requires `erc7579LaunchpadAddress` configuration to enable ERC-7579 module management.
 \** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.
 
-EntryPoint v0.9 is opt-in. Generic clients can target `EntryPointAddresses.v09`;
-official built-in account support is limited to Simple7702. Other account
-families do not claim v0.9 support unless you provide custom contract addresses,
-which is treated as user-supplied experimentation.
+EntryPoint v0.9 is opt-in. Existing account defaults stay on their current
+EntryPoint versions. The first officially supported v0.9 built-in account
+target is Simple7702Account with EntryPoint
+`0x433709009B8330FDa32311DF1C2AFA402eD8D009` and Simple7702Account
+implementation `0xa46cc63eBF4Bd77888AA327837d20b23A63a56B5`.
+Custom account addresses can still be supplied where an account API supports
+them, but custom v0.9 deployments are user-provided and not part of the package
+support matrix.
 
 ### Clients
 
@@ -222,6 +226,30 @@ final account = createSimpleSmartAccount(
 - Minimal, gas-efficient design
 - Direct signature validation
 - Ideal for learning ERC-4337
+
+### EIP-7702 Simple Account
+
+Simple7702Account delegates code from the owner's EOA, so the account address
+is the owner's address. v0.8 remains the default; select v0.9 explicitly when
+your bundler and paymaster support it:
+
+```dart
+final owner = PrivateKeyEip7702Owner('0x...');
+final account = createEip7702SimpleSmartAccount(
+  owner: owner,
+  chainId: BigInt.from(11155111), // Sepolia
+  entryPointVersion: EntryPointVersion.v09,
+);
+
+final bundler = createBundlerClient(
+  url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+  entryPoint: EntryPointAddresses.v09,
+);
+```
+
+The official v0.9 addresses are:
+- EntryPoint v0.9: `0x433709009B8330FDa32311DF1C2AFA402eD8D009`
+- Simple7702Account v0.9: `0xa46cc63eBF4Bd77888AA327837d20b23A63a56B5`
 
 ### Thirdweb Account
 
@@ -536,8 +564,8 @@ final allowanceOverride = erc20AllowanceOverride(
 | ------- | --------------- | ----------------------------------------------------------------------------------- |
 | v0.6    | `0x5FF1...2789` | Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust                                     |
 | v0.7    | `0x0000...0070` | Safe v1.4.1/v1.5.0, Kernel v0.3.1, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot |
-| v0.8    | `0x4337...f108` | Simple, Simple7702                                                                  |
-| v0.9    | `0x4337...d009` | Generic clients, Simple7702                                                         |
+| v0.8    | `0x4337...f108` | Simple7702Account by default                                                        |
+| v0.9    | `0x4337...D009` | Simple7702Account when explicitly configured                                        |
 
 ## Examples
 
@@ -550,6 +578,7 @@ See the [example/](example/) directory for complete working examples:
 | `nexus_example.dart`           | Biconomy Nexus (ERC-7579)  |
 | `light_example.dart`           | Alchemy Light Account      |
 | `simple_example.dart`          | Minimal reference account  |
+| `eip7702_simple_example.dart`  | EIP-7702 Simple v0.9 setup |
 | `thirdweb_example.dart`        | Thirdweb SDK account       |
 | `trust_example.dart`           | Trust Wallet Barz          |
 | `etherspot_example.dart`       | Etherspot modular account  |

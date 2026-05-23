@@ -39,13 +39,13 @@ class SimpleAccountFactoryAddresses {
 class Simple7702AccountAddresses {
   Simple7702AccountAddresses._();
 
-  /// Simple7702Account implementation for EntryPoint v0.8.
+  /// The Simple7702Account implementation address for EntryPoint v0.8.
   ///
   /// This contract is part of the eth-infinitism ERC-4337 v0.8 release.
   static final EthereumAddress v08 =
       EthereumAddress.fromHex('0xe6Cae83BdE06E4c305530e199D7217f42808555B');
 
-  /// Simple7702Account implementation for EntryPoint v0.9.
+  /// The Simple7702Account implementation address for EntryPoint v0.9.
   ///
   /// This contract is part of the eth-infinitism ERC-4337 v0.9 release.
   static final EthereumAddress v09 =
