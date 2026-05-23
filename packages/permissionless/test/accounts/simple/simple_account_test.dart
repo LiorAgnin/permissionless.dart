@@ -69,6 +69,35 @@ void main() {
         // We can verify this through getFactoryData
         expect(account, isNotNull);
       });
+
+      test('rejects built-in EntryPoint v0.9 factory selection', () {
+        expect(
+          () => createSimpleSmartAccount(
+            owner: owner,
+            chainId: BigInt.from(1),
+            entryPointVersion: EntryPointVersion.v09,
+            address: mockAddress,
+          ),
+          throwsA(isA<UnsupportedError>()),
+        );
+      });
+
+      test('allows custom EntryPoint v0.9 factory experimentation', () {
+        final customFactory = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
+
+        account = createSimpleSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          entryPointVersion: EntryPointVersion.v09,
+          customFactoryAddress: customFactory,
+          address: mockAddress,
+        );
+
+        expect(account.entryPointVersion, equals(EntryPointVersion.v09));
+        expect(account.entryPoint, equals(EntryPointAddresses.v09));
+      });
     });
 
     group('getAddress', () {
@@ -550,7 +579,7 @@ void main() {
     test('EntryPoint v0.9 is unsupported without a custom factory', () {
       expect(
         () => SimpleAccountFactoryAddresses.fromVersion(EntryPointVersion.v09),
-        throwsArgumentError,
+        throwsA(isA<UnsupportedError>()),
       );
     });
   });
@@ -587,13 +616,13 @@ void main() {
 
     test('selects implementation address by EntryPoint version', () {
       expect(
-        Simple7702AccountAddresses.fromEntryPointVersion(
+        Simple7702AccountAddresses.fromVersion(
           EntryPointVersion.v08,
         ),
         equals(Simple7702AccountAddresses.v08),
       );
       expect(
-        Simple7702AccountAddresses.fromEntryPointVersion(
+        Simple7702AccountAddresses.fromVersion(
           EntryPointVersion.v09,
         ),
         equals(Simple7702AccountAddresses.v09),
@@ -602,7 +631,7 @@ void main() {
 
     test('rejects unsupported EntryPoint versions', () {
       expect(
-        () => Simple7702AccountAddresses.fromEntryPointVersion(
+        () => Simple7702AccountAddresses.fromVersion(
           EntryPointVersion.v07,
         ),
         throwsArgumentError,
@@ -696,6 +725,83 @@ void main() {
       expect(auth.chainId, equals(BigInt.from(11155111)));
       expect(auth.address, equals(Simple7702AccountAddresses.v09));
       expect(auth.nonce, equals(BigInt.from(7)));
+    });
+
+    test('fromVersion rejects v0.9 without a verified factory', () {
+      expect(
+        () => SimpleAccountFactoryAddresses.fromVersion(EntryPointVersion.v09),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+  });
+
+  group('Simple7702AccountAddresses', () {
+    test('selects v0.8 and v0.9 logic addresses', () {
+      expect(
+        Simple7702AccountAddresses.fromVersion(EntryPointVersion.v08),
+        equals(Simple7702AccountAddresses.v08),
+      );
+      expect(
+        Simple7702AccountAddresses.fromVersion(EntryPointVersion.v09),
+        equals(Simple7702AccountAddresses.v09),
+      );
+      expect(
+        Simple7702AccountAddresses.v09.hex.toLowerCase(),
+        equals('0xa46cc63ebf4bd77888aa327837d20b23a63a56b5'),
+      );
+    });
+
+    test('rejects non-EIP-7702 EntryPoint versions', () {
+      expect(
+        () => Simple7702AccountAddresses.fromVersion(EntryPointVersion.v07),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('Eip7702SimpleSmartAccount', () {
+    late PrivateKeyEip7702Owner owner;
+
+    setUp(() {
+      owner = PrivateKeyEip7702Owner(
+        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+      );
+    });
+
+    test('defaults to EntryPoint v0.8 logic', () {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+      );
+
+      expect(account.entryPointVersion, equals(EntryPointVersion.v08));
+      expect(account.entryPoint, equals(EntryPointAddresses.v08));
+      expect(
+          account.accountLogicAddress, equals(Simple7702AccountAddresses.v08));
+    });
+
+    test('supports explicit EntryPoint v0.9 logic', () {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+        entryPointVersion: EntryPointVersion.v09,
+      );
+
+      expect(account.entryPointVersion, equals(EntryPointVersion.v09));
+      expect(account.entryPoint, equals(EntryPointAddresses.v09));
+      expect(
+          account.accountLogicAddress, equals(Simple7702AccountAddresses.v09));
+    });
+
+    test('rejects older EntryPoint versions', () {
+      expect(
+        () => createEip7702SimpleSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          entryPointVersion: EntryPointVersion.v07,
+        ),
+        throwsArgumentError,
+      );
     });
   });
 

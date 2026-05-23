@@ -8,20 +8,26 @@ Build account abstraction applications in Dart with support for multiple smart a
 
 ### Smart Accounts
 
-| Account       | Provider       | EntryPoint | ERC-7579   | Description                      |
-| ------------- | -------------- | ---------- | ---------- | -------------------------------- |
-| **Safe**      | Gnosis         | v0.6, v0.7 | Optional*  | Battle-tested multi-sig account  |
-| **Kernel**    | ZeroDev        | v0.6, v0.7 | v0.3.x     | Modular account with plugins     |
-| **Nexus**     | Biconomy       | v0.7       | Yes        | ERC-7579 modular account         |
-| **Light**     | Alchemy        | v0.6, v0.7 | No         | Gas-efficient single-owner       |
-| **Simple**    | eth-infinitism | v0.6, v0.7 | No         | Minimal reference implementation |
-| **Thirdweb**  | Thirdweb       | v0.6, v0.7 | No         | SDK ecosystem integration        |
-| **Trust**     | Trust Wallet   | v0.6       | No         | Diamond architecture (Barz)      |
-| **Etherspot** | Etherspot      | v0.7       | Internal** | ModularEtherspotWallet           |
-| **Biconomy**  | Biconomy       | v0.6       | No         | *Deprecated - use Nexus*         |
+| Account             | Provider       | EntryPoint       | ERC-7579   | Description                         |
+| ------------------- | -------------- | ---------------- | ---------- | ----------------------------------- |
+| **Safe**            | Gnosis         | v0.6, v0.7       | Optional*  | Battle-tested multi-sig account     |
+| **Kernel**          | ZeroDev        | v0.6, v0.7       | v0.3.x     | Modular account with plugins        |
+| **Nexus**           | Biconomy       | v0.7             | Yes        | ERC-7579 modular account            |
+| **Light**           | Alchemy        | v0.6, v0.7       | No         | Gas-efficient single-owner          |
+| **Simple**          | eth-infinitism | v0.6, v0.7, v0.8 | No         | Minimal reference implementation    |
+| **Simple7702**      | eth-infinitism | v0.8, v0.9       | No         | EIP-7702 Simple account delegation  |
+| **Thirdweb**        | Thirdweb       | v0.6, v0.7       | No         | SDK ecosystem integration           |
+| **Trust**           | Trust Wallet   | v0.6             | No         | Diamond architecture (Barz)         |
+| **Etherspot**       | Etherspot      | v0.7             | Internal** | ModularEtherspotWallet              |
+| **Biconomy**        | Biconomy       | v0.6             | No         | *Deprecated - use Nexus*            |
 
 \* Safe requires `erc7579LaunchpadAddress` configuration to enable ERC-7579 module management.
 \** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.
+
+EntryPoint v0.9 is opt-in. Generic clients can target `EntryPointAddresses.v09`;
+official built-in account support is limited to Simple7702. Other account
+families do not claim v0.9 support unless you provide custom contract addresses,
+which is treated as user-supplied experimentation.
 
 ### Clients
 
@@ -530,6 +536,8 @@ final allowanceOverride = erc20AllowanceOverride(
 | ------- | --------------- | ----------------------------------------------------------------------------------- |
 | v0.6    | `0x5FF1...2789` | Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust                                     |
 | v0.7    | `0x0000...0070` | Safe v1.4.1/v1.5.0, Kernel v0.3.1, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot |
+| v0.8    | `0x4337...f108` | Simple, Simple7702                                                                  |
+| v0.9    | `0x4337...d009` | Generic clients, Simple7702                                                         |
 
 ## Examples
 

@@ -84,7 +84,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            _factoryAddressFor(_config.entryPointVersion);
+            _factoryAddressForVersion(_config.entryPointVersion);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -102,26 +102,31 @@ class ThirdwebSmartAccount implements SmartAccount {
 
   /// The EntryPoint address.
   @override
-  EthereumAddress get entryPoint => switch (_config.entryPointVersion) {
-        EntryPointVersion.v06 => EntryPointAddresses.v06,
-        EntryPointVersion.v07 => EntryPointAddresses.v07,
-        EntryPointVersion.v08 => throw ArgumentError(
-            'Thirdweb account does not support EntryPoint v0.8.',
-          ),
-        EntryPointVersion.v09 => throw ArgumentError(
-            'Thirdweb account does not support EntryPoint v0.9.',
+  EthereumAddress get entryPoint =>
+      _entryPointAddressForVersion(_config.entryPointVersion);
+
+  static EthereumAddress _factoryAddressForVersion(
+    EntryPointVersion entryPointVersion,
+  ) =>
+      switch (entryPointVersion) {
+        EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
+        EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
+        EntryPointVersion.v08 || EntryPointVersion.v09 => throw ArgumentError(
+            'Thirdweb accounts support EntryPoint v0.6 and v0.7 only. '
+            'Received EntryPoint v${entryPointVersion.value}.',
           ),
       };
 
-  static EthereumAddress _factoryAddressFor(EntryPointVersion version) =>
-      switch (version) {
-        EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
-        EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
-        EntryPointVersion.v08 => throw ArgumentError(
-            'Thirdweb account does not support EntryPoint v0.8.',
-          ),
-        EntryPointVersion.v09 => throw ArgumentError(
-            'Thirdweb account does not support EntryPoint v0.9.',
+  static EthereumAddress _entryPointAddressForVersion(
+    EntryPointVersion entryPointVersion,
+  ) =>
+      switch (entryPointVersion) {
+        EntryPointVersion.v06 ||
+        EntryPointVersion.v07 =>
+          EntryPointAddresses.fromVersion(entryPointVersion),
+        EntryPointVersion.v08 || EntryPointVersion.v09 => throw ArgumentError(
+            'Thirdweb accounts support EntryPoint v0.6 and v0.7 only. '
+            'Received EntryPoint v${entryPointVersion.value}.',
           ),
       };
 

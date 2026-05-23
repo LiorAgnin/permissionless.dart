@@ -12,9 +12,7 @@ import 'hex.dart';
 /// - **v0.7**: Updated spec with separate factory/paymaster fields,
 ///   better gas handling, and uint128 gas limits
 /// - **v0.8**: Adds native EIP-7702 support
-/// - **v0.9**: Uses the v0.7-style UserOperation RPC shape with updated
-///   EntryPoint deployment, Simple7702Account support, and paymaster
-///   signature support
+/// - **v0.9**: Latest EntryPoint release, opt-in in this package
 enum EntryPointVersion {
   /// EntryPoint v0.6 - Original ERC-4337 specification.
   ///
@@ -35,11 +33,11 @@ enum EntryPointVersion {
   /// - Support for `eip7702Auth` parameter in eth_sendUserOperation
   v08('0.8'),
 
-  /// EntryPoint v0.9 - Current specification release.
+  /// EntryPoint v0.9 - Latest EntryPoint release.
   ///
   /// Address: `0x433709009B8330FDa32311DF1C2AFA402eD8D009`
-  /// This version keeps the v0.7-style unpacked UserOperation RPC shape
-  /// while adding v0.9-specific EntryPoint and account deployments.
+  /// This package supports v0.9 as an explicit opt-in. The first built-in
+  /// account target with official v0.9 support is Simple7702Account.
   v09('0.9');
 
   const EntryPointVersion(this.value);
@@ -62,9 +60,10 @@ enum EntryPointVersion {
 /// - **signature**: Proof that the account owner(s) authorized this operation
 ///
 /// ## Usage
-/// This sealed class allows type-safe handling of both v0.6 and v0.7+
-/// UserOperations. Use [UserOperationV06] for EntryPoint v0.6 or
-/// [UserOperationV07] for EntryPoint v0.7, v0.8, and v0.9.
+/// This sealed class allows type-safe handling of v0.6 and the unpacked
+/// v0.7-style UserOperation shape used by EntryPoint v0.7, v0.8, and v0.9.
+/// Use [UserOperationV06] for EntryPoint v0.6 or [UserOperationV07] for the
+/// unpacked shape.
 sealed class UserOperation {
   /// The smart account address that will execute this operation.
   ///

@@ -22,7 +22,7 @@ void main() {
       );
     });
 
-    test('maps EntryPoint versions to addresses', () {
+    test('maps all supported EntryPoint versions', () {
       expect(
         EntryPointAddresses.fromVersion(EntryPointVersion.v06),
         equals(EntryPointAddresses.v06),
@@ -43,6 +43,13 @@ void main() {
 
     test('exposes EntryPoint v0.9 version value', () {
       expect(EntryPointVersion.v09.value, equals('0.9'));
+    });
+
+    test('has official v0.9 EntryPoint address', () {
+      expect(
+        EntryPointAddresses.v09.hex.toLowerCase(),
+        equals('0x433709009b8330fda32311df1c2afa402ed8d009'),
+      );
     });
   });
 }
