@@ -428,6 +428,82 @@ void main() {
         expect(capturedRequests[0]['method'], equals('eth_chainId'));
       });
     });
+
+    group('EIP-7702 v0.9 authorization payloads', () {
+      final authorization = Eip7702Authorization(
+        chainId: BigInt.from(11155111),
+        address: Simple7702AccountAddresses.v09,
+        nonce: BigInt.from(7),
+        v: 27,
+        r: '0x${List.filled(32, '11').join()}',
+        s: '0x${List.filled(32, '22').join()}',
+      );
+
+      UserOperationV07 userOperation() => UserOperationV07(
+            sender: EthereumAddress.fromHex(
+              '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266',
+            ),
+            nonce: BigInt.zero,
+            factory: EthereumAddress.fromHex(
+              '0x7702000000000000000000000000000000000000',
+            ),
+            factoryData: '0x',
+            callData: '0x',
+            callGasLimit: BigInt.from(100000),
+            verificationGasLimit: BigInt.from(100000),
+            preVerificationGas: BigInt.from(21000),
+            maxFeePerGas: BigInt.from(1000000000),
+            maxPriorityFeePerGas: BigInt.from(1000000000),
+          );
+
+      test('sends with v0.9 EntryPoint and eip7702Auth', () async {
+        const expectedHash =
+            '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+        final mockClient = createMockClient((_) => expectedHash);
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v09,
+          httpClient: mockClient,
+        );
+
+        await client.sendUserOperationWithAuthorization(
+          userOperation(),
+          [authorization],
+        );
+
+        final params = capturedRequests.single['params'] as List<dynamic>;
+        final userOpJson = params[0] as Map<String, dynamic>;
+        expect(params[1], equals(EntryPointAddresses.v09.hex));
+        expect(userOpJson['factory'], equals('0x7702'));
+        expect(userOpJson['eip7702Auth'], equals(authorization.toRpcFormat()));
+      });
+
+      test('estimates with v0.9 EntryPoint and eip7702Auth', () async {
+        final mockClient = createMockClient(
+          (_) => {
+            'preVerificationGas': '0x5208',
+            'verificationGasLimit': '0x186a0',
+            'callGasLimit': '0x186a0',
+          },
+        );
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v09,
+          httpClient: mockClient,
+        );
+
+        await client.estimateUserOperationGasWithAuthorization(
+          userOperation(),
+          [authorization],
+        );
+
+        final params = capturedRequests.single['params'] as List<dynamic>;
+        final userOpJson = params[0] as Map<String, dynamic>;
+        expect(params[1], equals(EntryPointAddresses.v09.hex));
+        expect(userOpJson['factory'], equals('0x7702'));
+        expect(userOpJson['eip7702Auth'], equals(authorization.toRpcFormat()));
+      });
+    });
   });
 
   group('JsonRpcClient', () {

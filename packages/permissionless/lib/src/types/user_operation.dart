@@ -13,7 +13,8 @@ import 'hex.dart';
 ///   better gas handling, and uint128 gas limits
 /// - **v0.8**: Adds native EIP-7702 support
 /// - **v0.9**: Uses the v0.7-style UserOperation RPC shape with updated
-///   EntryPoint deployment and paymaster signature support
+///   EntryPoint deployment, Simple7702Account support, and paymaster
+///   signature support
 enum EntryPointVersion {
   /// EntryPoint v0.6 - Original ERC-4337 specification.
   ///
@@ -34,10 +35,11 @@ enum EntryPointVersion {
   /// - Support for `eip7702Auth` parameter in eth_sendUserOperation
   v08('0.8'),
 
-  /// EntryPoint v0.9 - ERC-4337 v0.9 singleton deployment.
+  /// EntryPoint v0.9 - Current specification release.
   ///
   /// Address: `0x433709009B8330FDa32311DF1C2AFA402eD8D009`
-  /// This version keeps the v0.7-style unpacked UserOperation RPC shape.
+  /// This version keeps the v0.7-style unpacked UserOperation RPC shape
+  /// while adding v0.9-specific EntryPoint and account deployments.
   v09('0.9');
 
   const EntryPointVersion(this.value);

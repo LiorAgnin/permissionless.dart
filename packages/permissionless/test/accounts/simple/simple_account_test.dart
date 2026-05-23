@@ -555,6 +555,150 @@ void main() {
     });
   });
 
+  group('Simple7702AccountAddresses', () {
+    test('maps EntryPoint v0.9 to the official singleton address', () {
+      expect(
+        EntryPointAddresses.fromVersion(EntryPointVersion.v09),
+        equals(EntryPointAddresses.v09),
+      );
+      expect(
+        EntryPointAddresses.v09.hex.toLowerCase(),
+        equals('0x433709009b8330fda32311df1c2afa402ed8d009'),
+      );
+    });
+
+    test('defaults to the v0.8 implementation address', () {
+      expect(
+        Simple7702AccountAddresses.defaultLogic,
+        equals(Simple7702AccountAddresses.v08),
+      );
+      expect(
+        Simple7702AccountAddresses.defaultLogic.hex.toLowerCase(),
+        equals('0xe6cae83bde06e4c305530e199d7217f42808555b'),
+      );
+    });
+
+    test('has the v0.9 implementation address', () {
+      expect(
+        Simple7702AccountAddresses.v09.hex.toLowerCase(),
+        equals('0xa46cc63ebf4bd77888aa327837d20b23a63a56b5'),
+      );
+    });
+
+    test('selects implementation address by EntryPoint version', () {
+      expect(
+        Simple7702AccountAddresses.fromEntryPointVersion(
+          EntryPointVersion.v08,
+        ),
+        equals(Simple7702AccountAddresses.v08),
+      );
+      expect(
+        Simple7702AccountAddresses.fromEntryPointVersion(
+          EntryPointVersion.v09,
+        ),
+        equals(Simple7702AccountAddresses.v09),
+      );
+    });
+
+    test('rejects unsupported EntryPoint versions', () {
+      expect(
+        () => Simple7702AccountAddresses.fromEntryPointVersion(
+          EntryPointVersion.v07,
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('Eip7702SimpleSmartAccount', () {
+    late _FakeEip7702Owner owner;
+
+    setUp(() {
+      owner = _FakeEip7702Owner(
+        EthereumAddress.fromHex('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'),
+      );
+    });
+
+    test('defaults to EntryPoint v0.8 for backward compatibility', () {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(11155111),
+      );
+
+      expect(account.entryPointVersion, equals(EntryPointVersion.v08));
+      expect(account.entryPoint, equals(EntryPointAddresses.v08));
+      expect(
+        account.accountLogicAddress,
+        equals(Simple7702AccountAddresses.v08),
+      );
+    });
+
+    test('selects EntryPoint v0.9 implementation when opted in', () {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(11155111),
+        entryPointVersion: EntryPointVersion.v09,
+      );
+
+      expect(account.entryPointVersion, equals(EntryPointVersion.v09));
+      expect(account.entryPoint, equals(EntryPointAddresses.v09));
+      expect(
+        account.accountLogicAddress,
+        equals(Simple7702AccountAddresses.v09),
+      );
+    });
+
+    test('keeps account address equal to the owner EOA address', () async {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(11155111),
+        entryPointVersion: EntryPointVersion.v09,
+      );
+
+      expect(await account.getAddress(), equals(owner.address));
+    });
+
+    test('allows a custom logic address for supported EntryPoint versions', () {
+      final customLogic = EthereumAddress.fromHex(
+        '0x1234567890123456789012345678901234567890',
+      );
+
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(11155111),
+        entryPointVersion: EntryPointVersion.v09,
+        accountLogicAddress: customLogic,
+      );
+
+      expect(account.accountLogicAddress, equals(customLogic));
+    });
+
+    test('rejects unsupported EntryPoint versions', () {
+      expect(
+        () => createEip7702SimpleSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(11155111),
+          entryPointVersion: EntryPointVersion.v07,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('creates v0.9 authorization for configured logic address', () async {
+      final account = createEip7702SimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(11155111),
+        entryPointVersion: EntryPointVersion.v09,
+      );
+
+      final auth = await account.getAuthorization(nonce: BigInt.from(7));
+
+      expect(auth.chainId, equals(BigInt.from(11155111)));
+      expect(auth.address, equals(Simple7702AccountAddresses.v09));
+      expect(auth.nonce, equals(BigInt.from(7)));
+    });
+  });
+
   group('SimpleAccountSelectors', () {
     test('has correct execute selector', () {
       expect(SimpleAccountSelectors.execute, equals('0xb61d27f6'));
@@ -568,4 +712,34 @@ void main() {
       expect(SimpleAccountSelectors.createAccount, equals('0x5fbfb9cf'));
     });
   });
+}
+
+class _FakeEip7702Owner extends Eip7702SimpleAccountOwner {
+  const _FakeEip7702Owner(this.address);
+
+  @override
+  final EthereumAddress address;
+
+  @override
+  Future<Eip7702Authorization> createAuthorization({
+    required BigInt chainId,
+    required EthereumAddress contractAddress,
+    required BigInt nonce,
+  }) async =>
+      Eip7702Authorization(
+        chainId: chainId,
+        address: contractAddress,
+        nonce: nonce,
+        v: 27,
+        r: '0x${List.filled(32, '11').join()}',
+        s: '0x${List.filled(32, '22').join()}',
+      );
+
+  @override
+  Future<String> signHash(String messageHash) async =>
+      '0x${List.filled(65, '11').join()}';
+
+  @override
+  Future<String> signTypedData(TypedData typedData) async =>
+      '0x${List.filled(65, '22').join()}';
 }
