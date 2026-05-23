@@ -167,6 +167,47 @@ void main() {
         expect(result.paymasterData, equals('0xsigneddata123456'));
         expect(capturedRequests[0]['method'], equals('pm_getPaymasterData'));
       });
+
+      test(
+        'keeps v0.8 paymaster data unchanged without suffix helper',
+        () async {
+          final mockClient = createMockClient(
+            (_) => {
+              'paymaster': '0x1234567890123456789012345678901234567890',
+              'paymasterData': '0xv08signeddata',
+            },
+          );
+          client = createPaymasterClient(
+            url: 'http://localhost:3000/rpc',
+            httpClient: mockClient,
+          );
+
+          final userOp = UserOperationV07(
+            sender: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
+            nonce: BigInt.zero,
+            callData: '0x',
+            callGasLimit: BigInt.from(100000),
+            verificationGasLimit: BigInt.from(100000),
+            preVerificationGas: BigInt.from(21000),
+            maxFeePerGas: BigInt.from(1000000000),
+            maxPriorityFeePerGas: BigInt.from(1000000000),
+          );
+
+          final result = await client.getPaymasterData(
+            userOp: userOp,
+            entryPoint: EntryPointAddresses.v08,
+            chainId: BigInt.one,
+          );
+
+          expect(result.paymasterData, equals('0xv08signeddata'));
+          expect(
+            capturedRequests[0]['params'][1],
+            equals(EntryPointAddresses.v08.hex),
+          );
+        },
+      );
     });
 
     group('sponsorUserOperation', () {
