@@ -621,7 +621,8 @@ void main() {
 
       expect(account.entryPointVersion, equals(EntryPointVersion.v08));
       expect(account.entryPoint, equals(EntryPointAddresses.v08));
-      expect(account.accountLogicAddress, equals(Simple7702AccountAddresses.v08));
+      expect(
+          account.accountLogicAddress, equals(Simple7702AccountAddresses.v08));
     });
 
     test('supports explicit EntryPoint v0.9 logic', () {
@@ -633,7 +634,8 @@ void main() {
 
       expect(account.entryPointVersion, equals(EntryPointVersion.v09));
       expect(account.entryPoint, equals(EntryPointAddresses.v09));
-      expect(account.accountLogicAddress, equals(Simple7702AccountAddresses.v09));
+      expect(
+          account.accountLogicAddress, equals(Simple7702AccountAddresses.v09));
     });
 
     test('rejects older EntryPoint versions', () {

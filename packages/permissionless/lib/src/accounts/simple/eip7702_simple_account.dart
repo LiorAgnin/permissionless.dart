@@ -132,9 +132,8 @@ class Eip7702SimpleSmartAccountConfig {
     EntryPointVersion entryPointVersion = EntryPointVersion.v08,
     EthereumAddress? accountLogicAddress,
   })  : entryPointVersion = _validateEntryPointVersion(entryPointVersion),
-        accountLogicAddress =
-            accountLogicAddress ??
-                Simple7702AccountAddresses.fromVersion(entryPointVersion);
+        accountLogicAddress = accountLogicAddress ??
+            Simple7702AccountAddresses.fromVersion(entryPointVersion);
 
   /// The owner of this EIP-7702 account (the EOA).
   final Eip7702SimpleAccountOwner owner;
