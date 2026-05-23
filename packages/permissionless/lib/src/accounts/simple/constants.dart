@@ -26,6 +26,10 @@ class SimpleAccountFactoryAddresses {
         EntryPointVersion.v06 => v06,
         EntryPointVersion.v07 => v07,
         EntryPointVersion.v08 => v08,
+        EntryPointVersion.v09 => throw ArgumentError(
+            'SimpleAccountFactory does not have an official EntryPoint v0.9 '
+            'deployment. Use Eip7702SimpleSmartAccount for Simple7702 v0.9.',
+          ),
       };
 }
 
@@ -35,11 +39,31 @@ class SimpleAccountFactoryAddresses {
 class Simple7702AccountAddresses {
   Simple7702AccountAddresses._();
 
-  /// The default Simple7702Account implementation address.
+  /// Simple7702Account implementation for EntryPoint v0.8.
   ///
   /// This contract is part of the eth-infinitism ERC-4337 v0.8 release.
-  static final EthereumAddress defaultLogic =
+  static final EthereumAddress v08 =
       EthereumAddress.fromHex('0xe6Cae83BdE06E4c305530e199D7217f42808555B');
+
+  /// Simple7702Account implementation for EntryPoint v0.9.
+  static final EthereumAddress v09 =
+      EthereumAddress.fromHex('0xa46cc63eBF4Bd77888AA327837d20b23A63a56B5');
+
+  /// The default Simple7702Account implementation address.
+  ///
+  /// Defaults remain on EntryPoint v0.8 for backward compatibility.
+  static EthereumAddress get defaultLogic => v08;
+
+  /// Gets the Simple7702Account implementation for an EntryPoint version.
+  static EthereumAddress fromEntryPointVersion(EntryPointVersion version) =>
+      switch (version) {
+        EntryPointVersion.v08 => v08,
+        EntryPointVersion.v09 => v09,
+        EntryPointVersion.v06 || EntryPointVersion.v07 => throw ArgumentError(
+            'Simple7702Account supports EntryPoint v0.8 and v0.9 only. '
+            'Received EntryPoint v${version.value}.',
+          ),
+      };
 }
 
 /// Function selectors for SimpleAccount contracts.

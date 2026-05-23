@@ -27,11 +27,18 @@ class EntryPointAddresses {
   static final EthereumAddress v08 =
       EthereumAddress.fromHex('0x4337084d9e255ff0702461cf8895ce9e3b5ff108');
 
+  /// EntryPoint v0.9 address.
+  ///
+  /// Deployed at the same address on all chains.
+  static final EthereumAddress v09 =
+      EthereumAddress.fromHex('0x433709009B8330FDa32311DF1C2AFA402eD8D009');
+
   /// Gets the EntryPoint address for a given version.
   static EthereumAddress fromVersion(EntryPointVersion version) =>
       switch (version) {
         EntryPointVersion.v06 => v06,
         EntryPointVersion.v07 => v07,
         EntryPointVersion.v08 => v08,
+        EntryPointVersion.v09 => v09,
       };
 }

@@ -11,6 +11,9 @@ import 'hex.dart';
 /// - **v0.6**: Original specification, widely deployed
 /// - **v0.7**: Updated spec with separate factory/paymaster fields,
 ///   better gas handling, and uint128 gas limits
+/// - **v0.8**: Adds native EIP-7702 support
+/// - **v0.9**: Current EntryPoint release, reusing the v0.7-style
+///   unpacked UserOperation RPC model
 enum EntryPointVersion {
   /// EntryPoint v0.6 - Original ERC-4337 specification.
   ///
@@ -22,18 +25,25 @@ enum EntryPointVersion {
   /// Address: `0x0000000071727De22E5E9d8BAf0edAc6f37da032`
   v07('0.7'),
 
-  /// EntryPoint v0.8 - Latest specification with EIP-7702 support.
+  /// EntryPoint v0.8 - Specification with EIP-7702 support.
   ///
   /// Address: `0x4337084d9e255ff0702461cf8895ce9e3b5ff108`
   /// This version adds native EIP-7702 support including:
   /// - UserOperation hash includes EIP-7702 delegation address
   /// - EntryPoint checks delegation address is set correctly
   /// - Support for `eip7702Auth` parameter in eth_sendUserOperation
-  v08('0.8');
+  v08('0.8'),
+
+  /// EntryPoint v0.9 - Current specification release.
+  ///
+  /// Address: `0x433709009B8330FDa32311DF1C2AFA402eD8D009`
+  /// This version keeps the v0.7-style unpacked UserOperation RPC shape
+  /// while adding v0.9-specific EntryPoint and account deployments.
+  v09('0.9');
 
   const EntryPointVersion(this.value);
 
-  /// The version string (e.g., "0.6", "0.7", or "0.8").
+  /// The version string (e.g., "0.6", "0.7", "0.8", or "0.9").
   final String value;
 }
 
