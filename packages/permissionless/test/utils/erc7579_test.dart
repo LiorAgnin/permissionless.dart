@@ -47,8 +47,9 @@ void main() {
       });
 
       test('encodes delegate call mode correctly', () {
-        final mode =
-            encode7579ExecuteMode(callType: Erc7579CallType.delegateCall);
+        final mode = encode7579ExecuteMode(
+          callType: Erc7579CallType.delegateCall,
+        );
 
         expect(mode.substring(2, 4), equals('ff'));
       });
@@ -143,10 +144,7 @@ void main() {
 
     group('encode7579BatchCallData', () {
       test('throws on empty calls', () {
-        expect(
-          () => encode7579BatchCallData([]),
-          throwsArgumentError,
-        );
+        expect(() => encode7579BatchCallData([]), throwsArgumentError);
       });
 
       test('encodes single call in batch format', () {
@@ -234,10 +232,7 @@ void main() {
 
     group('encode7579ExecuteBatch', () {
       test('throws on empty calls', () {
-        expect(
-          () => encode7579ExecuteBatch([]),
-          throwsArgumentError,
-        );
+        expect(() => encode7579ExecuteBatch([]), throwsArgumentError);
       });
 
       test('optimizes single call to non-batch encoding', () {
@@ -921,8 +916,10 @@ void main() {
       });
 
       test('encodes key and sequence', () {
-        final nonce =
-            encodeNonce(key: BigInt.from(5), sequence: BigInt.from(10));
+        final nonce = encodeNonce(
+          key: BigInt.from(5),
+          sequence: BigInt.from(10),
+        );
         // Expected: (5 << 64) + 10
         expect(nonce, equals((BigInt.from(5) << 64) + BigInt.from(10)));
       });
@@ -931,8 +928,10 @@ void main() {
         final originalKey = BigInt.parse('abcdef123456', radix: 16);
         final originalSequence = BigInt.from(999);
 
-        final encoded =
-            encodeNonce(key: originalKey, sequence: originalSequence);
+        final encoded = encodeNonce(
+          key: originalKey,
+          sequence: originalSequence,
+        );
         final decoded = decodeNonce(encoded);
 
         expect(decoded.key, equals(originalKey));
@@ -1100,10 +1099,7 @@ void main() {
         // Random calldata that doesn't start with execute selector
         const invalidCallData = '0x12345678aabbccdd';
 
-        expect(
-          () => decode7579Calls(invalidCallData),
-          throwsArgumentError,
-        );
+        expect(() => decode7579Calls(invalidCallData), throwsArgumentError);
       });
 
       test('throws for invalid call type', () {
@@ -1122,8 +1118,10 @@ void main() {
 
     group('DecodedNonce', () {
       test('toString returns readable format', () {
-        final decoded =
-            DecodedNonce(key: BigInt.from(5), sequence: BigInt.from(10));
+        final decoded = DecodedNonce(
+          key: BigInt.from(5),
+          sequence: BigInt.from(10),
+        );
         expect(decoded.toString(), contains('key: 5'));
         expect(decoded.toString(), contains('sequence: 10'));
       });

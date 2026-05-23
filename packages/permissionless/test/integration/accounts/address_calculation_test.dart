@@ -101,8 +101,9 @@ void main() {
             );
 
             try {
-              final isDeployed =
-                  await client.isDeployed(addresses.safeProxyFactoryAddress);
+              final isDeployed = await client.isDeployed(
+                addresses.safeProxyFactoryAddress,
+              );
               expect(isDeployed, isTrue);
             } finally {
               client.close();
@@ -125,8 +126,9 @@ void main() {
             );
 
             try {
-              final isDeployed =
-                  await client.isDeployed(addresses.safeSingletonAddress);
+              final isDeployed = await client.isDeployed(
+                addresses.safeSingletonAddress,
+              );
               expect(isDeployed, isTrue);
             } finally {
               client.close();

@@ -142,13 +142,7 @@ void main() {
 
             // 3. Send a minimal transaction (0 ETH to self)
             final hash = await smartAccountClient!.sendUserOperation(
-              calls: [
-                Call(
-                  to: address,
-                  value: BigInt.zero,
-                  data: '0x',
-                ),
-              ],
+              calls: [Call(to: address, value: BigInt.zero, data: '0x')],
               maxFeePerGas: gasPrices.fast.maxFeePerGas,
               maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
             );
@@ -208,11 +202,7 @@ void main() {
             // Send batch of 2 calls
             final hash = await smartAccountClient!.sendUserOperation(
               calls: [
-                Call(
-                  to: address,
-                  value: BigInt.zero,
-                  data: '0x',
-                ),
+                Call(to: address, value: BigInt.zero, data: '0x'),
                 Call(
                   to: EthereumAddress.fromHex(
                     '0x0000000000000000000000000000000000000001',

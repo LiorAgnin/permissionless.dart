@@ -3,8 +3,9 @@ import 'package:test/test.dart';
 
 void main() {
   // Mock address for unit tests (avoids RPC calls)
-  final mockAddress =
-      EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+  final mockAddress = EthereumAddress.fromHex(
+    '0x1234567890123456789012345678901234567890',
+  );
 
   group('Light Account', () {
     group('LightAccountVersion', () {
@@ -62,18 +63,18 @@ void main() {
 
       test('fromVersion returns correct factory for v1.1.0', () {
         expect(
-          LightAccountFactoryAddresses.fromVersion(LightAccountVersion.v110)
-              .hex
-              .toLowerCase(),
+          LightAccountFactoryAddresses.fromVersion(
+            LightAccountVersion.v110,
+          ).hex.toLowerCase(),
           equals(LightAccountFactoryAddresses.v110.hex.toLowerCase()),
         );
       });
 
       test('fromVersion returns correct factory for v2.0.0', () {
         expect(
-          LightAccountFactoryAddresses.fromVersion(LightAccountVersion.v200)
-              .hex
-              .toLowerCase(),
+          LightAccountFactoryAddresses.fromVersion(
+            LightAccountVersion.v200,
+          ).hex.toLowerCase(),
           equals(LightAccountFactoryAddresses.v200.hex.toLowerCase()),
         );
       });
@@ -439,40 +440,42 @@ void main() {
         );
       });
 
-      test('same owner produces different addresses for v0.6 vs v0.7',
-          () async {
-        final mockAddress06 = EthereumAddress.fromHex(
-          '0x1111111111111111111111111111111111111111',
-        );
-        final mockAddress07 = EthereumAddress.fromHex(
-          '0x2222222222222222222222222222222222222222',
-        );
+      test(
+        'same owner produces different addresses for v0.6 vs v0.7',
+        () async {
+          final mockAddress06 = EthereumAddress.fromHex(
+            '0x1111111111111111111111111111111111111111',
+          );
+          final mockAddress07 = EthereumAddress.fromHex(
+            '0x2222222222222222222222222222222222222222',
+          );
 
-        final account06 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress06,
-        );
+          final account06 = createLightSmartAccount(
+            owner: owner,
+            chainId: BigInt.from(1),
+            salt: BigInt.zero,
+            entryPointVersion: EntryPointVersion.v06,
+            address: mockAddress06,
+          );
 
-        final account07 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          entryPointVersion: EntryPointVersion.v07,
-          address: mockAddress07,
-        );
+          final account07 = createLightSmartAccount(
+            owner: owner,
+            chainId: BigInt.from(1),
+            salt: BigInt.zero,
+            entryPointVersion: EntryPointVersion.v07,
+            address: mockAddress07,
+          );
 
-        final address06 = await account06.getAddress();
-        final address07 = await account07.getAddress();
+          final address06 = await account06.getAddress();
+          final address07 = await account07.getAddress();
 
-        // Different factories = different addresses
-        expect(
-          address06.hex.toLowerCase(),
-          isNot(equals(address07.hex.toLowerCase())),
-        );
-      });
+          // Different factories = different addresses
+          expect(
+            address06.hex.toLowerCase(),
+            isNot(equals(address07.hex.toLowerCase())),
+          );
+        },
+      );
     });
   });
 }

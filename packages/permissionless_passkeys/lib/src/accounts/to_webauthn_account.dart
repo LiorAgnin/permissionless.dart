@@ -209,7 +209,9 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
 
   /// Creates the return type from a signature.
   WebAuthnSignReturnType _createReturnType(
-      Signature signature, Uint8List hash) {
+    Signature signature,
+    Uint8List hash,
+  ) {
     // Build compact signature (r + s, 64 bytes)
     final rHex = signature.r.toRadixString(16).padLeft(64, '0');
     final sHex = signature.s.toRadixString(16).padLeft(64, '0');

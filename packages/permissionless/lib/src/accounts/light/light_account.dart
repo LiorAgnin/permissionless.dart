@@ -178,10 +178,7 @@ class LightSmartAccount implements SmartAccount {
   @override
   Future<String> getInitCode() async {
     final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   @override
@@ -349,10 +346,7 @@ class LightSmartAccount implements SmartAccount {
     final accountAddress = await getAddress();
 
     // Sign using EIP-1271 wrapper with LightAccountMessage typed data
-    final signature = await _signLightAccountMessage(
-      accountAddress,
-      hash,
-    );
+    final signature = await _signLightAccountMessage(accountAddress, hash);
 
     // v2.0.0 prepends signature type
     if (_config.version == LightAccountVersion.v200) {

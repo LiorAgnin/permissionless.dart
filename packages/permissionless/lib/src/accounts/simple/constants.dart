@@ -9,16 +9,19 @@ class SimpleAccountFactoryAddresses {
   SimpleAccountFactoryAddresses._();
 
   /// SimpleAccountFactory for EntryPoint v0.6.
-  static final EthereumAddress v06 =
-      EthereumAddress.fromHex('0x9406Cc6185a346906296840746125a0E44976454');
+  static final EthereumAddress v06 = EthereumAddress.fromHex(
+    '0x9406Cc6185a346906296840746125a0E44976454',
+  );
 
   /// SimpleAccountFactory for EntryPoint v0.7.
-  static final EthereumAddress v07 =
-      EthereumAddress.fromHex('0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985');
+  static final EthereumAddress v07 = EthereumAddress.fromHex(
+    '0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985',
+  );
 
   /// SimpleAccountFactory for EntryPoint v0.8.
-  static final EthereumAddress v08 =
-      EthereumAddress.fromHex('0x13E9ed32155810FDbd067D4522C492D6f68E5944');
+  static final EthereumAddress v08 = EthereumAddress.fromHex(
+    '0x13E9ed32155810FDbd067D4522C492D6f68E5944',
+  );
 
   /// Gets the factory address for the given EntryPoint version.
   static EthereumAddress fromVersion(EntryPointVersion version) =>
@@ -42,14 +45,16 @@ class Simple7702AccountAddresses {
   /// The Simple7702Account implementation address for EntryPoint v0.8.
   ///
   /// This contract is part of the eth-infinitism ERC-4337 v0.8 release.
-  static final EthereumAddress v08 =
-      EthereumAddress.fromHex('0xe6Cae83BdE06E4c305530e199D7217f42808555B');
+  static final EthereumAddress v08 = EthereumAddress.fromHex(
+    '0xe6Cae83BdE06E4c305530e199D7217f42808555B',
+  );
 
   /// The Simple7702Account implementation address for EntryPoint v0.9.
   ///
   /// This contract is part of the eth-infinitism ERC-4337 v0.9 release.
-  static final EthereumAddress v09 =
-      EthereumAddress.fromHex('0xa46cc63eBF4Bd77888AA327837d20b23A63a56B5');
+  static final EthereumAddress v09 = EthereumAddress.fromHex(
+    '0xa46cc63eBF4Bd77888AA327837d20b23A63a56B5',
+  );
 
   /// The default Simple7702Account implementation address.
   ///

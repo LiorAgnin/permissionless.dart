@@ -122,10 +122,7 @@ void main() {
                 estimate.verificationGasLimit,
                 greaterThanBigInt(BigInt.zero),
               );
-              expect(
-                estimate.callGasLimit,
-                greaterThanBigInt(BigInt.zero),
-              );
+              expect(estimate.callGasLimit, greaterThanBigInt(BigInt.zero));
 
               // Verification gas for Safe is typically higher due to module
               expect(
@@ -178,18 +175,16 @@ void main() {
               final estimate = await bundler!.estimateUserOperationGas(userOp);
 
               // Apply conservative multipliers
-              final buffered =
-                  estimate.withMultipliers(GasMultipliers.conservative);
+              final buffered = estimate.withMultipliers(
+                GasMultipliers.conservative,
+              );
 
               // Buffered values should be larger
               expect(
                 buffered.verificationGasLimit,
                 greaterThan(estimate.verificationGasLimit),
               );
-              expect(
-                buffered.callGasLimit,
-                greaterThan(estimate.callGasLimit),
-              );
+              expect(buffered.callGasLimit, greaterThan(estimate.callGasLimit));
             },
             timeout: const Timeout(TestTimeouts.mediumNetwork),
           );
@@ -247,10 +242,7 @@ void main() {
                 estimate.verificationGasLimit,
                 greaterThanBigInt(BigInt.zero),
               );
-              expect(
-                estimate.callGasLimit,
-                greaterThanBigInt(BigInt.zero),
-              );
+              expect(estimate.callGasLimit, greaterThanBigInt(BigInt.zero));
             },
             timeout: const Timeout(TestTimeouts.mediumNetwork),
           );
@@ -362,9 +354,7 @@ void main() {
             // Verify calculation
             expect(
               costEstimate.maxGasCost,
-              equals(
-                costEstimate.totalGasLimit * gasPrices.fast.maxFeePerGas,
-              ),
+              equals(costEstimate.totalGasLimit * gasPrices.fast.maxFeePerGas),
             );
 
             // Max cost should be reasonable (less than 1 ETH for a simple tx)

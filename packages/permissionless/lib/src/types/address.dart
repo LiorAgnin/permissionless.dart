@@ -6,8 +6,9 @@ import 'hex.dart';
 export 'package:wallet/wallet.dart' show EthereumAddress;
 
 /// Zero address constant.
-final EthereumAddress zeroAddress =
-    EthereumAddress.fromHex('0x0000000000000000000000000000000000000000');
+final EthereumAddress zeroAddress = EthereumAddress.fromHex(
+  '0x0000000000000000000000000000000000000000',
+);
 
 /// Extension to add utility methods to EthereumAddress.
 extension EthereumAddressExtension on EthereumAddress {

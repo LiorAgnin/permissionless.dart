@@ -111,12 +111,14 @@ class SafeSelectors {
   );
 
   /// Selector for Safe module setup `enableModules` function.
-  static final String enableModules =
-      AbiEncoder.functionSelector('enableModules(address[])');
+  static final String enableModules = AbiEncoder.functionSelector(
+    'enableModules(address[])',
+  );
 
   /// Selector for MultiSend `multiSend` function.
-  static final String multiSend =
-      AbiEncoder.functionSelector('multiSend(bytes)');
+  static final String multiSend = AbiEncoder.functionSelector(
+    'multiSend(bytes)',
+  );
 }
 
 /// Encodes a Safe `setup` function call.

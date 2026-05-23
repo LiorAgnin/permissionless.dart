@@ -44,10 +44,7 @@ void main() {
       });
 
       test('throws on empty calls', () {
-        expect(
-          () => encodeMultiSend([]),
-          throwsArgumentError,
-        );
+        expect(() => encodeMultiSend([]), throwsArgumentError);
       });
 
       test('handles call with data', () {

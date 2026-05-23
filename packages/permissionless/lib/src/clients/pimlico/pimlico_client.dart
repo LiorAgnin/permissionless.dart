@@ -36,10 +36,7 @@ class PimlicoClient extends BundlerClient {
   ///
   /// Prefer using [createPimlicoClient] factory function instead of
   /// calling this constructor directly, as it handles RPC client setup.
-  PimlicoClient({
-    required super.rpcClient,
-    required super.entryPoint,
-  });
+  PimlicoClient({required super.rpcClient, required super.entryPoint});
 
   /// Gets detailed status of a UserOperation.
   ///
@@ -57,10 +54,9 @@ class PimlicoClient extends BundlerClient {
   Future<PimlicoUserOperationStatus> getUserOperationStatus(
     String userOpHash,
   ) async {
-    final result = await rpcClient.call(
-      'pimlico_getUserOperationStatus',
-      [userOpHash],
-    );
+    final result = await rpcClient.call('pimlico_getUserOperationStatus', [
+      userOpHash,
+    ]);
     return PimlicoUserOperationStatus.fromJson(result as Map<String, dynamic>);
   }
 
@@ -94,15 +90,12 @@ class PimlicoClient extends BundlerClient {
   ) async {
     final packedUserOp = _packUserOperationV07(userOp);
 
-    final result = await rpcClient.call(
-      'pimlico_sendCompressedUserOperation',
-      [
-        packedUserOp,
-        entryPoint.hex,
-        compressedCalldata,
-        inflator.hex,
-      ],
-    );
+    final result = await rpcClient.call('pimlico_sendCompressedUserOperation', [
+      packedUserOp,
+      entryPoint.hex,
+      compressedCalldata,
+      inflator.hex,
+    ]);
     return result as String;
   }
 
@@ -161,17 +154,14 @@ class PimlicoClient extends BundlerClient {
     List<EthereumAddress> tokens,
   ) async {
     final chain = await chainId();
-    final result = await rpcClient.call(
-      'pimlico_getTokenQuotes',
-      [
-        // First param: object with tokens array
-        {'tokens': tokens.map((t) => t.hex).toList()},
-        // Second param: entryPoint address
-        entryPoint.hex,
-        // Third param: chainId in hex
-        Hex.fromBigInt(chain),
-      ],
-    );
+    final result = await rpcClient.call('pimlico_getTokenQuotes', [
+      // First param: object with tokens array
+      {'tokens': tokens.map((t) => t.hex).toList()},
+      // Second param: entryPoint address
+      entryPoint.hex,
+      // Third param: chainId in hex
+      Hex.fromBigInt(chain),
+    ]);
 
     // API returns { quotes: [...] }
     final quotes = (result as Map<String, dynamic>)['quotes'] as List<dynamic>;
@@ -194,10 +184,7 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoSupportedToken>> getSupportedTokens() async {
-    final result = await rpcClient.call(
-      'pimlico_getSupportedTokens',
-      [],
-    );
+    final result = await rpcClient.call('pimlico_getSupportedTokens', []);
 
     // API returns a list directly
     if (result is List) {
@@ -242,14 +229,11 @@ class PimlicoClient extends BundlerClient {
   }) async {
     final packedUserOp = _packUserOperationV07(userOperation);
 
-    final result = await rpcClient.call(
-      'pimlico_estimateErc20PaymasterCost',
-      [
-        packedUserOp,
-        entryPoint.hex,
-        token.hex,
-      ],
-    );
+    final result = await rpcClient.call('pimlico_estimateErc20PaymasterCost', [
+      packedUserOp,
+      entryPoint.hex,
+      token.hex,
+    ]);
 
     return PimlicoErc20PaymasterCost.fromJson(result as Map<String, dynamic>);
   }
@@ -293,14 +277,11 @@ class PimlicoClient extends BundlerClient {
 
     final packedUserOp = _packUserOperationV07(userOperation);
 
-    final result = await rpcClient.call(
-      'pimlico_validateSponsorshipPolicies',
-      [
-        packedUserOp,
-        entryPoint.hex,
-        sponsorshipPolicyIds,
-      ],
-    );
+    final result = await rpcClient.call('pimlico_validateSponsorshipPolicies', [
+      packedUserOp,
+      entryPoint.hex,
+      sponsorshipPolicyIds,
+    ]);
 
     return (result as List<dynamic>)
         .cast<Map<String, dynamic>>()
@@ -358,10 +339,12 @@ Map<String, dynamic> _packUserOperationV07(UserOperationV07 userOp) {
   // Paymaster data (v0.7 style)
   if (userOp.paymaster != null) {
     packed['paymaster'] = userOp.paymaster!.hex;
-    packed['paymasterVerificationGasLimit'] =
-        Hex.fromBigInt(userOp.paymasterVerificationGasLimit ?? BigInt.zero);
-    packed['paymasterPostOpGasLimit'] =
-        Hex.fromBigInt(userOp.paymasterPostOpGasLimit ?? BigInt.zero);
+    packed['paymasterVerificationGasLimit'] = Hex.fromBigInt(
+      userOp.paymasterVerificationGasLimit ?? BigInt.zero,
+    );
+    packed['paymasterPostOpGasLimit'] = Hex.fromBigInt(
+      userOp.paymasterPostOpGasLimit ?? BigInt.zero,
+    );
     packed['paymasterData'] = userOp.paymasterData ?? '0x';
   }
 

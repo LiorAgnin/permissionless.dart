@@ -64,8 +64,9 @@ const String testClientDataJSON = '{"type":"webauthn.get",'
 const int testResponseTypeLocation = 1;
 
 /// Creates a mock Ethereum address for testing.
-EthereumAddress testAddress(
-    [String hex = '0x1234567890123456789012345678901234567890']) {
+EthereumAddress testAddress([
+  String hex = '0x1234567890123456789012345678901234567890',
+]) {
   return EthereumAddress.fromHex(hex);
 }
 
@@ -91,16 +92,8 @@ String bytesToHex(Uint8List bytes) {
 }
 
 /// Mock Call for transaction encoding tests.
-Call testCall({
-  EthereumAddress? to,
-  BigInt? value,
-  String data = '0x',
-}) {
-  return Call(
-    to: to ?? testAddress(),
-    value: value ?? BigInt.zero,
-    data: data,
-  );
+Call testCall({EthereumAddress? to, BigInt? value, String data = '0x'}) {
+  return Call(to: to ?? testAddress(), value: value ?? BigInt.zero, data: data);
 }
 
 /// Mock calls for batch transaction tests.

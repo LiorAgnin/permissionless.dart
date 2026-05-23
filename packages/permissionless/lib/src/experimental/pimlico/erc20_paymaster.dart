@@ -16,8 +16,9 @@ import '../../types/user_operation.dart';
 import '../../utils/erc20.dart';
 
 /// Mainnet USDT address - requires special handling (reset to 0 before approve).
-final EthereumAddress _mainnetUsdtAddress =
-    EthereumAddress.fromHex('0xdAC17F958D2ee523a2206206994597C13D831ec7');
+final EthereumAddress _mainnetUsdtAddress = EthereumAddress.fromHex(
+  '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+);
 
 /// Configuration for ERC-20 paymaster preparation.
 class Erc20PaymasterConfig {
@@ -25,10 +26,7 @@ class Erc20PaymasterConfig {
   ///
   /// - [balanceOverride]: Whether to simulate a large token balance
   /// - [balanceSlot]: Custom storage slot for the balance mapping
-  const Erc20PaymasterConfig({
-    this.balanceOverride = false,
-    this.balanceSlot,
-  });
+  const Erc20PaymasterConfig({this.balanceOverride = false, this.balanceSlot});
 
   /// Whether to use balance state override for gas estimation.
   ///

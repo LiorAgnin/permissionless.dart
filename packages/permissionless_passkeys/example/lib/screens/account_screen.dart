@@ -185,7 +185,9 @@ class _AccountScreenState extends State<AccountScreen> {
               _formatAddress(_account.entryPoint.with0x),
             ),
             _buildInfoRow(
-                'Nonce Key', '0x${_account.nonceKey.toRadixString(16)}'),
+              'Nonce Key',
+              '0x${_account.nonceKey.toRadixString(16)}',
+            ),
           ],
         ),
       ),
@@ -201,10 +203,7 @@ class _AccountScreenState extends State<AccountScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.key,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.key, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Passkey Credential',
@@ -247,10 +246,7 @@ class _AccountScreenState extends State<AccountScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.code,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.code, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Encoding Demo',
@@ -334,10 +330,7 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
+            child: Text(value, style: const TextStyle(fontFamily: 'monospace')),
           ),
         ],
       ),
@@ -365,15 +358,14 @@ class _AccountScreenState extends State<AccountScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
+                  Text(label, style: Theme.of(context).textTheme.labelSmall),
                   const SizedBox(height: 4),
                   Text(
                     displayValue,
-                    style:
-                        const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -387,9 +379,9 @@ class _AccountScreenState extends State<AccountScreen> {
 
   void _copyToClipboard(BuildContext context, String label, String value) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$label copied to clipboard')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label copied to clipboard')));
   }
 
   void _exportCredential(BuildContext context) {

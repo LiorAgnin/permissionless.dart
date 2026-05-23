@@ -134,11 +134,7 @@ void main(List<String> args) async {
   print('\n--- Building Transaction ---');
 
   // Send a "ping" transaction to self
-  final call = Call(
-    to: accountAddress,
-    value: BigInt.zero,
-    data: '0x',
-  );
+  final call = Call(to: accountAddress, value: BigInt.zero, data: '0x');
 
   print('Transaction: Self-ping (0 ETH to self)');
 
@@ -202,8 +198,9 @@ void main(List<String> args) async {
   final signedUserOp = userOp.copyWith(signature: signature);
   print('Signature length: ${signedUserOp.signature.length} chars');
 
-  final hash =
-      await smartAccountClient.sendPreparedUserOperationV06(signedUserOp);
+  final hash = await smartAccountClient.sendPreparedUserOperationV06(
+    signedUserOp,
+  );
   print('UserOperation hash: $hash');
 
   // ================================================================

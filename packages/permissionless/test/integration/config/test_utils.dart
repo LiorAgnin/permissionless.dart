@@ -16,6 +16,24 @@ void requireFundedAccount() {
   }
 }
 
+/// Skips the current test if the live Sepolia v0.9 base env is not configured.
+void requireLiveV09BaseEnv() {
+  if (!TestConfig.hasLiveV09BaseEnv) {
+    markTestSkipped(TestConfig.skipNoLiveV09BaseEnv);
+  }
+}
+
+/// Skips the current test if live v0.9 sponsorship env is not configured.
+void requireLiveV09SponsoredEnv() {
+  if (!TestConfig.hasLiveV09BaseEnv) {
+    markTestSkipped(TestConfig.skipNoLiveV09BaseEnv);
+    return;
+  }
+  if (!TestConfig.hasLiveV09SponsoredEnv) {
+    markTestSkipped(TestConfig.skipNoLiveV09SponsoredEnv);
+  }
+}
+
 /// Retry wrapper for flaky network tests.
 ///
 /// Retries the action up to [maxAttempts] times with [delay] between attempts.

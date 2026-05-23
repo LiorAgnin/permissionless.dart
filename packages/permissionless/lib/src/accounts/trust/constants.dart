@@ -7,8 +7,9 @@ class TrustAddresses {
   TrustAddresses._();
 
   /// Factory address for account deployment.
-  static final EthereumAddress factory =
-      EthereumAddress.fromHex('0x729c310186a57833f622630a16d13f710b83272a');
+  static final EthereumAddress factory = EthereumAddress.fromHex(
+    '0x729c310186a57833f622630a16d13f710b83272a',
+  );
 
   /// Secp256k1 verification facet address.
   static final EthereumAddress secp256k1VerificationFacet =

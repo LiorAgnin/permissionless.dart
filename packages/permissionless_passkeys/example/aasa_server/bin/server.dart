@@ -48,7 +48,7 @@ void main(List<String> args) async {
           if (androidSha256 != 'YOUR_SHA256_FINGERPRINT') androidSha256,
         ],
       },
-    }
+    },
   ];
 
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
@@ -59,9 +59,11 @@ void main(List<String> args) async {
   print('');
   print('Verify the files are accessible at:');
   print(
-      '  iOS:     https://28fc478be30e2f.lhr.life/.well-known/apple-app-site-association');
+    '  iOS:     https://28fc478be30e2f.lhr.life/.well-known/apple-app-site-association',
+  );
   print(
-      '  Android: https://28fc478be30e2f.lhr.life/.well-known/assetlinks.json');
+    '  Android: https://28fc478be30e2f.lhr.life/.well-known/assetlinks.json',
+  );
   print('');
   if (teamId == 'YOUR_TEAM_ID') {
     print('WARNING: Update teamId in server.dart with your Apple Team ID!');
@@ -69,7 +71,8 @@ void main(List<String> args) async {
   if (androidSha256 == 'YOUR_SHA256_FINGERPRINT') {
     print('WARNING: Update androidSha256 in server.dart for Android support!');
     print(
-        '  Run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android');
+      '  Run: keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android',
+    );
   }
   print('');
   print('Press Ctrl+C to stop the server.');
@@ -84,16 +87,24 @@ void main(List<String> args) async {
 
     if (path == '/.well-known/apple-app-site-association') {
       // Apple App Site Association file
-      request.response.headers.contentType =
-          ContentType('application', 'json', charset: 'utf-8');
-      request.response
-          .write(const JsonEncoder.withIndent('  ').convert(aasaContent));
+      request.response.headers.contentType = ContentType(
+        'application',
+        'json',
+        charset: 'utf-8',
+      );
+      request.response.write(
+        const JsonEncoder.withIndent('  ').convert(aasaContent),
+      );
     } else if (path == '/.well-known/assetlinks.json') {
       // Android Asset Links file
-      request.response.headers.contentType =
-          ContentType('application', 'json', charset: 'utf-8');
-      request.response
-          .write(const JsonEncoder.withIndent('  ').convert(assetLinksContent));
+      request.response.headers.contentType = ContentType(
+        'application',
+        'json',
+        charset: 'utf-8',
+      );
+      request.response.write(
+        const JsonEncoder.withIndent('  ').convert(assetLinksContent),
+      );
     } else if (path == '/') {
       // Health check / info page
       request.response.headers.contentType = ContentType.html;

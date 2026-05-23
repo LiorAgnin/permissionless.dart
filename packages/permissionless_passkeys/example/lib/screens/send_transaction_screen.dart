@@ -6,10 +6,7 @@ import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 import 'home_screen.dart';
 
 /// Transaction funding mode
-enum FundingMode {
-  sponsored,
-  selfFunded,
-}
+enum FundingMode { sponsored, selfFunded }
 
 class SendTransactionScreen extends StatefulWidget {
   const SendTransactionScreen({
@@ -115,8 +112,9 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
     });
 
     try {
-      final recipient =
-          EthereumAddress.fromHex(_recipientController.text.trim());
+      final recipient = EthereumAddress.fromHex(
+        _recipientController.text.trim(),
+      );
       final amountEth = double.parse(_amountController.text.trim());
       final amountWei = BigInt.from(amountEth * 1e18); // Convert ETH to wei
 
@@ -139,9 +137,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
       if (_fundingMode == FundingMode.sponsored) {
         final paymasterUrl =
             'https://api.pimlico.io/v2/$_chainName/rpc?apikey=$apiKey';
-        paymasterClient = createPaymasterClient(
-          url: paymasterUrl,
-        );
+        paymasterClient = createPaymasterClient(url: paymasterUrl);
       }
 
       // Create smart account client
@@ -159,11 +155,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
       final gasPrices = await pimlicoClient.getUserOperationGasPrice();
 
       // Create the call
-      final call = Call(
-        to: recipient,
-        value: amountWei,
-        data: '0x',
-      );
+      final call = Call(to: recipient, value: amountWei, data: '0x');
 
       // Send the UserOperation
       setState(() => _status = TransactionStatus.signing);
@@ -247,9 +239,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Send Transaction'),
-      ),
+      appBar: AppBar(title: const Text('Send Transaction')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -333,7 +323,8 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
                           Clipboard.setData(ClipboardData(text: address));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Address copied to clipboard')),
+                              content: Text('Address copied to clipboard'),
+                            ),
                           );
                         },
                         tooltip: 'Copy address',
@@ -359,10 +350,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.key,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.key, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Pimlico API Key',
@@ -459,10 +447,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.send,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
+                Icon(Icons.send, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
                 Text(
                   'Transaction Details',
@@ -500,8 +485,9 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
                 prefixIcon: Icon(Icons.attach_money),
                 suffixText: 'ETH',
               ),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
                   return 'Amount is required';
@@ -541,19 +527,11 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
             Text(_getStatusDescription()),
             if (_userOpHash != null) ...[
               const SizedBox(height: 8),
-              _buildCopyableField(
-                context,
-                'UserOp Hash',
-                _userOpHash!,
-              ),
+              _buildCopyableField(context, 'UserOp Hash', _userOpHash!),
             ],
             if (_txHash != null) ...[
               const SizedBox(height: 8),
-              _buildCopyableField(
-                context,
-                'Transaction Hash',
-                _txHash!,
-              ),
+              _buildCopyableField(context, 'Transaction Hash', _txHash!),
             ],
           ],
         ),
@@ -601,17 +579,13 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
     );
   }
 
-  Widget _buildCopyableField(
-    BuildContext context,
-    String label,
-    String value,
-  ) {
+  Widget _buildCopyableField(BuildContext context, String label, String value) {
     return InkWell(
       onTap: () {
         Clipboard.setData(ClipboardData(text: value));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$label copied to clipboard')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$label copied to clipboard')));
       },
       child: Container(
         padding: const EdgeInsets.all(8),
@@ -625,14 +599,13 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
+                  Text(label, style: Theme.of(context).textTheme.labelSmall),
                   Text(
                     _truncateHash(value),
-                    style:
-                        const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),

@@ -179,10 +179,7 @@ class NexusSmartAccount implements SmartAccount {
   @override
   Future<String> getInitCode() async {
     final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   /// Gets the factory address and data for UserOperation v0.7.
@@ -268,10 +265,7 @@ class NexusSmartAccount implements SmartAccount {
     final signature = await _config.owner.signPersonalMessage(userOpHash);
 
     // Pack: validator address + signature (85 bytes total)
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
+    return Hex.concat([_validatorAddress.hex, Hex.strip0x(signature)]);
   }
 
   /// Signs a personal message (EIP-191) with Nexus wrapper.
@@ -282,10 +276,7 @@ class NexusSmartAccount implements SmartAccount {
     final signature = await _config.owner.signPersonalMessage(wrappedHash);
 
     // Return packed: validator address + signature
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
+    return Hex.concat([_validatorAddress.hex, Hex.strip0x(signature)]);
   }
 
   /// Signs EIP-712 typed data with Nexus wrapper.
@@ -296,10 +287,7 @@ class NexusSmartAccount implements SmartAccount {
     final signature = await _config.owner.signPersonalMessage(wrappedHash);
 
     // Return packed: validator address + signature
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
+    return Hex.concat([_validatorAddress.hex, Hex.strip0x(signature)]);
   }
 
   /// Wraps a message hash with Nexus-specific EIP-712 domain.
@@ -323,27 +311,18 @@ class NexusSmartAccount implements SmartAccount {
     );
 
     final structHash = keccak256(
-      Hex.decode(
-        Hex.concat(
-          [
-            Hex.fromBytes(typeHash),
-            messageHash,
-          ],
-        ),
-      ),
+      Hex.decode(Hex.concat([Hex.fromBytes(typeHash), messageHash])),
     );
 
     // Final hash: keccak256(0x1901 + domainSeparator + structHash)
     return Hex.fromBytes(
       keccak256(
         Hex.decode(
-          Hex.concat(
-            [
-              '0x1901',
-              Hex.strip0x(domainSep),
-              Hex.fromBytes(structHash),
-            ],
-          ),
+          Hex.concat([
+            '0x1901',
+            Hex.strip0x(domainSep),
+            Hex.fromBytes(structHash),
+          ]),
         ),
       ),
     );

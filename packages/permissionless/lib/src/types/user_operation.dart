@@ -135,7 +135,9 @@ class UserOperationV06 implements UserOperation {
   });
 
   /// Creates from JSON-RPC response.
-  factory UserOperationV06.fromJson(Map<String, dynamic> json) =>
+  factory UserOperationV06.fromJson(
+    Map<String, dynamic> json,
+  ) =>
       UserOperationV06(
         sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: Hex.toBigInt(json['nonce'] as String),
@@ -275,7 +277,9 @@ class UserOperationV07 implements UserOperation {
   });
 
   /// Creates from JSON-RPC response.
-  factory UserOperationV07.fromJson(Map<String, dynamic> json) =>
+  factory UserOperationV07.fromJson(
+    Map<String, dynamic> json,
+  ) =>
       UserOperationV07(
         sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: Hex.toBigInt(json['nonce'] as String),
@@ -410,12 +414,14 @@ class UserOperationV07 implements UserOperation {
       result['paymaster'] = paymaster!.hex;
     }
     if (paymasterVerificationGasLimit != null) {
-      result['paymasterVerificationGasLimit'] =
-          Hex.fromBigInt(paymasterVerificationGasLimit!);
+      result['paymasterVerificationGasLimit'] = Hex.fromBigInt(
+        paymasterVerificationGasLimit!,
+      );
     }
     if (paymasterPostOpGasLimit != null) {
-      result['paymasterPostOpGasLimit'] =
-          Hex.fromBigInt(paymasterPostOpGasLimit!);
+      result['paymasterPostOpGasLimit'] = Hex.fromBigInt(
+        paymasterPostOpGasLimit!,
+      );
     }
     if (paymasterData != null) {
       result['paymasterData'] = paymasterData;
@@ -457,11 +463,8 @@ class Call {
   /// - [to]: The target address to call
   /// - [value]: Amount of ETH to send in wei (defaults to 0)
   /// - [data]: Encoded calldata (defaults to '0x' for simple transfers)
-  Call({
-    required this.to,
-    BigInt? value,
-    this.data = '0x',
-  }) : value = value ?? BigInt.zero;
+  Call({required this.to, BigInt? value, this.data = '0x'})
+      : value = value ?? BigInt.zero;
 
   /// Creates a call from a JSON map.
   factory Call.fromJson(Map<String, dynamic> json) => Call(

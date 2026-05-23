@@ -63,10 +63,7 @@ class TypedDataField {
   /// - [name]: The field name as it appears in the struct
   /// - [type]: The Solidity type (e.g., 'address', 'uint256', 'bytes32',
   ///   or a custom type name defined in the types map)
-  const TypedDataField({
-    required this.name,
-    required this.type,
-  });
+  const TypedDataField({required this.name, required this.type});
 
   /// The name of the field.
   final String name;

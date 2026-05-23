@@ -53,10 +53,7 @@ class JsonRpcClient {
     final response = await _httpClient
         .post(
           url,
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-          },
+          headers: {'Content-Type': 'application/json', ...headers},
           body: body,
         )
         .timeout(timeout);
@@ -106,10 +103,7 @@ class JsonRpcClient {
     final response = await _httpClient
         .post(
           url,
-          headers: {
-            'Content-Type': 'application/json',
-            ...headers,
-          },
+          headers: {'Content-Type': 'application/json', ...headers},
           body: jsonEncode(batchBody),
         )
         .timeout(timeout);
@@ -142,9 +136,7 @@ class JsonRpcClient {
     }
 
     // Return results in request order
-    return [
-      for (var i = startId; i <= _requestId; i++) results[i],
-    ];
+    return [for (var i = startId; i <= _requestId; i++) results[i]];
   }
 
   /// Closes the underlying HTTP client.

@@ -5,8 +5,9 @@ void main() {
   group('ThirdwebSmartAccount', () {
     late PrivateKeyOwner owner;
 
-    final mockAddress =
-        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+    final mockAddress = EthereumAddress.fromHex(
+      '0x1234567890123456789012345678901234567890',
+    );
 
     setUp(() {
       owner = PrivateKeyOwner(

@@ -83,8 +83,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// Prefer using [createThirdwebSmartAccount] factory function instead
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
-      : _factoryAddress = _config.customFactoryAddress ??
-            _factoryAddressForVersion(_config.entryPointVersion);
+      : _factoryAddress = _resolveFactoryAddress(_config);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -103,32 +102,30 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// The EntryPoint address.
   @override
   EthereumAddress get entryPoint =>
-      _entryPointAddressForVersion(_config.entryPointVersion);
+      EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
-  static EthereumAddress _factoryAddressForVersion(
-    EntryPointVersion entryPointVersion,
-  ) =>
-      switch (entryPointVersion) {
-        EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
-        EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
-        EntryPointVersion.v08 || EntryPointVersion.v09 => throw ArgumentError(
-            'Thirdweb accounts support EntryPoint v0.6 and v0.7 only. '
-            'Received EntryPoint v${entryPointVersion.value}.',
-          ),
-      };
+  static EthereumAddress _resolveFactoryAddress(
+    ThirdwebSmartAccountConfig config,
+  ) {
+    if (config.customFactoryAddress != null) {
+      return config.customFactoryAddress!;
+    }
 
-  static EthereumAddress _entryPointAddressForVersion(
-    EntryPointVersion entryPointVersion,
-  ) =>
-      switch (entryPointVersion) {
-        EntryPointVersion.v06 ||
-        EntryPointVersion.v07 =>
-          EntryPointAddresses.fromVersion(entryPointVersion),
-        EntryPointVersion.v08 || EntryPointVersion.v09 => throw ArgumentError(
-            'Thirdweb accounts support EntryPoint v0.6 and v0.7 only. '
-            'Received EntryPoint v${entryPointVersion.value}.',
-          ),
-      };
+    return switch (config.entryPointVersion) {
+      EntryPointVersion.v06 => ThirdwebAddresses.factoryV06,
+      EntryPointVersion.v07 => ThirdwebAddresses.factoryV07,
+      EntryPointVersion.v08 => throw UnsupportedError(
+          'ThirdwebSmartAccount does not have an official EntryPoint v0.8 '
+          'factory deployment. Provide a customFactoryAddress for '
+          'user-supplied experimentation.',
+        ),
+      EntryPointVersion.v09 => throw UnsupportedError(
+          'ThirdwebSmartAccount does not have an official EntryPoint v0.9 '
+          'factory deployment. Provide a customFactoryAddress for '
+          'user-supplied experimentation.',
+        ),
+    };
+  }
 
   /// The nonce key for parallel transaction support.
   @override
@@ -174,10 +171,7 @@ class ThirdwebSmartAccount implements SmartAccount {
   @override
   Future<String> getInitCode() async {
     final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   /// Gets the factory address and data for UserOperation v0.7.

@@ -31,10 +31,7 @@ class EtherspotClient extends BundlerClient {
   ///
   /// Prefer using [createEtherspotClient] factory function instead
   /// of calling this constructor directly.
-  EtherspotClient({
-    required super.rpcClient,
-    required super.entryPoint,
-  });
+  EtherspotClient({required super.rpcClient, required super.entryPoint});
 
   /// Gets recommended gas prices from Skandha's gas oracle.
   ///

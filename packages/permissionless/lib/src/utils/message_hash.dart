@@ -80,8 +80,9 @@ String computeDomainSeparator(TypedDataDomain domain) {
   if (domain.salt != null) fields.add('bytes32 salt');
 
   final domainTypeString = 'EIP712Domain(${fields.join(',')})';
-  final domainTypeHash =
-      keccak256(Uint8List.fromList(domainTypeString.codeUnits));
+  final domainTypeHash = keccak256(
+    Uint8List.fromList(domainTypeString.codeUnits),
+  );
 
   // Encode domain values in order
   final encodedParts = <String>[Hex.fromBytes(domainTypeHash)];

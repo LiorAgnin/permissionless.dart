@@ -7,8 +7,9 @@ void main() {
     late PrivateKeyOwner owner;
 
     // Mock address for unit tests (avoids RPC calls)
-    final mockAddress =
-        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+    final mockAddress = EthereumAddress.fromHex(
+      '0x1234567890123456789012345678901234567890',
+    );
 
     setUp(() {
       // Test private key (do not use in production!)
@@ -314,10 +315,7 @@ void main() {
           address: mockAddress,
         );
 
-        expect(
-          () => account.encodeCalls([]),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => account.encodeCalls([]), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -616,24 +614,18 @@ void main() {
 
     test('selects implementation address by EntryPoint version', () {
       expect(
-        Simple7702AccountAddresses.fromVersion(
-          EntryPointVersion.v08,
-        ),
+        Simple7702AccountAddresses.fromVersion(EntryPointVersion.v08),
         equals(Simple7702AccountAddresses.v08),
       );
       expect(
-        Simple7702AccountAddresses.fromVersion(
-          EntryPointVersion.v09,
-        ),
+        Simple7702AccountAddresses.fromVersion(EntryPointVersion.v09),
         equals(Simple7702AccountAddresses.v09),
       );
     });
 
     test('rejects unsupported EntryPoint versions', () {
       expect(
-        () => Simple7702AccountAddresses.fromVersion(
-          EntryPointVersion.v07,
-        ),
+        () => Simple7702AccountAddresses.fromVersion(EntryPointVersion.v07),
         throwsArgumentError,
       );
     });
@@ -777,7 +769,9 @@ void main() {
       expect(account.entryPointVersion, equals(EntryPointVersion.v08));
       expect(account.entryPoint, equals(EntryPointAddresses.v08));
       expect(
-          account.accountLogicAddress, equals(Simple7702AccountAddresses.v08));
+        account.accountLogicAddress,
+        equals(Simple7702AccountAddresses.v08),
+      );
     });
 
     test('supports explicit EntryPoint v0.9 logic', () {
@@ -790,7 +784,9 @@ void main() {
       expect(account.entryPointVersion, equals(EntryPointVersion.v09));
       expect(account.entryPoint, equals(EntryPointAddresses.v09));
       expect(
-          account.accountLogicAddress, equals(Simple7702AccountAddresses.v09));
+        account.accountLogicAddress,
+        equals(Simple7702AccountAddresses.v09),
+      );
     });
 
     test('rejects older EntryPoint versions', () {

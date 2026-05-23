@@ -134,8 +134,10 @@ List<Call> decodeMultiSend(String multiSendData) {
   final dataLength = _bytes32ToBigInt(Uint8List.fromList(lengthBytes)).toInt();
 
   // Read packed transactions
-  final transactionsData =
-      fullData.sublist(dataStart + 32, dataStart + 32 + dataLength);
+  final transactionsData = fullData.sublist(
+    dataStart + 32,
+    dataStart + 32 + dataLength,
+  );
 
   return _unpackTransactions(Uint8List.fromList(transactionsData));
 }
@@ -150,8 +152,9 @@ List<Call> _unpackTransactions(Uint8List data) {
 
     // To address (20 bytes)
     final toBytes = data.sublist(offset, offset + 20);
-    final to =
-        EthereumAddress.fromHex(Hex.fromBytes(Uint8List.fromList(toBytes)));
+    final to = EthereumAddress.fromHex(
+      Hex.fromBytes(Uint8List.fromList(toBytes)),
+    );
     offset += 20;
 
     // Value (32 bytes)
@@ -161,8 +164,9 @@ List<Call> _unpackTransactions(Uint8List data) {
 
     // Data length (32 bytes)
     final lengthBytes = data.sublist(offset, offset + 32);
-    final dataLength =
-        _bytes32ToBigInt(Uint8List.fromList(lengthBytes)).toInt();
+    final dataLength = _bytes32ToBigInt(
+      Uint8List.fromList(lengthBytes),
+    ).toInt();
     offset += 32;
 
     // Data

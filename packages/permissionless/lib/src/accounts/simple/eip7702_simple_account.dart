@@ -335,7 +335,6 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
       Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(calls.length))),
     ]
         // Array offset
-
         // Array length
         ;
 

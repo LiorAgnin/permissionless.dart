@@ -51,9 +51,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final credentialState = ref.watch(credentialProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register Passkey'),
-      ),
+      appBar: AppBar(title: const Text('Register Passkey')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),

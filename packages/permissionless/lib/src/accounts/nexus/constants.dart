@@ -8,12 +8,14 @@ class NexusAddresses {
   NexusAddresses._();
 
   /// K1 Validator Factory address for account deployment.
-  static final EthereumAddress k1ValidatorFactory =
-      EthereumAddress.fromHex('0x00000bb19a3579F4D779215dEf97AFbd0e30DB55');
+  static final EthereumAddress k1ValidatorFactory = EthereumAddress.fromHex(
+    '0x00000bb19a3579F4D779215dEf97AFbd0e30DB55',
+  );
 
   /// K1 Validator address for ECDSA signature validation.
-  static final EthereumAddress k1Validator =
-      EthereumAddress.fromHex('0x00000004171351c442B202678c48D8AB5B321E8f');
+  static final EthereumAddress k1Validator = EthereumAddress.fromHex(
+    '0x00000004171351c442B202678c48D8AB5B321E8f',
+  );
 }
 
 /// Nexus function selectors.

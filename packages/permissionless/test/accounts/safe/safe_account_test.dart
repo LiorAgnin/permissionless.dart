@@ -32,12 +32,14 @@ void main() {
   // This is a well-known test key from Foundry/Hardhat
   const testPrivateKey =
       '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-  final testOwnerAddress =
-      EthereumAddress.fromHex('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266');
+  final testOwnerAddress = EthereumAddress.fromHex(
+    '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  );
 
   // Mock address for unit tests (avoids RPC calls)
-  final mockAddress =
-      EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+  final mockAddress = EthereumAddress.fromHex(
+    '0x1234567890123456789012345678901234567890',
+  );
 
   group('SafeSmartAccount', () {
     group('creation', () {
@@ -75,10 +77,7 @@ void main() {
 
       test('throws when no owners provided', () {
         expect(
-          () => createSafeSmartAccount(
-            owners: [],
-            chainId: BigInt.from(1),
-          ),
+          () => createSafeSmartAccount(owners: [], chainId: BigInt.from(1)),
           throwsArgumentError,
         );
       });
@@ -401,10 +400,7 @@ void main() {
           address: mockAddress,
         );
 
-        expect(
-          () => account.encodeCalls([]),
-          throwsArgumentError,
-        );
+        expect(() => account.encodeCalls([]), throwsArgumentError);
       });
     });
 
@@ -593,9 +589,7 @@ void main() {
           final webAuthnOwner = _TestWebAuthnOwner(
             BigInt.from(0x1234),
             BigInt.from(0x5678),
-            Uint8List.fromList(
-              List<int>.generate(16, (i) => i),
-            ),
+            Uint8List.fromList(List<int>.generate(16, (i) => i)),
           );
 
           final accountTrue = createSafeSmartAccount(
@@ -709,8 +703,9 @@ void main() {
     // Test private key (DO NOT use in production!)
     const testPrivateKey =
         '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-    final mockAddress =
-        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+    final mockAddress = EthereumAddress.fromHex(
+      '0x1234567890123456789012345678901234567890',
+    );
 
     group('creation', () {
       test('creates account with ERC-7579 enabled', () {

@@ -85,8 +85,9 @@ void main() {
     late EtherspotSmartAccount account;
 
     // Mock account address (would normally be computed via getSenderAddress)
-    final mockAddress =
-        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+    final mockAddress = EthereumAddress.fromHex(
+      '0x1234567890123456789012345678901234567890',
+    );
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
@@ -130,10 +131,7 @@ void main() {
           chainId: BigInt.from(1),
         );
 
-        expect(
-          accountWithoutAddress.getAddress,
-          throwsA(isA<StateError>()),
-        );
+        expect(accountWithoutAddress.getAddress, throwsA(isA<StateError>()));
       });
 
       test('returns provided address', () async {
@@ -268,10 +266,7 @@ void main() {
       });
 
       test('throws on empty calls list', () {
-        expect(
-          () => account.encodeCalls([]),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => account.encodeCalls([]), throwsA(isA<ArgumentError>()));
       });
     });
 
@@ -366,9 +361,7 @@ void main() {
         final customAccount = createEtherspotSmartAccount(
           owner: owner,
           chainId: BigInt.from(1),
-          customAddresses: EtherspotCustomAddresses(
-            factory: customFactory,
-          ),
+          customAddresses: EtherspotCustomAddresses(factory: customFactory),
         );
 
         expect(customAccount.factory.hex, equals(customFactory.hex));

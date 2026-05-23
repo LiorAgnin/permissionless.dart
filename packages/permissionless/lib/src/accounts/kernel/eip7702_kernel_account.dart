@@ -89,8 +89,10 @@ class PrivateKeyEip7702KernelOwner implements Eip7702KernelOwner {
     final hashBytes = Hex.decode(hash);
 
     // Sign the typed data hash directly using raw sign function
-    final sig =
-        crypto.sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
+    final sig = crypto.sign(
+      Uint8List.fromList(hashBytes),
+      _privateKey.privateKey,
+    );
 
     // Pack r, s, v into 65 bytes
     final rBytes = Hex.decode(Hex.fromBigInt(sig.r, byteLength: 32));
@@ -387,15 +389,21 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     final callDataHash = crypto.keccak256(Hex.decode(userOp.callData));
 
     // Pack accountGasLimits (v0.7 packing)
-    final verificationGasLimitHex =
-        Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16);
+    final verificationGasLimitHex = Hex.fromBigInt(
+      userOp.verificationGasLimit,
+      byteLength: 16,
+    );
     final callGasLimitHex = Hex.fromBigInt(userOp.callGasLimit, byteLength: 16);
-    final accountGasLimits =
-        Hex.concat([verificationGasLimitHex, callGasLimitHex]);
+    final accountGasLimits = Hex.concat([
+      verificationGasLimitHex,
+      callGasLimitHex,
+    ]);
 
     // Pack gasFees
-    final maxPriorityFeeHex =
-        Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16);
+    final maxPriorityFeeHex = Hex.fromBigInt(
+      userOp.maxPriorityFeePerGas,
+      byteLength: 16,
+    );
     final maxFeeHex = Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16);
     final gasFees = Hex.concat([maxPriorityFeeHex, maxFeeHex]);
 
@@ -492,14 +500,10 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
           const TypedDataField(name: 'chainId', type: 'uint256'),
           const TypedDataField(name: 'verifyingContract', type: 'address'),
         ],
-        'Kernel': [
-          const TypedDataField(name: 'hash', type: 'bytes32'),
-        ],
+        'Kernel': [const TypedDataField(name: 'hash', type: 'bytes32')],
       },
       primaryType: 'Kernel',
-      message: {
-        'hash': messageHash,
-      },
+      message: {'hash': messageHash},
     );
 
     final signature = await _config.owner.signTypedData(kernelTypedData);

@@ -35,10 +35,7 @@ class BundlerClient {
   ///
   /// - [rpcClient]: The JSON-RPC client for bundler communication
   /// - [entryPoint]: The EntryPoint contract address.
-  BundlerClient({
-    required this.rpcClient,
-    required this.entryPoint,
-  });
+  BundlerClient({required this.rpcClient, required this.entryPoint});
 
   /// The underlying JSON-RPC client.
   final JsonRpcClient rpcClient;
@@ -53,10 +50,10 @@ class BundlerClient {
   ///
   /// Throws [BundlerRpcError] if validation fails.
   Future<String> sendUserOperation(UserOperation userOp) async {
-    final result = await rpcClient.call(
-      'eth_sendUserOperation',
-      [userOp.toJson(), entryPoint.hex],
-    );
+    final result = await rpcClient.call('eth_sendUserOperation', [
+      userOp.toJson(),
+      entryPoint.hex,
+    ]);
     return result as String;
   }
 
@@ -84,10 +81,10 @@ class BundlerClient {
     // Handle EIP-7702 factory marker - bundler expects '0x7702' not the padded form
     _normalizeEip7702Factory(userOpJson);
 
-    final result = await rpcClient.call(
-      'eth_sendUserOperation',
-      [userOpJson, entryPoint.hex],
-    );
+    final result = await rpcClient.call('eth_sendUserOperation', [
+      userOpJson,
+      entryPoint.hex,
+    ]);
     return result as String;
   }
 
@@ -107,10 +104,7 @@ class BundlerClient {
       params.add(stateOverride);
     }
 
-    final result = await rpcClient.call(
-      'eth_estimateUserOperationGas',
-      params,
-    );
+    final result = await rpcClient.call('eth_estimateUserOperationGas', params);
     return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
   }
 
@@ -139,10 +133,7 @@ class BundlerClient {
       params.add(stateOverride);
     }
 
-    final result = await rpcClient.call(
-      'eth_estimateUserOperationGas',
-      params,
-    );
+    final result = await rpcClient.call('eth_estimateUserOperationGas', params);
     return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
   }
 
@@ -163,10 +154,9 @@ class BundlerClient {
   Future<UserOperationByHashResponse?> getUserOperationByHash(
     String userOpHash,
   ) async {
-    final result = await rpcClient.call(
-      'eth_getUserOperationByHash',
-      [userOpHash],
-    );
+    final result = await rpcClient.call('eth_getUserOperationByHash', [
+      userOpHash,
+    ]);
     if (result == null) return null;
     return UserOperationByHashResponse.fromJson(result as Map<String, dynamic>);
   }
@@ -178,10 +168,9 @@ class BundlerClient {
   Future<UserOperationReceipt?> getUserOperationReceipt(
     String userOpHash,
   ) async {
-    final result = await rpcClient.call(
-      'eth_getUserOperationReceipt',
-      [userOpHash],
-    );
+    final result = await rpcClient.call('eth_getUserOperationReceipt', [
+      userOpHash,
+    ]);
     if (result == null) return null;
     return UserOperationReceipt.fromJson(result as Map<String, dynamic>);
   }

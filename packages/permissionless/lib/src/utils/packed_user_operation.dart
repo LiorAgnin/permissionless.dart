@@ -197,10 +197,7 @@ class UnpackedInitCode {
   /// Creates an unpacked initCode result.
   ///
   /// Both fields are null if the account is already deployed.
-  const UnpackedInitCode({
-    this.factory,
-    this.factoryData,
-  });
+  const UnpackedInitCode({this.factory, this.factoryData});
 
   /// The factory address, or null if no factory.
   final EthereumAddress? factory;
@@ -359,8 +356,10 @@ UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
 
   return UnpackedPaymasterAndData(
     paymaster: EthereumAddress.fromHex('0x${hex.substring(0, 40)}'),
-    paymasterVerificationGasLimit:
-        BigInt.parse(hex.substring(40, 72), radix: 16),
+    paymasterVerificationGasLimit: BigInt.parse(
+      hex.substring(40, 72),
+      radix: 16,
+    ),
     paymasterPostOpGasLimit: BigInt.parse(hex.substring(72, 104), radix: 16),
     paymasterData: hex.length > 104 ? '0x${hex.substring(104)}' : '0x',
   );

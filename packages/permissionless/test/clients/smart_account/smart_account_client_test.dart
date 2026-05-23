@@ -11,8 +11,9 @@ void main() {
         '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 
     // Mock address for unit tests (avoids RPC calls)
-    final mockAddress =
-        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+    final mockAddress = EthereumAddress.fromHex(
+      '0x1234567890123456789012345678901234567890',
+    );
 
     late SafeSmartAccount account;
     late List<Map<String, dynamic>> bundlerRequests;
@@ -62,11 +63,7 @@ void main() {
           }
 
           return http.Response(
-            jsonEncode({
-              'jsonrpc': '2.0',
-              'id': body['id'],
-              'result': result,
-            }),
+            jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': result}),
             200,
           );
         });
@@ -106,11 +103,7 @@ void main() {
           };
 
           return http.Response(
-            jsonEncode({
-              'jsonrpc': '2.0',
-              'id': body['id'],
-              'result': result,
-            }),
+            jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': result}),
             200,
           );
         });
@@ -133,11 +126,7 @@ void main() {
         }
 
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': result,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': result}),
           200,
         );
       });
@@ -215,53 +204,55 @@ void main() {
         );
       });
 
-      test('applies paymaster stub and final data when paymaster provided',
-          () async {
-        final bundler = createBundlerClient(
-          url: 'http://localhost:3000/rpc',
-          entryPoint: EntryPointAddresses.v07,
-          httpClient: createBundlerMock(),
-        );
-        final paymaster = createPaymasterClient(
-          url: 'http://localhost:3001/rpc',
-          httpClient: createPaymasterMock(),
-        );
+      test(
+        'applies paymaster stub and final data when paymaster provided',
+        () async {
+          final bundler = createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          );
+          final paymaster = createPaymasterClient(
+            url: 'http://localhost:3001/rpc',
+            httpClient: createPaymasterMock(),
+          );
 
-        final client = SmartAccountClient(
-          account: account,
-          bundler: bundler,
-          paymaster: paymaster,
-          publicClient: createPublicClientMock(),
-        );
+          final client = SmartAccountClient(
+            account: account,
+            bundler: bundler,
+            paymaster: paymaster,
+            publicClient: createPublicClientMock(),
+          );
 
-        final userOp = await client.prepareUserOperation(
-          calls: [
-            Call(
-              to: EthereumAddress.fromHex(
-                '0x1234567890123456789012345678901234567890',
+          final userOp = await client.prepareUserOperation(
+            calls: [
+              Call(
+                to: EthereumAddress.fromHex(
+                  '0x1234567890123456789012345678901234567890',
+                ),
+                value: BigInt.zero,
               ),
-              value: BigInt.zero,
-            ),
-          ],
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(1000000000),
-        );
+            ],
+            maxFeePerGas: BigInt.from(1000000000),
+            maxPriorityFeePerGas: BigInt.from(1000000000),
+          );
 
-        // Check paymaster data was applied
-        expect(
-          userOp.paymaster?.hex,
-          equals('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
-        );
-        expect(userOp.paymasterData, equals('0xfedcba9876543210'));
+          // Check paymaster data was applied
+          expect(
+            userOp.paymaster?.hex,
+            equals('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+          );
+          expect(userOp.paymasterData, equals('0xfedcba9876543210'));
 
-        // Check both paymaster calls were made (stub + final)
-        expect(paymasterRequests.length, equals(2));
-        expect(
-          paymasterRequests[0]['method'],
-          equals('pm_getPaymasterStubData'),
-        );
-        expect(paymasterRequests[1]['method'], equals('pm_getPaymasterData'));
-      });
+          // Check both paymaster calls were made (stub + final)
+          expect(paymasterRequests.length, equals(2));
+          expect(
+            paymasterRequests[0]['method'],
+            equals('pm_getPaymasterStubData'),
+          );
+          expect(paymasterRequests[1]['method'], equals('pm_getPaymasterData'));
+        },
+      );
 
       test('skips final paymaster call when isFinal is true', () async {
         final bundler = createBundlerClient(
@@ -338,11 +329,7 @@ void main() {
           }
 
           return http.Response(
-            jsonEncode({
-              'jsonrpc': '2.0',
-              'id': body['id'],
-              'result': result,
-            }),
+            jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': result}),
             200,
           );
         });
@@ -444,10 +431,7 @@ void main() {
         final hash = await client.sendPreparedUserOperation(userOp);
 
         expect(hash, equals('0xabcdef1234567890'));
-        expect(
-          bundlerRequests.last['method'],
-          equals('eth_sendUserOperation'),
-        );
+        expect(bundlerRequests.last['method'], equals('eth_sendUserOperation'));
       });
     });
 
@@ -518,8 +502,9 @@ void main() {
           ],
           maxFeePerGas: BigInt.from(1000000000),
           maxPriorityFeePerGas: BigInt.from(1000000000),
-          paymasterContext:
-              const PaymasterContext(sponsorshipPolicyId: 'policy-123'),
+          paymasterContext: const PaymasterContext(
+            sponsorshipPolicyId: 'policy-123',
+          ),
         );
 
         // Check context was passed to paymaster
@@ -580,8 +565,9 @@ void main() {
     test('SafeSmartAccount implements SmartAccount', () {
       const testPrivateKey =
           '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-      final mockAddress =
-          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final mockAddress = EthereumAddress.fromHex(
+        '0x1234567890123456789012345678901234567890',
+      );
 
       final account = createSafeSmartAccount(
         owners: [PrivateKeyOwner(testPrivateKey)],

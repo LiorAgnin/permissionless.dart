@@ -37,9 +37,7 @@ class PaymasterClient {
   ///
   /// Prefer using [createPaymasterClient] factory function instead
   /// of calling this constructor directly.
-  PaymasterClient({
-    required this.rpcClient,
-  });
+  PaymasterClient({required this.rpcClient});
 
   /// The underlying JSON-RPC client.
   final JsonRpcClient rpcClient;
@@ -178,8 +176,10 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
   UserOperationV06 withPaymasterStubV06(PaymasterStubData stub) {
     // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
-    final paymasterAndData =
-        Hex.concat([stub.paymaster.hex, stub.paymasterData]);
+    final paymasterAndData = Hex.concat([
+      stub.paymaster.hex,
+      stub.paymasterData,
+    ]);
     return copyWith(paymasterAndData: paymasterAndData);
   }
 
@@ -189,8 +189,10 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
   UserOperationV06 withPaymasterDataV06(PaymasterData data) {
     // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
-    final paymasterAndData =
-        Hex.concat([data.paymaster.hex, data.paymasterData]);
+    final paymasterAndData = Hex.concat([
+      data.paymaster.hex,
+      data.paymasterData,
+    ]);
     return copyWith(paymasterAndData: paymasterAndData);
   }
 
@@ -200,8 +202,10 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   /// a sponsorUserOperation call.
   UserOperationV06 withSponsorshipV06(SponsorUserOperationResult result) {
     // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
-    final paymasterAndData =
-        Hex.concat([result.paymaster.hex, result.paymasterData]);
+    final paymasterAndData = Hex.concat([
+      result.paymaster.hex,
+      result.paymasterData,
+    ]);
     return copyWith(
       paymasterAndData: paymasterAndData,
       preVerificationGas: result.preVerificationGas ?? preVerificationGas,

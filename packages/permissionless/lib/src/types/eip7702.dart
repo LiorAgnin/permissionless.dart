@@ -105,10 +105,7 @@ class Eip7702Authorization {
     // Sign the authorization hash directly using the raw sign function.
     // Note: signToEcSignature adds an extra keccak256 hash, which we don't want
     // since authHash is already a keccak256 hash.
-    final signature = crypto.sign(
-      Uint8List.fromList(authHash),
-      key.privateKey,
-    );
+    final signature = crypto.sign(Uint8List.fromList(authHash), key.privateKey);
 
     return Eip7702Authorization(
       chainId: chainId,

@@ -90,8 +90,9 @@ class GasUnits {
     final trimmed = value.trim().toLowerCase();
 
     // Try to extract number and unit
-    final match =
-        RegExp(r'^([\d.]+)\s*(gwei|eth|ether|wei)?$').firstMatch(trimmed);
+    final match = RegExp(
+      r'^([\d.]+)\s*(gwei|eth|ether|wei)?$',
+    ).firstMatch(trimmed);
 
     if (match == null) {
       throw FormatException('Invalid gas unit format: $value');

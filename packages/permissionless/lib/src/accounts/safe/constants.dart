@@ -71,8 +71,9 @@ class Safe7579Addresses {
   ///
   /// This module implements the ERC-7579 interface for Safe accounts,
   /// enabling module installation, uninstallation, and execution.
-  static final EthereumAddress safe7579ModuleAddress =
-      EthereumAddress.fromHex('0x7579EE8307284F293B1927136486880611F20002');
+  static final EthereumAddress safe7579ModuleAddress = EthereumAddress.fromHex(
+    '0x7579EE8307284F293B1927136486880611F20002',
+  );
 
   /// The Safe7579 launchpad address for deploying ERC-7579 Safe accounts.
   ///
@@ -86,8 +87,9 @@ class Safe7579Addresses {
   ///
   /// By designating Rhinestone as an attester, only modules explicitly
   /// approved by Rhinestone can be installed on your Safe.
-  static final EthereumAddress rhinestoneAttester =
-      EthereumAddress.fromHex('0x000000333034E9f539ce08819E12c1b8Cb29084d');
+  static final EthereumAddress rhinestoneAttester = EthereumAddress.fromHex(
+    '0x000000333034E9f539ce08819E12c1b8Cb29084d',
+  );
 }
 
 /// Module initialization configuration for ERC-7579 Safe accounts.
@@ -99,10 +101,7 @@ class Safe7579ModuleInit {
   ///
   /// - [module]: The address of the ERC-7579 module to install
   /// - [initData]: Optional initialization data for the module's `onInstall`
-  const Safe7579ModuleInit({
-    required this.module,
-    this.initData = '0x',
-  });
+  const Safe7579ModuleInit({required this.module, this.initData = '0x'});
 
   /// The address of the module to install.
   final EthereumAddress module;

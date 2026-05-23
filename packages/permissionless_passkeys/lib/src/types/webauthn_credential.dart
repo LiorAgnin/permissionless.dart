@@ -59,8 +59,9 @@ class WebAuthnCredential {
     final key = PassKeyPublicKey(
       x: Uint256.fromHex(rawData['x'] as String),
       y: Uint256.fromHex(rawData['y'] as String),
-      credentialId:
-          base64Url.decode(_padBase64(rawData['credentialId'] as String)),
+      credentialId: base64Url.decode(
+        _padBase64(rawData['credentialId'] as String),
+      ),
       userName: rawData['userName'] as String? ?? '',
       aaGuid: rawData['aaGuid'] as String? ?? '',
     );

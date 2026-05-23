@@ -19,11 +19,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -430,35 +426,37 @@ void main() {
         );
       });
 
-      test('throws PublicRpcError for non-SenderAddressResult revert',
-          () async {
-        final mockClient = MockClient(
-          (request) async => http.Response(
-            jsonEncode({
-              'jsonrpc': '2.0',
-              'id': 1,
-              'error': {
-                'code': -32000,
-                'message': 'execution reverted: invalid initCode',
-                'data': '0x08c379a0',
-              },
-            }),
-            200,
-          ),
-        );
-        final client = createPublicClient(
-          url: 'http://localhost:8545',
-          httpClient: mockClient,
-        );
+      test(
+        'throws PublicRpcError for non-SenderAddressResult revert',
+        () async {
+          final mockClient = MockClient(
+            (request) async => http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': 1,
+                'error': {
+                  'code': -32000,
+                  'message': 'execution reverted: invalid initCode',
+                  'data': '0x08c379a0',
+                },
+              }),
+              200,
+            ),
+          );
+          final client = createPublicClient(
+            url: 'http://localhost:8545',
+            httpClient: mockClient,
+          );
 
-        expect(
-          () => client.getSenderAddress(
-            initCode: '0xinvalid',
-            entryPoint: EntryPointAddresses.v07,
-          ),
-          throwsA(isA<PublicRpcError>()),
-        );
-      });
+          expect(
+            () => client.getSenderAddress(
+              initCode: '0xinvalid',
+              entryPoint: EntryPointAddresses.v07,
+            ),
+            throwsA(isA<PublicRpcError>()),
+          );
+        },
+      );
 
       test('encodes initCode correctly in call data', () async {
         String? capturedData;
@@ -547,10 +545,7 @@ void main() {
     });
 
     test('formats error without data', () {
-      const error = PublicRpcError(
-        code: -32602,
-        message: 'invalid params',
-      );
+      const error = PublicRpcError(code: -32602, message: 'invalid params');
 
       expect(
         error.toString(),

@@ -4,11 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/home_screen.dart';
 
 void main() {
-  runApp(
-    const ProviderScope(
-      child: PasskeysExampleApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: PasskeysExampleApp()));
 }
 
 class PasskeysExampleApp extends StatelessWidget {

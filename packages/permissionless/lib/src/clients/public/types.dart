@@ -6,10 +6,7 @@ class FeeData {
   ///
   /// - [gasPrice]: Legacy gas price in wei
   /// - [maxPriorityFeePerGas]: EIP-1559 priority fee (null if not supported)
-  const FeeData({
-    required this.gasPrice,
-    this.maxPriorityFeePerGas,
-  });
+  const FeeData({required this.gasPrice, this.maxPriorityFeePerGas});
 
   /// Legacy gas price (wei per gas unit).
   final BigInt gasPrice;
@@ -25,11 +22,7 @@ class PublicRpcError implements Exception {
   /// - [code]: The JSON-RPC error code
   /// - [message]: Human-readable error description
   /// - [data]: Optional additional error data
-  const PublicRpcError({
-    required this.code,
-    required this.message,
-    this.data,
-  });
+  const PublicRpcError({required this.code, required this.message, this.data});
 
   /// JSON-RPC error code.
   final int code;

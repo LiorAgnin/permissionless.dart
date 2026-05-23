@@ -33,9 +33,7 @@ class PublicClient {
   ///
   /// Prefer using [createPublicClient] factory function instead of
   /// calling this constructor directly, as it handles RPC client setup.
-  PublicClient({
-    required this.rpcClient,
-  });
+  PublicClient({required this.rpcClient});
 
   /// The underlying JSON-RPC client.
   final JsonRpcClient rpcClient;
@@ -47,10 +45,7 @@ class PublicClient {
     EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
-    final result = await rpcClient.call(
-      'eth_getCode',
-      [address.hex, blockTag],
-    );
+    final result = await rpcClient.call('eth_getCode', [address.hex, blockTag]);
     return result as String;
   }
 
@@ -67,31 +62,25 @@ class PublicClient {
     EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
-    final result = await rpcClient.call(
-      'eth_getBalance',
-      [address.hex, blockTag],
-    );
+    final result = await rpcClient.call('eth_getBalance', [
+      address.hex,
+      blockTag,
+    ]);
     return parseBigInt(result);
   }
 
   /// Executes a read-only call to a contract.
   ///
   /// Returns the encoded result data.
-  Future<String> call(
-    Call call, {
-    String blockTag = 'latest',
-  }) async {
-    final result = await rpcClient.call(
-      'eth_call',
-      [
-        {
-          'to': call.to.hex,
-          'data': call.data,
-          if (call.value != BigInt.zero) 'value': Hex.fromBigInt(call.value),
-        },
-        blockTag,
-      ],
-    );
+  Future<String> call(Call call, {String blockTag = 'latest'}) async {
+    final result = await rpcClient.call('eth_call', [
+      {
+        'to': call.to.hex,
+        'data': call.data,
+        if (call.value != BigInt.zero) 'value': Hex.fromBigInt(call.value),
+      },
+      blockTag,
+    ]);
     return result as String;
   }
 
@@ -102,10 +91,10 @@ class PublicClient {
     EthereumAddress address, {
     String blockTag = 'latest',
   }) async {
-    final result = await rpcClient.call(
-      'eth_getTransactionCount',
-      [address.hex, blockTag],
-    );
+    final result = await rpcClient.call('eth_getTransactionCount', [
+      address.hex,
+      blockTag,
+    ]);
     return parseBigInt(result);
   }
 
@@ -143,10 +132,7 @@ class PublicClient {
       // Network might not support EIP-1559
     }
 
-    return FeeData(
-      gasPrice: gasPrice,
-      maxPriorityFeePerGas: maxPriorityFee,
-    );
+    return FeeData(gasPrice: gasPrice, maxPriorityFeePerGas: maxPriorityFee);
   }
 
   /// Gets the ERC-4337 nonce for a smart account from the EntryPoint.

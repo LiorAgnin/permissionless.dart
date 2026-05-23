@@ -152,10 +152,7 @@ class TrustSmartAccount implements SmartAccountV06 {
   @override
   Future<String> getInitCode() async {
     final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   /// Gets the factory address and data for UserOperation v0.7.
@@ -342,9 +339,7 @@ class TrustSmartAccount implements SmartAccountV06 {
         verifyingContract: accountAddress,
       ),
       types: {
-        'BarzMessage': [
-          const TypedDataField(name: 'message', type: 'bytes'),
-        ],
+        'BarzMessage': [const TypedDataField(name: 'message', type: 'bytes')],
       },
       primaryType: 'BarzMessage',
       message: {'message': hashedMessage},

@@ -119,10 +119,7 @@ extension GasEstimateMultipliers on UserOperationGasEstimate {
           verificationGasLimit,
           multipliers.verificationGasLimit,
         ),
-        callGasLimit: _applyMultiplier(
-          callGasLimit,
-          multipliers.callGasLimit,
-        ),
+        callGasLimit: _applyMultiplier(callGasLimit, multipliers.callGasLimit),
         paymasterVerificationGasLimit: paymasterVerificationGasLimit != null
             ? _applyMultiplier(
                 paymasterVerificationGasLimit!,
@@ -162,9 +159,7 @@ extension GasEstimateMultipliers on UserOperationGasEstimate {
   /// final estimate = await bundler.estimateUserOperationGas(userOp);
   /// final adjusted = estimate.withMinimumVerificationGas();
   /// ```
-  UserOperationGasEstimate withMinimumVerificationGas({
-    BigInt? minimum,
-  }) {
+  UserOperationGasEstimate withMinimumVerificationGas({BigInt? minimum}) {
     // Default: 900k gas for P256 on-chain verification with buffer
     final minGas = minimum ?? BigInt.from(900000);
 

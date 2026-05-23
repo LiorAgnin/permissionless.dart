@@ -204,10 +204,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   @override
   Future<String> getInitCode() async {
     final factoryData = _encodeDeployCounterFactualAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   /// Gets the factory address and data for UserOperation.

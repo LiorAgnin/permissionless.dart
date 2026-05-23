@@ -102,8 +102,9 @@ void main() {
         test(
           'getCode returns code for SimpleAccount Factory v0.7',
           () async {
-            final code =
-                await client.getCode(SimpleAccountFactoryAddresses.v07);
+            final code = await client.getCode(
+              SimpleAccountFactoryAddresses.v07,
+            );
 
             expect(code, isNot(equals('0x')));
             expect(code.length, greaterThan(100));

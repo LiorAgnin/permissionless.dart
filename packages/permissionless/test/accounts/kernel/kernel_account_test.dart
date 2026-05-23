@@ -8,8 +8,9 @@ void main() {
   const testOwnerAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
   // Mock address for unit tests (avoids RPC calls)
-  final mockAddress =
-      EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+  final mockAddress = EthereumAddress.fromHex(
+    '0x1234567890123456789012345678901234567890',
+  );
 
   group('KernelVersion', () {
     test('v0_2_4 has correct value', () {
@@ -39,16 +40,18 @@ void main() {
 
   group('KernelVersionAddresses', () {
     test('returns addresses for v0.2.4', () {
-      final addresses =
-          KernelVersionAddresses.getAddresses(KernelVersion.v0_2_4);
+      final addresses = KernelVersionAddresses.getAddresses(
+        KernelVersion.v0_2_4,
+      );
       expect(addresses, isNotNull);
       expect(addresses!.factory.hex, isNotEmpty);
       expect(addresses.accountImplementation.hex, isNotEmpty);
     });
 
     test('returns addresses for v0.3.1', () {
-      final addresses =
-          KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1);
+      final addresses = KernelVersionAddresses.getAddresses(
+        KernelVersion.v0_3_1,
+      );
       expect(addresses, isNotNull);
       expect(addresses!.factory.hex, isNotEmpty);
       expect(addresses.metaFactory, isNotNull);
@@ -56,8 +59,9 @@ void main() {
     });
 
     test('v0.3.1 has meta factory', () {
-      final addresses =
-          KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1);
+      final addresses = KernelVersionAddresses.getAddresses(
+        KernelVersion.v0_3_1,
+      );
       expect(addresses!.metaFactory, isNotNull);
       expect(
         addresses.metaFactory!.hex.toLowerCase(),
@@ -66,8 +70,9 @@ void main() {
     });
 
     test('v0.3.1 has ECDSA validator', () {
-      final addresses =
-          KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1);
+      final addresses = KernelVersionAddresses.getAddresses(
+        KernelVersion.v0_3_1,
+      );
       expect(addresses!.ecdsaValidator, isNotNull);
       expect(
         addresses.ecdsaValidator!.hex.toLowerCase(),
@@ -205,8 +210,9 @@ void main() {
 
       test('uses meta factory for v0.3.1', () async {
         final factoryData = await account.getFactoryData();
-        final addresses =
-            KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1);
+        final addresses = KernelVersionAddresses.getAddresses(
+          KernelVersion.v0_3_1,
+        );
         expect(
           factoryData!.factory.hex.toLowerCase(),
           equals(addresses!.metaFactory!.hex.toLowerCase()),
@@ -304,10 +310,7 @@ void main() {
       });
 
       test('throws on empty calls list', () {
-        expect(
-          () => account.encodeCalls([]),
-          throwsArgumentError,
-        );
+        expect(() => account.encodeCalls([]), throwsArgumentError);
       });
     });
 
@@ -461,8 +464,9 @@ void main() {
 
       test('uses direct factory for v0.2.4', () async {
         final factoryData = await account.getFactoryData();
-        final addresses =
-            KernelVersionAddresses.getAddresses(KernelVersion.v0_2_4);
+        final addresses = KernelVersionAddresses.getAddresses(
+          KernelVersion.v0_2_4,
+        );
         expect(
           factoryData!.factory.hex.toLowerCase(),
           equals(addresses!.factory.hex.toLowerCase()),
@@ -621,99 +625,104 @@ void main() {
       expect(stub.length, equals(140));
     });
 
-    test('signUserOperation works without publicClient for ECDSA v0.3.1',
-        () async {
-      // Creating an account without publicClient should still allow ECDSA
-      // signing, since _shouldUsePrecompile is only invoked on the WebAuthn
-      // path. This test ensures the async precompile check does not regress
-      // the ECDSA flow.
-      final account = createKernelSmartAccount(
-        owner: owner,
-        chainId: BigInt.from(1),
-        version: KernelVersion.v0_3_1,
-        address: mockAddress,
-      );
+    test(
+      'signUserOperation works without publicClient for ECDSA v0.3.1',
+      () async {
+        // Creating an account without publicClient should still allow ECDSA
+        // signing, since _shouldUsePrecompile is only invoked on the WebAuthn
+        // path. This test ensures the async precompile check does not regress
+        // the ECDSA flow.
+        final account = createKernelSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          version: KernelVersion.v0_3_1,
+          address: mockAddress,
+        );
 
-      final address = await account.getAddress();
-      final userOp = UserOperationV07(
-        sender: address,
-        nonce: BigInt.zero,
-        callData: '0x',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(100000),
-        preVerificationGas: BigInt.from(21000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(1000000000),
-      );
+        final address = await account.getAddress();
+        final userOp = UserOperationV07(
+          sender: address,
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
 
-      final signature = await account.signUserOperation(userOp);
+        final signature = await account.signUserOperation(userOp);
 
-      // ECDSA signature: 65 bytes = 130 hex + 0x prefix
-      expect(signature, startsWith('0x'));
-      expect(signature.length, equals(132));
-    });
-
-    test('signUserOperation works without publicClient for ECDSA v0.2.4',
-        () async {
-      final account = createKernelSmartAccount(
-        owner: owner,
-        chainId: BigInt.from(1),
-        version: KernelVersion.v0_2_4,
-        address: mockAddress,
-      );
-
-      final address = await account.getAddress();
-      final userOp = UserOperationV07(
-        sender: address,
-        nonce: BigInt.zero,
-        callData: '0x',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(100000),
-        preVerificationGas: BigInt.from(21000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(1000000000),
-      );
-
-      final signature = await account.signUserOperation(userOp);
-
-      // ROOT_MODE prefix + 65-byte ECDSA = 69 bytes = 138 hex + 0x
-      expect(signature, startsWith('0x00000000'));
-      expect(signature.length, equals(140));
-    });
+        // ECDSA signature: 65 bytes = 130 hex + 0x prefix
+        expect(signature, startsWith('0x'));
+        expect(signature.length, equals(132));
+      },
+    );
 
     test(
-        'ECDSA signing produces deterministic results regardless of publicClient absence',
-        () async {
-      final account1 = createKernelSmartAccount(
-        owner: owner,
-        chainId: BigInt.from(1),
-        version: KernelVersion.v0_3_1,
-        address: mockAddress,
-      );
-      final account2 = createKernelSmartAccount(
-        owner: owner,
-        chainId: BigInt.from(1),
-        version: KernelVersion.v0_3_1,
-        address: mockAddress,
-      );
+      'signUserOperation works without publicClient for ECDSA v0.2.4',
+      () async {
+        final account = createKernelSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          version: KernelVersion.v0_2_4,
+          address: mockAddress,
+        );
 
-      final address = await account1.getAddress();
-      final userOp = UserOperationV07(
-        sender: address,
-        nonce: BigInt.zero,
-        callData: '0x',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(100000),
-        preVerificationGas: BigInt.from(21000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(1000000000),
-      );
+        final address = await account.getAddress();
+        final userOp = UserOperationV07(
+          sender: address,
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
 
-      final sig1 = await account1.signUserOperation(userOp);
-      final sig2 = await account2.signUserOperation(userOp);
+        final signature = await account.signUserOperation(userOp);
 
-      expect(sig1, equals(sig2));
-    });
+        // ROOT_MODE prefix + 65-byte ECDSA = 69 bytes = 138 hex + 0x
+        expect(signature, startsWith('0x00000000'));
+        expect(signature.length, equals(140));
+      },
+    );
+
+    test(
+      'ECDSA signing produces deterministic results regardless of publicClient absence',
+      () async {
+        final account1 = createKernelSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          version: KernelVersion.v0_3_1,
+          address: mockAddress,
+        );
+        final account2 = createKernelSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          version: KernelVersion.v0_3_1,
+          address: mockAddress,
+        );
+
+        final address = await account1.getAddress();
+        final userOp = UserOperationV07(
+          sender: address,
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        final sig1 = await account1.signUserOperation(userOp);
+        final sig2 = await account2.signUserOperation(userOp);
+
+        expect(sig1, equals(sig2));
+      },
+    );
 
     test('isWebAuthn is false for PrivateKeyOwner', () {
       final account = createKernelSmartAccount(

@@ -724,10 +724,7 @@ class Decoded7579Calls {
   ///
   /// - [mode]: The execution mode (call type, revert behavior, etc.)
   /// - [calls]: The decoded list of calls to execute
-  const Decoded7579Calls({
-    required this.mode,
-    required this.calls,
-  });
+  const Decoded7579Calls({required this.mode, required this.calls});
 
   /// The execution mode used.
   final ExecutionMode mode;
@@ -888,32 +885,42 @@ List<Call> _decodeBatchCalls(String executionHex) {
 
     // Each Execution struct: (address, uint256, bytes)
     // Address (32 bytes padded)
-    final addressHex =
-        executionHex.substring(structStart + 24, structStart + 64);
+    final addressHex = executionHex.substring(
+      structStart + 24,
+      structStart + 64,
+    );
     final to = EthereumAddress.fromHex('0x$addressHex');
 
     // Value (32 bytes)
-    final valueHex =
-        executionHex.substring(structStart + 64, structStart + 128);
+    final valueHex = executionHex.substring(
+      structStart + 64,
+      structStart + 128,
+    );
     final value = BigInt.parse(valueHex, radix: 16);
 
     // Bytes offset (32 bytes) - points to bytes data relative to struct start
-    final bytesOffsetHex =
-        executionHex.substring(structStart + 128, structStart + 192);
+    final bytesOffsetHex = executionHex.substring(
+      structStart + 128,
+      structStart + 192,
+    );
     final bytesOffset = int.parse(bytesOffsetHex, radix: 16);
 
     // Bytes length
     final bytesLengthStart = structStart + (bytesOffset * 2);
-    final bytesLengthHex =
-        executionHex.substring(bytesLengthStart, bytesLengthStart + 64);
+    final bytesLengthHex = executionHex.substring(
+      bytesLengthStart,
+      bytesLengthStart + 64,
+    );
     final bytesLength = int.parse(bytesLengthHex, radix: 16);
 
     // Bytes data
     var data = '0x';
     if (bytesLength > 0) {
       final dataStart = bytesLengthStart + 64;
-      final dataHex =
-          executionHex.substring(dataStart, dataStart + bytesLength * 2);
+      final dataHex = executionHex.substring(
+        dataStart,
+        dataStart + bytesLength * 2,
+      );
       data = '0x$dataHex';
     }
 

@@ -63,9 +63,7 @@ void main() {
           chainId: BigInt.from(1),
         ),
         types: {
-          'Message': [
-            const TypedDataField(name: 'content', type: 'string'),
-          ],
+          'Message': [const TypedDataField(name: 'content', type: 'string')],
         },
         primaryType: 'Message',
         message: {'content': 'Hello'},
@@ -173,9 +171,7 @@ void main() {
       const typedData = TypedData(
         domain: TypedDataDomain(name: 'Bool Test', version: '1'),
         types: {
-          'Toggle': [
-            TypedDataField(name: 'enabled', type: 'bool'),
-          ],
+          'Toggle': [TypedDataField(name: 'enabled', type: 'bool')],
         },
         primaryType: 'Toggle',
         message: {'enabled': true},
@@ -190,9 +186,7 @@ void main() {
       const typedData = TypedData(
         domain: TypedDataDomain(name: 'Bytes Test', version: '1'),
         types: {
-          'Hash': [
-            TypedDataField(name: 'value', type: 'bytes32'),
-          ],
+          'Hash': [TypedDataField(name: 'value', type: 'bytes32')],
         },
         primaryType: 'Hash',
         message: {
@@ -287,9 +281,7 @@ void main() {
   group('hashStruct', () {
     test('hashes simple struct', () {
       final types = {
-        'Simple': [
-          const TypedDataField(name: 'value', type: 'uint256'),
-        ],
+        'Simple': [const TypedDataField(name: 'value', type: 'uint256')],
       };
 
       final hash = hashStruct('Simple', {'value': BigInt.from(42)}, types);

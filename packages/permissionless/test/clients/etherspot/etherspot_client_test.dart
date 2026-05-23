@@ -19,11 +19,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -47,10 +43,7 @@ void main() {
 
         expect(gasPrice.maxFeePerGas, equals(BigInt.from(2000000000)));
         expect(gasPrice.maxPriorityFeePerGas, equals(BigInt.from(1000000000)));
-        expect(
-          capturedRequests[0]['method'],
-          equals('skandha_getGasPrice'),
-        );
+        expect(capturedRequests[0]['method'], equals('skandha_getGasPrice'));
       });
 
       test('handles decimal string values', () async {

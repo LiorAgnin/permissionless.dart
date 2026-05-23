@@ -370,9 +370,7 @@ class SafeSmartAccount implements SmartAccount {
       final sharedSignerAddress = _addresses.webAuthnSharedSignerAddress!;
       final p256Verifier = _addresses.safeP256VerifierAddress;
       if (p256Verifier == null) {
-        throw StateError(
-          'WebAuthn owners require safeP256VerifierAddress.',
-        );
+        throw StateError('WebAuthn owners require safeP256VerifierAddress.');
       }
 
       for (final webAuthnOwner in _webAuthnOwners) {
@@ -770,8 +768,10 @@ class SafeSmartAccount implements SmartAccount {
         );
       } else {
         // ECDSA stub: r (32) + s (32) + v (1) = 65 bytes
-        final r =
-            Hex.fromBigInt(Hex.toBigInt(owner.address.hex), byteLength: 32);
+        final r = Hex.fromBigInt(
+          Hex.toBigInt(owner.address.hex),
+          byteLength: 32,
+        );
         const s = Hex.zero32;
         final v = Hex.fromBigInt(BigInt.from(1), byteLength: 1);
         signatureEntries.add(
@@ -838,11 +838,7 @@ class SafeSmartAccount implements SmartAccount {
         // ECDSA signing - Safe signs the raw EIP-712 hash directly
         final sig = await owner.signRawHash(safeOpHash);
         signatureEntries.add(
-          _SignatureEntry(
-            signer: owner.address,
-            data: sig,
-            isDynamic: false,
-          ),
+          _SignatureEntry(signer: owner.address, data: sig, isDynamic: false),
         );
       }
     }
@@ -944,8 +940,9 @@ class SafeSmartAccount implements SmartAccount {
     // Domain type hash: keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
     const domainTypeString =
         'EIP712Domain(uint256 chainId,address verifyingContract)';
-    final domainTypeHash =
-        keccak256(Uint8List.fromList(domainTypeString.codeUnits));
+    final domainTypeHash = keccak256(
+      Uint8List.fromList(domainTypeString.codeUnits),
+    );
 
     final encoded = Hex.concat([
       Hex.fromBytes(domainTypeHash),
@@ -967,14 +964,17 @@ class SafeSmartAccount implements SmartAccount {
     const safeOpTypeString =
         'SafeOp(address safe,uint256 nonce,bytes initCode,bytes callData,uint128 verificationGasLimit,uint128 callGasLimit,uint256 preVerificationGas,uint128 maxPriorityFeePerGas,uint128 maxFeePerGas,bytes paymasterAndData,uint48 validAfter,uint48 validUntil,address entryPoint)';
 
-    final safeOpTypeHash =
-        keccak256(Uint8List.fromList(safeOpTypeString.codeUnits));
+    final safeOpTypeHash = keccak256(
+      Uint8List.fromList(safeOpTypeString.codeUnits),
+    );
 
     // Compute initCode hash
     var initCode = '0x';
     if (userOp.factory != null && userOp.factoryData != null) {
-      initCode =
-          Hex.concat([userOp.factory!.hex, Hex.strip0x(userOp.factoryData!)]);
+      initCode = Hex.concat([
+        userOp.factory!.hex,
+        Hex.strip0x(userOp.factoryData!),
+      ]);
     }
     final initCodeHash = keccak256(Hex.decode(initCode));
 

@@ -19,16 +19,14 @@ void main() {
       });
 
       test('creates from address without 0x prefix', () {
-        final addr =
-            EthereumAddress.fromHex('d8da6bf26964af9d7eed9e03e53415d37aa96045');
+        final addr = EthereumAddress.fromHex(
+          'd8da6bf26964af9d7eed9e03e53415d37aa96045',
+        );
         expect(addr.hex, equals('0xd8da6bf26964af9d7eed9e03e53415d37aa96045'));
       });
 
       test('throws on invalid address length', () {
-        expect(
-          () => EthereumAddress.fromHex('0x1234'),
-          throwsArgumentError,
-        );
+        expect(() => EthereumAddress.fromHex('0x1234'), throwsArgumentError);
       });
 
       test('throws on invalid characters', () {
@@ -166,9 +164,7 @@ void main() {
     group('isValidAddress', () {
       test('validates correct address', () {
         expect(
-          isValidEthereumAddress(
-            '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-          ),
+          isValidEthereumAddress('0xd8da6bf26964af9d7eed9e03e53415d37aa96045'),
           isTrue,
         );
       });
@@ -179,9 +175,7 @@ void main() {
 
       test('rejects invalid characters', () {
         expect(
-          isValidEthereumAddress(
-            '0xgggggggggggggggggggggggggggggggggggggggg',
-          ),
+          isValidEthereumAddress('0xgggggggggggggggggggggggggggggggggggggggg'),
           isFalse,
         );
       });

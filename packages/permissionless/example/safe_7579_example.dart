@@ -128,11 +128,7 @@ void main(List<String> args) async {
 
   print('\n--- Building Transaction ---');
 
-  final call = Call(
-    to: accountAddress,
-    value: BigInt.zero,
-    data: '0x',
-  );
+  final call = Call(to: accountAddress, value: BigInt.zero, data: '0x');
 
   print('Transaction: Self-ping using ERC-7579 execute encoding');
 

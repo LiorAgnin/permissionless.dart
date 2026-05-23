@@ -148,11 +148,7 @@ List<PackageInfo> discoverPackages() {
 
     final name = _readPubspecName(pubspec) ?? _basename(entity.path);
     packages.add(
-      PackageInfo(
-        name: name,
-        path: entity.path,
-        pubspecPath: pubspec.path,
-      ),
+      PackageInfo(name: name, path: entity.path, pubspecPath: pubspec.path),
     );
   }
 

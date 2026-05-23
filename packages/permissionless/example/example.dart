@@ -56,13 +56,7 @@ void main() async {
 
   // 6. Send a sponsored transaction
   final hash = await client.sendUserOperation(
-    calls: [
-      Call(
-        to: accountAddress,
-        value: BigInt.zero,
-        data: '0x',
-      ),
-    ],
+    calls: [Call(to: accountAddress, value: BigInt.zero, data: '0x')],
     maxFeePerGas: BigInt.from(20000000000),
     maxPriorityFeePerGas: BigInt.from(1000000000),
   );

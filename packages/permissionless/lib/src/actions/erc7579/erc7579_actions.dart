@@ -314,8 +314,9 @@ extension Erc7579Actions on SmartAccountClient {
     final callData = encode7579SupportsExecutionMode(mode);
 
     try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
+      final result = await publicClient.call(
+        Call(to: accountAddress, data: callData),
+      );
       return decode7579BoolResult(result);
     } catch (_) {
       // If the call fails, the mode is not supported
@@ -346,8 +347,9 @@ extension Erc7579Actions on SmartAccountClient {
     final callData = encode7579SupportsModule(moduleType);
 
     try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
+      final result = await publicClient.call(
+        Call(to: accountAddress, data: callData),
+      );
       return decode7579BoolResult(result);
     } catch (_) {
       return false;
@@ -381,8 +383,9 @@ extension Erc7579Actions on SmartAccountClient {
     );
 
     try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
+      final result = await publicClient.call(
+        Call(to: accountAddress, data: callData),
+      );
       return decode7579BoolResult(result);
     } catch (_) {
       return false;
@@ -399,15 +402,14 @@ extension Erc7579Actions on SmartAccountClient {
   /// final accountId = await client.getAccountId(publicClient: publicClient);
   /// print('Account type: $accountId');
   /// ```
-  Future<String> getAccountId({
-    required PublicClient publicClient,
-  }) async {
+  Future<String> getAccountId({required PublicClient publicClient}) async {
     final accountAddress = await getAddress();
     final callData = encode7579AccountId();
 
     try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
+      final result = await publicClient.call(
+        Call(to: accountAddress, data: callData),
+      );
       return decode7579StringResult(result);
     } catch (_) {
       return '';

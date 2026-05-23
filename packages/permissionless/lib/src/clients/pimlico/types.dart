@@ -116,8 +116,9 @@ class PimlicoGasPrices {
   factory PimlicoGasPrices.fromJson(Map<String, dynamic> json) =>
       PimlicoGasPrices(
         slow: PimlicoGasPrice.fromJson(json['slow'] as Map<String, dynamic>),
-        standard:
-            PimlicoGasPrice.fromJson(json['standard'] as Map<String, dynamic>),
+        standard: PimlicoGasPrice.fromJson(
+          json['standard'] as Map<String, dynamic>,
+        ),
         fast: PimlicoGasPrice.fromJson(json['fast'] as Map<String, dynamic>),
       );
 

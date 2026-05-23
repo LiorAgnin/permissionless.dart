@@ -19,11 +19,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -69,10 +65,7 @@ void main() {
 
       test('returns submitted status without receipt', () async {
         final mockClient = createMockClient(
-          (_) => {
-            'status': 'submitted',
-            'transactionHash': '0xpending',
-          },
+          (_) => {'status': 'submitted', 'transactionHash': '0xpending'},
         );
         client = createPimlicoClient(
           url: 'http://localhost:8545',
@@ -91,9 +84,7 @@ void main() {
       });
 
       test('returns not_found status', () async {
-        final mockClient = createMockClient(
-          (_) => {'status': 'not_found'},
-        );
+        final mockClient = createMockClient((_) => {'status': 'not_found'});
         client = createPimlicoClient(
           url: 'http://localhost:8545',
           entryPoint: EntryPointAddresses.v07,
@@ -109,9 +100,7 @@ void main() {
       });
 
       test('returns rejected status', () async {
-        final mockClient = createMockClient(
-          (_) => {'status': 'rejected'},
-        );
+        final mockClient = createMockClient((_) => {'status': 'rejected'});
         client = createPimlicoClient(
           url: 'http://localhost:8545',
           entryPoint: EntryPointAddresses.v07,
@@ -126,9 +115,7 @@ void main() {
       });
 
       test('returns reverted status', () async {
-        final mockClient = createMockClient(
-          (_) => {'status': 'reverted'},
-        );
+        final mockClient = createMockClient((_) => {'status': 'reverted'});
         client = createPimlicoClient(
           url: 'http://localhost:8545',
           entryPoint: EntryPointAddresses.v07,
@@ -502,11 +489,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -610,11 +593,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -820,10 +799,7 @@ void main() {
     test('PimlicoSponsorshipPolicy fromJson', () {
       final policy = PimlicoSponsorshipPolicy.fromJson({
         'sponsorshipPolicyId': 'sp_123',
-        'data': {
-          'name': 'Test',
-          'author': 'Author',
-        },
+        'data': {'name': 'Test', 'author': 'Author'},
       });
 
       expect(policy.sponsorshipPolicyId, equals('sp_123'));
@@ -834,10 +810,7 @@ void main() {
     test('PimlicoSponsorshipPolicy toString', () {
       const policy = PimlicoSponsorshipPolicy(
         sponsorshipPolicyId: 'sp_test',
-        data: PimlicoSponsorshipPolicyData(
-          name: 'Test',
-          author: 'Author',
-        ),
+        data: PimlicoSponsorshipPolicyData(name: 'Test', author: 'Author'),
       );
       expect(policy.toString(), equals('PimlicoSponsorshipPolicy(sp_test)'));
     });

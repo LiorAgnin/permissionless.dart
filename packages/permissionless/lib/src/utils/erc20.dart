@@ -72,10 +72,7 @@ Call encodeErc20Approve({
     AbiEncoder.encodeUint256(amount),
   ]);
 
-  return Call(
-    to: token,
-    data: callData,
-  );
+  return Call(to: token, data: callData);
 }
 
 /// Encodes an ERC-20 transfer(to, amount) call.
@@ -102,10 +99,7 @@ Call encodeErc20Transfer({
     AbiEncoder.encodeUint256(amount),
   ]);
 
-  return Call(
-    to: token,
-    data: callData,
-  );
+  return Call(to: token, data: callData);
 }
 
 /// Encodes an ERC-20 allowance(owner, spender) call for eth_call.
@@ -151,13 +145,8 @@ String encodeErc20AllowanceCall({
 /// ));
 /// final balance = decodeUint256Result(result);
 /// ```
-String encodeErc20BalanceOfCall({
-  required EthereumAddress account,
-}) =>
-    Hex.concat([
-      Erc20Selectors.balanceOf,
-      AbiEncoder.encodeAddress(account),
-    ]);
+String encodeErc20BalanceOfCall({required EthereumAddress account}) =>
+    Hex.concat([Erc20Selectors.balanceOf, AbiEncoder.encodeAddress(account)]);
 
 /// Decodes a uint256 result from an eth_call response.
 ///
@@ -195,10 +184,7 @@ class StateDiff {
   ///
   /// - [slot]: The storage slot to override (32-byte hex string)
   /// - [value]: The value to set at this slot (32-byte hex string)
-  const StateDiff({
-    required this.slot,
-    required this.value,
-  });
+  const StateDiff({required this.slot, required this.value});
 
   /// The storage slot (32-byte hex string).
   final String slot;
@@ -361,10 +347,7 @@ List<StateOverride> erc20AllowanceOverride({
 
   // Then: keccak256(abi.encode(spender, innerHash))
   final spenderInnerData = Hex.decode(
-    Hex.concat([
-      AbiEncoder.encodeAddress(spender),
-      Hex.fromBytes(innerHash),
-    ]),
+    Hex.concat([AbiEncoder.encodeAddress(spender), Hex.fromBytes(innerHash)]),
   );
   final storageSlot = keccak256(spenderInnerData);
 

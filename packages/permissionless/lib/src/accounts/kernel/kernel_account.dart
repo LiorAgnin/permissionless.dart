@@ -587,10 +587,7 @@ class KernelSmartAccount implements SmartAccount {
 
     if (_config.version == KernelVersion.v0_2_4) {
       // v0.2.x: ROOT_MODE (4 bytes) + signature
-      return Hex.concat([
-        '0x00000000',
-        Hex.strip0x(signature),
-      ]);
+      return Hex.concat(['0x00000000', Hex.strip0x(signature)]);
     } else {
       // v0.3.x: just the signature (no prefix)
       return signature;
@@ -606,10 +603,7 @@ class KernelSmartAccount implements SmartAccount {
     final signature = await _config.owner.signRawHash(userOpHash);
 
     // v0.2.x: ROOT_MODE (4 bytes) + signature
-    return Hex.concat([
-      '0x00000000',
-      Hex.strip0x(signature),
-    ]);
+    return Hex.concat(['0x00000000', Hex.strip0x(signature)]);
   }
 
   /// Computes the userOpHash for v0.6 UserOperation.

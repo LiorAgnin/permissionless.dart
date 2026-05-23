@@ -20,11 +20,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });

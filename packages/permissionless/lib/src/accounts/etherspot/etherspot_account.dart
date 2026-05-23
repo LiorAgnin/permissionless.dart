@@ -218,16 +218,20 @@ class EtherspotSmartAccount implements SmartAccount {
   String _encodeInitMSA() {
     // Build validators array with ECDSA validator
     final validatorOnInstall = _encodeOnInstall('0x');
-    final validatorConfig =
-        _encodeBootstrapConfig(ecdsaValidator, validatorOnInstall);
+    final validatorConfig = _encodeBootstrapConfig(
+      ecdsaValidator,
+      validatorOnInstall,
+    );
 
     // Build executors array with zero address (matching TS implementation)
     final zeroOnInstall = _encodeOnInstall('0x');
     final executorConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
 
     // Hook - single BootstrapConfig (not array)
-    final hookConfig =
-        _encodeBootstrapConfigTuple(zeroAddress, _encodeOnInstall('0x'));
+    final hookConfig = _encodeBootstrapConfigTuple(
+      zeroAddress,
+      _encodeOnInstall('0x'),
+    );
 
     // Fallbacks array with zero address (matching TS implementation)
     final fallbackConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);

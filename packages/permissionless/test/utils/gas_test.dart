@@ -414,10 +414,7 @@ void main() {
         buffered.verificationGasLimit,
         equals(BigInt.parse('2600000000000')),
       );
-      expect(
-        buffered.callGasLimit,
-        equals(BigInt.parse('3600000000000')),
-      );
+      expect(buffered.callGasLimit, equals(BigInt.parse('3600000000000')));
     });
 
     test('handles fractional multipliers accurately', () {
@@ -455,8 +452,9 @@ void main() {
       const paymasterAndData = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
           'deadbeefcafe';
 
-      final address =
-          getAddressFromInitCodeOrPaymasterAndData(paymasterAndData);
+      final address = getAddressFromInitCodeOrPaymasterAndData(
+        paymasterAndData,
+      );
 
       expect(address, isNotNull);
       expect(
@@ -545,8 +543,9 @@ void main() {
           '00000000000000000000000000000000000000000000000000000000669e8740' // valid after
           'deadbeef'; // signature stub
 
-      final address =
-          getAddressFromInitCodeOrPaymasterAndData(paymasterAndData);
+      final address = getAddressFromInitCodeOrPaymasterAndData(
+        paymasterAndData,
+      );
 
       expect(address, isNotNull);
       expect(

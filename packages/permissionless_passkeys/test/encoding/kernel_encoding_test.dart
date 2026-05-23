@@ -60,10 +60,7 @@ void main() {
         // Slot 5 (0-indexed) is at position 320-384
         final usePrecompiledHex = hex.substring(320, 384);
 
-        expect(
-          BigInt.parse(usePrecompiledHex, radix: 16),
-          equals(BigInt.one),
-        );
+        expect(BigInt.parse(usePrecompiledHex, radix: 16), equals(BigInt.one));
       });
 
       test('r value is max uint256', () {
@@ -89,7 +86,8 @@ void main() {
         expect(
           sHex,
           equals(
-              '7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0'),
+            '7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0',
+          ),
         );
       });
 
@@ -100,8 +98,10 @@ void main() {
         // AuthData starts at offset 192 (0xc0)
         // First 64 chars at that offset are the length
         final authDataStart = 192 * 2; // Convert bytes to hex chars
-        final authDataLengthHex =
-            hex.substring(authDataStart, authDataStart + 64);
+        final authDataLengthHex = hex.substring(
+          authDataStart,
+          authDataStart + 64,
+        );
         final authDataLength = BigInt.parse(authDataLengthHex, radix: 16);
 
         // Dummy authenticator data is 37 bytes
@@ -114,16 +114,20 @@ void main() {
 
         // clientDataJSON offset is in slot 2
         final clientDataOffsetHex = hex.substring(64, 128);
-        final clientDataOffset =
-            BigInt.parse(clientDataOffsetHex, radix: 16).toInt();
+        final clientDataOffset = BigInt.parse(
+          clientDataOffsetHex,
+          radix: 16,
+        ).toInt();
 
         // Read length at that offset
         final clientDataLengthHex = hex.substring(
           clientDataOffset * 2,
           clientDataOffset * 2 + 64,
         );
-        final clientDataLength =
-            BigInt.parse(clientDataLengthHex, radix: 16).toInt();
+        final clientDataLength = BigInt.parse(
+          clientDataLengthHex,
+          radix: 16,
+        ).toInt();
 
         // Client data JSON should be reasonable length
         expect(clientDataLength, greaterThan(50));

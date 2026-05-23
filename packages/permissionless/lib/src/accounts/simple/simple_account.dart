@@ -191,10 +191,7 @@ class SimpleSmartAccount implements SmartAccount {
     final factoryData = _encodeCreateAccount();
 
     // InitCode = factory address (20 bytes) + factory calldata
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    return Hex.concat([_factoryAddress.hex, Hex.strip0x(factoryData)]);
   }
 
   /// Gets the factory address and data for UserOperation v0.7.

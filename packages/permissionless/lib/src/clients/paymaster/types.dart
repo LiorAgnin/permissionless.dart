@@ -211,11 +211,7 @@ class PaymasterContext {
   /// - [sponsorshipPolicyId]: Optional policy ID for policy-based paymasters
   /// - [token]: Optional ERC-20 token address for paying gas with tokens
   /// - [extra]: Additional context data specific to the paymaster
-  const PaymasterContext({
-    this.sponsorshipPolicyId,
-    this.token,
-    this.extra,
-  });
+  const PaymasterContext({this.sponsorshipPolicyId, this.token, this.extra});
 
   /// Sponsorship policy identifier (for policy-based paymasters).
   final String? sponsorshipPolicyId;

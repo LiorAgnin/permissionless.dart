@@ -188,7 +188,9 @@ class UserOperationLog {
   /// Creates a [UserOperationLog] from a JSON response.
   ///
   /// Parses log entries from UserOperation receipts.
-  factory UserOperationLog.fromJson(Map<String, dynamic> json) =>
+  factory UserOperationLog.fromJson(
+    Map<String, dynamic> json,
+  ) =>
       UserOperationLog(
         address: EthereumAddress.fromHex(json['address'] as String),
         topics:
@@ -299,11 +301,7 @@ class BundlerRpcError implements Exception {
   ///
   /// Use [aaErrorCode] to extract ERC-4337 specific error codes like
   /// "AA21" (insufficient funds) or "AA25" (invalid nonce).
-  const BundlerRpcError({
-    required this.code,
-    required this.message,
-    this.data,
-  });
+  const BundlerRpcError({required this.code, required this.message, this.data});
 
   /// JSON-RPC error code.
   final int code;

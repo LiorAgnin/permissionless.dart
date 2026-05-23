@@ -123,9 +123,9 @@ void main() {
         final verifierHex = hex.substring(128);
         expect(verifierHex.length, equals(44));
         expect(
-          verifierHex
-              .toLowerCase()
-              .endsWith('a86e0054c51e4894d88762a017ecc5e5235f5dba'),
+          verifierHex.toLowerCase().endsWith(
+                'a86e0054c51e4894d88762a017ecc5e5235f5dba',
+              ),
           isTrue,
         );
       });
@@ -137,8 +137,10 @@ void main() {
           p256VerifierAddress: '0x1234567890123456789012345678901234567890',
         );
 
-        expect(result.contains('1234567890123456789012345678901234567890'),
-            isTrue);
+        expect(
+          result.contains('1234567890123456789012345678901234567890'),
+          isTrue,
+        );
       });
 
       test('handles verifier address without 0x prefix', () {
@@ -148,8 +150,10 @@ void main() {
           p256VerifierAddress: '1234567890123456789012345678901234567890',
         );
 
-        expect(result.contains('1234567890123456789012345678901234567890'),
-            isTrue);
+        expect(
+          result.contains('1234567890123456789012345678901234567890'),
+          isTrue,
+        );
       });
     });
 

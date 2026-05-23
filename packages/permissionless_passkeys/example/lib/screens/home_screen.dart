@@ -71,11 +71,9 @@ class _NoCredentialView extends StatelessWidget {
   }
 
   void _navigateToRegister(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => const RegisterScreen(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (context) => const RegisterScreen()));
   }
 }
 
@@ -96,22 +94,16 @@ class _CredentialView extends ConsumerWidget {
             title: 'Kernel Account',
             subtitle: 'ZeroDev Kernel v0.3.x with WebAuthn validator',
             icon: Icons.memory,
-            onTap: () => _navigateToAccount(
-              context,
-              AccountType.kernel,
-              credential,
-            ),
+            onTap: () =>
+                _navigateToAccount(context, AccountType.kernel, credential),
           ),
           const SizedBox(height: 12),
           _AccountTypeCard(
             title: 'Safe Account',
             subtitle: 'Safe v1.4.1 with WebAuthn shared signer',
             icon: Icons.security,
-            onTap: () => _navigateToAccount(
-              context,
-              AccountType.safe,
-              credential,
-            ),
+            onTap: () =>
+                _navigateToAccount(context, AccountType.safe, credential),
           ),
           const SizedBox(height: 24),
           OutlinedButton.icon(
@@ -135,10 +127,8 @@ class _CredentialView extends ConsumerWidget {
   ) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => AccountScreen(
-          credential: credential,
-          accountType: type,
-        ),
+        builder: (context) =>
+            AccountScreen(credential: credential, accountType: type),
       ),
     );
   }

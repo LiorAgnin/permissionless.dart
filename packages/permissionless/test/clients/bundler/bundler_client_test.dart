@@ -20,11 +20,7 @@ void main() {
         capturedRequests.add(body);
         final response = responseFactory(body);
         return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
+          jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': response}),
           200,
         );
       });
@@ -466,10 +462,9 @@ void main() {
           httpClient: mockClient,
         );
 
-        await client.sendUserOperationWithAuthorization(
-          userOperation(),
-          [authorization],
-        );
+        await client.sendUserOperationWithAuthorization(userOperation(), [
+          authorization,
+        ]);
 
         final params = capturedRequests.single['params'] as List<dynamic>;
         final userOpJson = params[0] as Map<String, dynamic>;
@@ -602,10 +597,7 @@ void main() {
     });
 
     test('returns null for non-AA errors', () {
-      const error = BundlerRpcError(
-        code: -32600,
-        message: 'Invalid Request',
-      );
+      const error = BundlerRpcError(code: -32600, message: 'Invalid Request');
 
       expect(error.aaErrorCode, isNull);
     });

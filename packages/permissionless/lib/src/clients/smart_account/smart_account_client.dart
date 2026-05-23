@@ -20,10 +20,7 @@ class PreparedUserOperation {
   ///
   /// - [userOp]: The prepared but unsigned UserOperation
   /// - [authorization]: Optional EIP-7702 authorization for first-time delegation
-  const PreparedUserOperation({
-    required this.userOp,
-    this.authorization,
-  });
+  const PreparedUserOperation({required this.userOp, this.authorization});
 
   /// The prepared UserOperation (unsigned).
   final UserOperationV07 userOp;
@@ -127,8 +124,9 @@ class SmartAccountClient {
   ///
   /// Used to signal to the bundler that this UserOperation requires
   /// EIP-7702 authorization handling.
-  static final _eip7702FactoryMarker =
-      EthereumAddress.fromHex('0x7702000000000000000000000000000000000000');
+  static final _eip7702FactoryMarker = EthereumAddress.fromHex(
+    '0x7702000000000000000000000000000000000000',
+  );
 
   /// Prepares a UserOperation without signing.
   ///
@@ -316,10 +314,7 @@ class SmartAccountClient {
       userOp = userOp.withPaymasterData(finalData);
     }
 
-    return PreparedUserOperation(
-      userOp: userOp,
-      authorization: authorization,
-    );
+    return PreparedUserOperation(userOp: userOp, authorization: authorization);
   }
 
   /// Signs a prepared UserOperation.
@@ -360,8 +355,9 @@ class SmartAccountClient {
     Eip7702Authorization? authorization,
   ) {
     if (authorization != null) {
-      return bundler
-          .sendUserOperationWithAuthorization(userOp, [authorization]);
+      return bundler.sendUserOperationWithAuthorization(userOp, [
+        authorization,
+      ]);
     }
     return bundler.sendUserOperation(userOp);
   }
@@ -545,8 +541,9 @@ class SmartAccountClient {
         'Account must implement SmartAccountV06.',
       );
     }
-    final signature =
-        await (account as SmartAccountV06).signUserOperationV06(userOp);
+    final signature = await (account as SmartAccountV06).signUserOperationV06(
+      userOp,
+    );
     return userOp.copyWith(signature: signature);
   }
 
