@@ -121,7 +121,8 @@ class ThirdwebSmartAccount implements SmartAccount {
     EntryPointVersion entryPointVersion,
   ) =>
       switch (entryPointVersion) {
-        EntryPointVersion.v06 || EntryPointVersion.v07 =>
+        EntryPointVersion.v06 ||
+        EntryPointVersion.v07 =>
           EntryPointAddresses.fromVersion(entryPointVersion),
         EntryPointVersion.v08 || EntryPointVersion.v09 => throw ArgumentError(
             'Thirdweb accounts support EntryPoint v0.6 and v0.7 only. '
