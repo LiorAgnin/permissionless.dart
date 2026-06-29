@@ -21,7 +21,7 @@ resolution: workspace
 
 dependencies:
   # Ethereum utilities
-  web3dart: ^3.0.2
+  web3dart: ^3.0.3
   wallet: ^0.0.18
   # Hex encoding/decoding
   convert: ^3.1.2

@@ -28,7 +28,7 @@ dependencies:
   # Using local fork with macOS/Windows platform support
   web3_signers: ^1.0.0
   # Ethereum types (EthereumAddress, keccak256, etc.)
-  web3dart: ^3.0.2
+  web3dart: ^3.0.3
 
 dev_dependencies:
   flutter_test:
