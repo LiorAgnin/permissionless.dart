@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/user_operation.dart';
+import '../../utils/gas.dart';
 import '../bundler/bundler_client.dart';
 import '../bundler/rpc_client.dart';
 import 'types.dart';
@@ -82,25 +83,30 @@ class PimlicoClient extends BundlerClient {
   /// Compressed UserOps use an inflator contract to decompress
   /// the calldata on-chain, significantly reducing costs.
   ///
-  /// [userOp] is the UserOperation to send.
+  /// **Deprecated:** `pimlico_sendCompressedUserOperation` has been
+  /// deprecated due to EIP-4844 blobs. Prefer [sendUserOperation] instead.
+  ///
+  /// RPC params match permissionless.js / Pimlico schema:
+  /// `[compressedUserOperation, inflatorAddress, entryPointAddress]`.
+  ///
+  /// [compressedUserOperation] is the pre-compressed UserOperation hex.
   /// [inflator] is the address of the inflator contract on the target chain.
-  /// [compressedCalldata] is the pre-compressed calldata.
   ///
   /// Returns the UserOperation hash.
+  @Deprecated(
+    'pimlico_sendCompressedUserOperation has been deprecated due to '
+    'EIP-4844 blobs. Please use sendUserOperation instead.',
+  )
   Future<String> sendCompressedUserOperation(
-    UserOperationV07 userOp,
+    String compressedUserOperation,
     EthereumAddress inflator,
-    String compressedCalldata,
   ) async {
-    final packedUserOp = _packUserOperationV07(userOp);
-
     final result = await rpcClient.call(
       'pimlico_sendCompressedUserOperation',
       [
-        packedUserOp,
-        entryPoint.hex,
-        compressedCalldata,
+        compressedUserOperation,
         inflator.hex,
+        entryPoint.hex,
       ],
     );
     return result as String;
@@ -219,11 +225,11 @@ class PimlicoClient extends BundlerClient {
 
   /// Estimates the cost to pay gas with an ERC-20 token.
   ///
-  /// Returns the estimated token cost for the given UserOperation.
-  /// This is useful for showing users the expected cost before
-  /// they submit a transaction.
+  /// Computes the max cost locally from [getTokenQuotes] and
+  /// [getRequiredPrefund] / [getRequiredPrefundV06], matching
+  /// permissionless.js `estimateErc20PaymasterCost` (no dedicated RPC).
   ///
-  /// [userOperation] is the UserOperation to estimate cost for.
+  /// [userOperation] is the UserOperation to estimate cost for (v0.6 or v0.7).
   /// [token] is the ERC-20 token to pay gas with.
   ///
   /// Example:
@@ -233,25 +239,54 @@ class PimlicoClient extends BundlerClient {
   ///   token: usdcAddress,
   /// );
   ///
-  /// final usdAmount = cost.costInUsd.toDouble() / 1e8;
+  /// final usdAmount = cost.costInUsd.toDouble() / 1e6;
   /// print('Estimated cost: \$${usdAmount.toStringAsFixed(2)}');
   /// ```
   Future<PimlicoErc20PaymasterCost> estimateErc20PaymasterCost({
-    required UserOperationV07 userOperation,
+    required UserOperation userOperation,
     required EthereumAddress token,
   }) async {
-    final packedUserOp = _packUserOperationV07(userOperation);
+    final quotes = await getTokenQuotes([token]);
+    if (quotes.isEmpty) {
+      throw ArgumentError(
+        'Token $token is not supported by the Pimlico ERC-20 paymaster',
+      );
+    }
 
-    final result = await rpcClient.call(
-      'pimlico_estimateErc20PaymasterCost',
-      [
-        packedUserOp,
-        entryPoint.hex,
-        token.hex,
-      ],
+    final quote = quotes.first;
+    final BigInt userOperationMaxCost;
+    final BigInt maxFeePerGas;
+
+    if (userOperation is UserOperationV07) {
+      userOperationMaxCost = getRequiredPrefund(userOperation);
+      maxFeePerGas = userOperation.maxFeePerGas;
+    } else if (userOperation is UserOperationV06) {
+      userOperationMaxCost = getRequiredPrefundV06(userOperation);
+      maxFeePerGas = userOperation.maxFeePerGas;
+    } else {
+      throw ArgumentError(
+        'Unsupported UserOperation type: ${userOperation.runtimeType}',
+      );
+    }
+
+    // max cost in wei including paymaster postOp gas
+    final maxCostInWei =
+        userOperationMaxCost + quote.postOpGas * maxFeePerGas;
+
+    // cost in token denomination (wei-scale exchange rate)
+    final costInToken =
+        (maxCostInWei * quote.exchangeRate) ~/ BigInt.from(10).pow(18);
+
+    // cost in USD with 6 decimals of precision (matches permissionless.js)
+    final exchangeRateNativeToUsd =
+        quote.exchangeRateNativeToUsd ?? BigInt.zero;
+    final costInUsd =
+        (maxCostInWei * exchangeRateNativeToUsd) ~/ BigInt.from(10).pow(18);
+
+    return PimlicoErc20PaymasterCost(
+      costInToken: costInToken,
+      costInUsd: costInUsd,
     );
-
-    return PimlicoErc20PaymasterCost.fromJson(result as Map<String, dynamic>);
   }
 
   // ================================================================
@@ -266,7 +301,10 @@ class PimlicoClient extends BundlerClient {
   /// Use this to verify that a sponsorship policy will cover a
   /// UserOperation before submitting it.
   ///
-  /// [userOperation] is the UserOperation to validate against policies.
+  /// RPC method: `pm_validateSponsorshipPolicies` (matches permissionless.js).
+  ///
+  /// [userOperation] is the UserOperation to validate against policies
+  /// (v0.6 or v0.7).
   /// [sponsorshipPolicyIds] is a list of policy IDs to check.
   ///
   /// Returns a list of valid policies with their metadata.
@@ -284,19 +322,17 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoSponsorshipPolicy>> validateSponsorshipPolicies({
-    required UserOperationV07 userOperation,
+    required UserOperation userOperation,
     required List<String> sponsorshipPolicyIds,
   }) async {
     if (sponsorshipPolicyIds.isEmpty) {
       return [];
     }
 
-    final packedUserOp = _packUserOperationV07(userOperation);
-
     final result = await rpcClient.call(
-      'pimlico_validateSponsorshipPolicies',
+      'pm_validateSponsorshipPolicies',
       [
-        packedUserOp,
+        userOperation.toJson(),
         entryPoint.hex,
         sponsorshipPolicyIds,
       ],
@@ -335,35 +371,4 @@ PimlicoClient createPimlicoClient({
       entryPoint: entryPoint,
     );
 
-/// Packs a UserOperationV07 for RPC transmission.
-Map<String, dynamic> _packUserOperationV07(UserOperationV07 userOp) {
-  final packed = <String, dynamic>{
-    'sender': userOp.sender.hex,
-    'nonce': Hex.fromBigInt(userOp.nonce),
-    'callData': userOp.callData,
-    'callGasLimit': Hex.fromBigInt(userOp.callGasLimit),
-    'verificationGasLimit': Hex.fromBigInt(userOp.verificationGasLimit),
-    'preVerificationGas': Hex.fromBigInt(userOp.preVerificationGas),
-    'maxFeePerGas': Hex.fromBigInt(userOp.maxFeePerGas),
-    'maxPriorityFeePerGas': Hex.fromBigInt(userOp.maxPriorityFeePerGas),
-    'signature': userOp.signature,
-  };
 
-  // Factory data (v0.7 style)
-  if (userOp.factory != null) {
-    packed['factory'] = userOp.factory!.hex;
-    packed['factoryData'] = userOp.factoryData ?? '0x';
-  }
-
-  // Paymaster data (v0.7 style)
-  if (userOp.paymaster != null) {
-    packed['paymaster'] = userOp.paymaster!.hex;
-    packed['paymasterVerificationGasLimit'] =
-        Hex.fromBigInt(userOp.paymasterVerificationGasLimit ?? BigInt.zero);
-    packed['paymasterPostOpGasLimit'] =
-        Hex.fromBigInt(userOp.paymasterPostOpGasLimit ?? BigInt.zero);
-    packed['paymasterData'] = userOp.paymasterData ?? '0x';
-  }
-
-  return packed;
-}

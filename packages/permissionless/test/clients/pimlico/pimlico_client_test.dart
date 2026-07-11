@@ -220,7 +220,7 @@ void main() {
     });
 
     group('sendCompressedUserOperation', () {
-      test('sends compressed UserOp with inflator', () async {
+      test('sends 3 params matching Pimlico/JS schema', () async {
         final mockClient = createMockClient(
           (_) => '0xcompresseduserophash1234567890abcdef',
         );
@@ -230,29 +230,15 @@ void main() {
           httpClient: mockClient,
         );
 
-        final userOp = UserOperationV07(
-          sender: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          nonce: BigInt.one,
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0xsignature',
-        );
-
         final inflator = EthereumAddress.fromHex(
           '0xabcdef1234567890abcdef1234567890abcdef12',
         );
-        const compressedCalldata = '0xcompresseddata123';
+        const compressedUserOperation = '0xcompresseddata123';
 
+        // ignore: deprecated_member_use_from_same_package
         final hash = await client.sendCompressedUserOperation(
-          userOp,
+          compressedUserOperation,
           inflator,
-          compressedCalldata,
         );
 
         expect(hash, equals('0xcompresseduserophash1234567890abcdef'));
@@ -261,59 +247,33 @@ void main() {
           equals('pimlico_sendCompressedUserOperation'),
         );
 
+        // JS/Pimlico: [compressedUserOperation, inflatorAddress, entryPoint]
         final params = capturedRequests[0]['params'] as List<dynamic>;
-        expect(params[1], equals(EntryPointAddresses.v07.hex));
-        expect(params[2], equals(compressedCalldata));
-        expect(params[3], equals(inflator.hex));
+        expect(params.length, equals(3));
+        expect(params[0], equals(compressedUserOperation));
+        expect(params[1], equals(inflator.hex));
+        expect(params[2], equals(EntryPointAddresses.v07.hex));
       });
 
-      test('includes factory and paymaster data when present', () async {
+      test('uses client entryPoint for param 3', () async {
         final mockClient = createMockClient(
           (_) => '0xhash1234567890abcdef1234567890abcdef',
         );
         client = createPimlicoClient(
           url: 'http://localhost:8545',
-          entryPoint: EntryPointAddresses.v07,
+          entryPoint: EntryPointAddresses.v06,
           httpClient: mockClient,
         );
 
-        final userOp = UserOperationV07(
-          sender: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          nonce: BigInt.one,
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0xsignature',
-          factory: EthereumAddress.fromHex(
-            '0xaaaa567890123456789012345678901234567890',
-          ),
-          factoryData: '0xfactorydata',
-          paymaster: EthereumAddress.fromHex(
-            '0xbbbb567890123456789012345678901234567890',
-          ),
-          paymasterData: '0xpaymasterdata',
-          paymasterVerificationGasLimit: BigInt.from(50000),
-          paymasterPostOpGasLimit: BigInt.from(25000),
-        );
-
+        // ignore: deprecated_member_use_from_same_package
         await client.sendCompressedUserOperation(
-          userOp,
-          EthereumAddress.fromHex('0xabcdef1234567890abcdef1234567890abcdef12'),
           '0xcompressed',
+          EthereumAddress.fromHex('0xabcdef1234567890abcdef1234567890abcdef12'),
         );
 
         final params = capturedRequests[0]['params'] as List<dynamic>;
-        final packedUserOp = params[0] as Map<String, dynamic>;
-
-        expect(packedUserOp['factory'], equals(userOp.factory!.hex));
-        expect(packedUserOp['factoryData'], equals('0xfactorydata'));
-        expect(packedUserOp['paymaster'], equals(userOp.paymaster!.hex));
-        expect(packedUserOp['paymasterData'], equals('0xpaymasterdata'));
+        expect(params[0], equals('0xcompressed'));
+        expect(params[2], equals(EntryPointAddresses.v06.hex));
       });
     });
 
@@ -493,40 +453,156 @@ void main() {
     late PimlicoClient client;
     late List<Map<String, dynamic>> capturedRequests;
 
-    MockClient createMockClient(
-      dynamic Function(Map<String, dynamic> request) responseFactory,
-    ) {
+    /// Token quote fixture matching pimlico_getTokenQuotes response shape.
+    Map<String, dynamic> tokenQuotesResult({
+      required String token,
+      String postOpGas = '0x124f8', // 75000
+      String exchangeRate = '0xde0b6b3a7640000', // 1e18 (1:1)
+      String exchangeRateNativeToUsd = '0xe4e1c0', // 15_000_000 ($15.00, 6 dec)
+    }) =>
+        {
+          'quotes': [
+            {
+              'token': token,
+              'paymaster': '0x0000000000000039cd5e8aE05257CE51C473ddd1',
+              'postOpGas': postOpGas,
+              'exchangeRate': exchangeRate,
+              'exchangeRateNativeToUsd': exchangeRateNativeToUsd,
+            },
+          ],
+        };
+
+    MockClient createMockClient({
+      Map<String, dynamic> Function(String token)? quotesForToken,
+    }) {
       capturedRequests = [];
       return MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         capturedRequests.add(body);
-        final response = responseFactory(body);
+        final method = body['method'] as String;
+        final dynamic result;
+        if (method == 'eth_chainId') {
+          result = '0xaa36a7'; // sepolia
+        } else if (method == 'pimlico_getTokenQuotes') {
+          final params = body['params'] as List<dynamic>;
+          final tokensObj = params[0] as Map<String, dynamic>;
+          final tokens = tokensObj['tokens'] as List<dynamic>;
+          final token = tokens.first as String;
+          result = quotesForToken?.call(token) ??
+              tokenQuotesResult(token: token);
+        } else {
+          throw StateError('Unexpected RPC method: $method');
+        }
         return http.Response(
           jsonEncode({
             'jsonrpc': '2.0',
             'id': body['id'],
-            'result': response,
+            'result': result,
           }),
           200,
         );
       });
     }
 
-    test('returns cost estimate for ERC-20 token', () async {
-      final mockClient = createMockClient(
-        (_) => {
-          'costInToken':
-              '0x5f5e100', // 100,000,000 (1 USDC with 6 decimals = $100)
-          'costInUsd': '0x5f5e100', // 100,000,000 (1.00 USD with 8 decimals)
-        },
+    UserOperationV07 sampleV07() => UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000), // 1 gwei
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          signature: '0xsignature',
+        );
+
+    test('computes cost locally via getTokenQuotes (no fictitious RPC)',
+        () async {
+      final token = EthereumAddress.fromHex(
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       );
       client = createPimlicoClient(
         url: 'http://localhost:8545',
         entryPoint: EntryPointAddresses.v07,
-        httpClient: mockClient,
+        httpClient: createMockClient(),
       );
 
-      final userOp = UserOperationV07(
+      final userOp = sampleV07();
+      final cost = await client.estimateErc20PaymasterCost(
+        userOperation: userOp,
+        token: token,
+      );
+
+      // Never call the nonexistent pimlico_estimateErc20PaymasterCost
+      expect(
+        capturedRequests.map((r) => r['method']),
+        isNot(contains('pimlico_estimateErc20PaymasterCost')),
+      );
+      expect(
+        capturedRequests.map((r) => r['method']),
+        containsAll(['eth_chainId', 'pimlico_getTokenQuotes']),
+      );
+
+      // prefund gas = 50k + 100k + 200k = 350k; * 1 gwei = 350e12 wei
+      // + postOpGas 75k * 1 gwei = 75e12
+      // maxCostInWei = 425e12
+      // exchangeRate 1e18 => costInToken = 425e12
+      // exchangeRateNativeToUsd 15e6 => costInUsd = 425e12 * 15e6 / 1e18
+      final expectedPrefund = getRequiredPrefund(userOp);
+      final postOpGas = BigInt.from(75000);
+      final maxCostInWei =
+          expectedPrefund + postOpGas * userOp.maxFeePerGas;
+      final expectedToken =
+          (maxCostInWei * BigInt.from(10).pow(18)) ~/ BigInt.from(10).pow(18);
+      final expectedUsd =
+          (maxCostInWei * BigInt.from(15000000)) ~/ BigInt.from(10).pow(18);
+
+      expect(cost.costInToken, equals(expectedToken));
+      expect(cost.costInUsd, equals(expectedUsd));
+    });
+
+    test('getTokenQuotes request params match JS fixture shape', () async {
+      final token = EthereumAddress.fromHex(
+        '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+      );
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v07,
+        httpClient: createMockClient(),
+      );
+
+      await client.estimateErc20PaymasterCost(
+        userOperation: sampleV07(),
+        token: token,
+      );
+
+      final quotesReq = capturedRequests
+          .firstWhere((r) => r['method'] == 'pimlico_getTokenQuotes');
+      final params = quotesReq['params'] as List<dynamic>;
+
+      // JS: [{ tokens }, entryPointAddress, numberToHex(chainId)]
+      expect(params.length, equals(3));
+      expect(
+        (params[0] as Map<String, dynamic>)['tokens'],
+        equals([token.hex]),
+      );
+      expect(params[1], equals(EntryPointAddresses.v07.hex));
+      expect(params[2], equals('0xaa36a7'));
+    });
+
+    test('supports UserOperationV06 prefund formula', () async {
+      final token = EthereumAddress.fromHex(
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      );
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v06,
+        httpClient: createMockClient(),
+      );
+
+      final userOp = UserOperationV06(
         sender: EthereumAddress.fromHex(
           '0x1234567890123456789012345678901234567890',
         ),
@@ -542,58 +618,40 @@ void main() {
 
       final cost = await client.estimateErc20PaymasterCost(
         userOperation: userOp,
-        token: EthereumAddress.fromHex(
-          '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-        ), // USDC
+        token: token,
       );
 
-      expect(cost.costInToken, equals(BigInt.from(100000000)));
-      expect(cost.costInUsd, equals(BigInt.from(100000000)));
-      expect(
-        capturedRequests[0]['method'],
-        equals('pimlico_estimateErc20PaymasterCost'),
-      );
+      final expectedPrefund = getRequiredPrefundV06(userOp);
+      final maxCostInWei =
+          expectedPrefund + BigInt.from(75000) * userOp.maxFeePerGas;
+      final expectedToken =
+          (maxCostInWei * BigInt.from(10).pow(18)) ~/ BigInt.from(10).pow(18);
+      final expectedUsd =
+          (maxCostInWei * BigInt.from(15000000)) ~/ BigInt.from(10).pow(18);
+
+      expect(cost.costInToken, equals(expectedToken));
+      expect(cost.costInUsd, equals(expectedUsd));
     });
 
-    test('includes correct parameters in request', () async {
-      final mockClient = createMockClient(
-        (_) => {'costInToken': '0x1', 'costInUsd': '0x1'},
+    test('throws when token has no quotes', () async {
+      final token = EthereumAddress.fromHex(
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
       );
       client = createPimlicoClient(
         url: 'http://localhost:8545',
         entryPoint: EntryPointAddresses.v07,
-        httpClient: mockClient,
-      );
-
-      final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
+        httpClient: createMockClient(
+          quotesForToken: (_) => {'quotes': <dynamic>[]},
         ),
-        nonce: BigInt.from(5),
-        callData: '0xabcdef123456',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(200000),
-        preVerificationGas: BigInt.from(50000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(100000000),
-        signature: '0xsig',
       );
 
-      final tokenAddress = EthereumAddress.fromHex(
-        '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-      ); // USDT
-
-      await client.estimateErc20PaymasterCost(
-        userOperation: userOp,
-        token: tokenAddress,
+      expect(
+        () => client.estimateErc20PaymasterCost(
+          userOperation: sampleV07(),
+          token: token,
+        ),
+        throwsA(isA<ArgumentError>()),
       );
-
-      final params = capturedRequests[0]['params'] as List<dynamic>;
-      final packedUserOp = params[0] as Map<String, dynamic>;
-
-      expect(packedUserOp['sender'], equals(userOp.sender.hex));
-      expect(params[1], equals(EntryPointAddresses.v07.hex));
-      expect(params[2], equals(tokenAddress.hex));
     });
   });
 
@@ -620,6 +678,20 @@ void main() {
       });
     }
 
+    UserOperationV07 sampleV07({BigInt? nonce}) => UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: nonce ?? BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          signature: '0xsignature',
+        );
+
     test('returns valid sponsorship policies', () async {
       final mockClient = createMockClient(
         (_) => [
@@ -640,22 +712,8 @@ void main() {
         httpClient: mockClient,
       );
 
-      final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        ),
-        nonce: BigInt.one,
-        callData: '0xabcdef',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(200000),
-        preVerificationGas: BigInt.from(50000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(100000000),
-        signature: '0xsignature',
-      );
-
       final policies = await client.validateSponsorshipPolicies(
-        userOperation: userOp,
+        userOperation: sampleV07(),
         sponsorshipPolicyIds: ['sp_my_policy_123'],
       );
 
@@ -667,7 +725,7 @@ void main() {
       expect(policies[0].data.description, equals('A test sponsorship policy'));
       expect(
         capturedRequests[0]['method'],
-        equals('pimlico_validateSponsorshipPolicies'),
+        equals('pm_validateSponsorshipPolicies'),
       );
     });
 
@@ -690,22 +748,8 @@ void main() {
         httpClient: mockClient,
       );
 
-      final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        ),
-        nonce: BigInt.one,
-        callData: '0xabcdef',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(200000),
-        preVerificationGas: BigInt.from(50000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(100000000),
-        signature: '0xsig',
-      );
-
       final policies = await client.validateSponsorshipPolicies(
-        userOperation: userOp,
+        userOperation: sampleV07(),
         sponsorshipPolicyIds: ['sp_policy_1', 'sp_policy_2'],
       );
 
@@ -722,7 +766,54 @@ void main() {
         httpClient: mockClient,
       );
 
-      final userOp = UserOperationV07(
+      final policies = await client.validateSponsorshipPolicies(
+        userOperation: sampleV07(),
+        sponsorshipPolicyIds: [],
+      );
+
+      expect(policies, isEmpty);
+      // Should not make an RPC call if no policy IDs provided
+      expect(capturedRequests, isEmpty);
+    });
+
+    test('request params match JS fixture: method + deepHexlify userOp',
+        () async {
+      final mockClient = createMockClient((_) => <dynamic>[]);
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v07,
+        httpClient: mockClient,
+      );
+
+      final userOp = sampleV07(nonce: BigInt.from(42));
+
+      await client.validateSponsorshipPolicies(
+        userOperation: userOp,
+        sponsorshipPolicyIds: ['sp_test_1', 'sp_test_2'],
+      );
+
+      expect(
+        capturedRequests[0]['method'],
+        equals('pm_validateSponsorshipPolicies'),
+      );
+
+      // JS: [deepHexlify(userOperation), entryPointAddress, sponsorshipPolicyIds]
+      final params = capturedRequests[0]['params'] as List<dynamic>;
+      expect(params.length, equals(3));
+      expect(params[0], equals(userOp.toJson()));
+      expect(params[1], equals(EntryPointAddresses.v07.hex));
+      expect(params[2], equals(['sp_test_1', 'sp_test_2']));
+    });
+
+    test('supports UserOperationV06 payload shape', () async {
+      final mockClient = createMockClient((_) => <dynamic>[]);
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v06,
+        httpClient: mockClient,
+      );
+
+      final userOp = UserOperationV06(
         sender: EthereumAddress.fromHex(
           '0x1234567890123456789012345678901234567890',
         ),
@@ -734,48 +825,53 @@ void main() {
         maxFeePerGas: BigInt.from(1000000000),
         maxPriorityFeePerGas: BigInt.from(100000000),
         signature: '0xsig',
+        initCode: '0x',
+        paymasterAndData: '0x',
       );
 
-      final policies = await client.validateSponsorshipPolicies(
+      await client.validateSponsorshipPolicies(
         userOperation: userOp,
-        sponsorshipPolicyIds: [],
+        sponsorshipPolicyIds: ['sp_v06'],
       );
 
-      expect(policies, isEmpty);
-      // Should not make an RPC call if no policy IDs provided
-      expect(capturedRequests, isEmpty);
+      final params = capturedRequests[0]['params'] as List<dynamic>;
+      final sent = params[0] as Map<String, dynamic>;
+      expect(sent['initCode'], equals('0x'));
+      expect(sent['paymasterAndData'], equals('0x'));
+      expect(sent.containsKey('factory'), isFalse);
+      expect(params[1], equals(EntryPointAddresses.v06.hex));
     });
 
-    test('includes correct parameters in request', () async {
-      final mockClient = createMockClient((_) => <dynamic>[]);
+    test('handles null name/author in policy data', () async {
+      final mockClient = createMockClient(
+        (_) => [
+          {
+            'sponsorshipPolicyId': 'sp_null_fields',
+            'data': {
+              'name': null,
+              'author': null,
+              'icon': null,
+              'description': null,
+            },
+          },
+        ],
+      );
       client = createPimlicoClient(
         url: 'http://localhost:8545',
         entryPoint: EntryPointAddresses.v07,
         httpClient: mockClient,
       );
 
-      final userOp = UserOperationV07(
-        sender: EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        ),
-        nonce: BigInt.from(42),
-        callData: '0xabcdef',
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(200000),
-        preVerificationGas: BigInt.from(50000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(100000000),
-        signature: '0xsig',
+      final policies = await client.validateSponsorshipPolicies(
+        userOperation: sampleV07(),
+        sponsorshipPolicyIds: ['sp_null_fields'],
       );
 
-      await client.validateSponsorshipPolicies(
-        userOperation: userOp,
-        sponsorshipPolicyIds: ['sp_test_1', 'sp_test_2'],
-      );
-
-      final params = capturedRequests[0]['params'] as List<dynamic>;
-      expect(params[1], equals(EntryPointAddresses.v07.hex));
-      expect(params[2], equals(['sp_test_1', 'sp_test_2']));
+      expect(policies.length, equals(1));
+      expect(policies[0].data.name, isNull);
+      expect(policies[0].data.author, isNull);
+      expect(policies[0].data.icon, isNull);
+      expect(policies[0].data.description, isNull);
     });
   });
 
@@ -802,6 +898,20 @@ void main() {
 
       expect(data.name, equals('Minimal'));
       expect(data.author, equals('Author'));
+      expect(data.icon, isNull);
+      expect(data.description, isNull);
+    });
+
+    test('PimlicoSponsorshipPolicyData fromJson with null name/author', () {
+      final data = PimlicoSponsorshipPolicyData.fromJson({
+        'name': null,
+        'author': null,
+        'icon': null,
+        'description': null,
+      });
+
+      expect(data.name, isNull);
+      expect(data.author, isNull);
       expect(data.icon, isNull);
       expect(data.description, isNull);
     });

@@ -283,8 +283,8 @@ class PimlicoSponsorshipPolicyData {
   ///
   /// Use [PimlicoSponsorshipPolicyData.fromJson] for parsing API responses.
   const PimlicoSponsorshipPolicyData({
-    required this.name,
-    required this.author,
+    this.name,
+    this.author,
     this.icon,
     this.description,
   });
@@ -292,19 +292,20 @@ class PimlicoSponsorshipPolicyData {
   /// Creates a [PimlicoSponsorshipPolicyData] from a JSON response.
   ///
   /// Parses the nested `data` field from sponsorship policy responses.
+  /// All fields are nullable to match the Pimlico API / permissionless.js types.
   factory PimlicoSponsorshipPolicyData.fromJson(Map<String, dynamic> json) =>
       PimlicoSponsorshipPolicyData(
-        name: json['name'] as String,
-        author: json['author'] as String,
+        name: json['name'] as String?,
+        author: json['author'] as String?,
         icon: json['icon'] as String?,
         description: json['description'] as String?,
       );
 
   /// Human-readable name of the sponsorship policy.
-  final String name;
+  final String? name;
 
   /// Author or organization that created the policy.
-  final String author;
+  final String? author;
 
   /// Optional icon URL for the policy.
   final String? icon;
@@ -331,7 +332,7 @@ class PimlicoSponsorshipPolicy {
 
   /// Creates a [PimlicoSponsorshipPolicy] from a JSON response.
   ///
-  /// Parses a single policy from `pimlico_validateSponsorshipPolicies`.
+  /// Parses a single policy from `pm_validateSponsorshipPolicies`.
   factory PimlicoSponsorshipPolicy.fromJson(Map<String, dynamic> json) =>
       PimlicoSponsorshipPolicy(
         sponsorshipPolicyId: json['sponsorshipPolicyId'] as String,
@@ -350,10 +351,13 @@ class PimlicoSponsorshipPolicy {
   String toString() => 'PimlicoSponsorshipPolicy($sponsorshipPolicyId)';
 }
 
-/// ERC-20 paymaster cost estimate from Pimlico.
+/// ERC-20 paymaster cost estimate (local computation from token quotes).
 ///
 /// Contains the estimated cost to pay for gas using a specific
 /// ERC-20 token. Both token amount and USD equivalent are provided.
+///
+/// Computed from [PimlicoClient.getTokenQuotes] + [getRequiredPrefund],
+/// matching permissionless.js `estimateErc20PaymasterCost`.
 ///
 /// Example:
 /// ```dart
@@ -361,20 +365,16 @@ class PimlicoSponsorshipPolicy {
 ///   userOperation: userOp,
 ///   token: usdcAddress,
 /// );
-/// print('Cost: ${cost.costInToken} tokens (~\$${cost.costInUsd / 1e8})');
+/// print('Cost: ${cost.costInToken} tokens (~\$${cost.costInUsd / 1e6})');
 /// ```
 class PimlicoErc20PaymasterCost {
   /// Creates an ERC-20 paymaster cost estimate.
-  ///
-  /// Use [PimlicoErc20PaymasterCost.fromJson] for parsing API responses.
   const PimlicoErc20PaymasterCost({
     required this.costInToken,
     required this.costInUsd,
   });
 
-  /// Creates a [PimlicoErc20PaymasterCost] from a JSON response.
-  ///
-  /// Parses the cost estimate from `pimlico_estimateErc20PaymasterCost`.
+  /// Creates a [PimlicoErc20PaymasterCost] from a JSON map.
   factory PimlicoErc20PaymasterCost.fromJson(Map<String, dynamic> json) =>
       PimlicoErc20PaymasterCost(
         costInToken: parseBigInt(json['costInToken']),
@@ -387,10 +387,10 @@ class PimlicoErc20PaymasterCost {
   /// For DAI (18 decimals): 1000000000000000000 = 1 DAI
   final BigInt costInToken;
 
-  /// Cost in USD with 8 decimals precision.
+  /// Cost in USD with 6 decimals precision (10^6).
   ///
-  /// Divide by 10^8 to get human-readable USD amount.
-  /// Example: 150000000 = $1.50
+  /// Matches permissionless.js: divide by 10^6 for a human-readable USD amount.
+  /// Example: 1500000 = $1.50
   final BigInt costInUsd;
 
   @override
