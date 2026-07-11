@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:web3dart/web3dart.dart';
@@ -22,7 +23,9 @@ class ThirdwebSmartAccountConfig {
   ///
   /// - [owner]: The account owner who controls the account
   /// - [chainId]: Chain ID for the network
-  /// - [salt]: Salt for deterministic address generation (defaults to "0x")
+  /// - [salt]: Salt for deterministic address generation. Treated as a UTF-8
+  ///   string (matching permissionless.js `toHex(salt)`), not as hex. Empty or
+  ///   the historical default `"0x"` produce empty salt bytes.
   /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
   /// - [nonceKey]: Custom nonce key for parallel transaction support
   /// - [publicClient]: For RPC-based address computation (recommended)
@@ -45,6 +48,8 @@ class ThirdwebSmartAccountConfig {
   final BigInt chainId;
 
   /// Salt for deterministic address generation.
+  ///
+  /// Encoded as UTF-8 bytes (permissionless.js `toHex(salt)`), not hex-decoded.
   final String salt;
 
   /// EntryPoint version (default: v0.7).
@@ -170,8 +175,8 @@ class ThirdwebSmartAccount implements SmartAccount {
   /// Encodes the createAccount factory call.
   String _encodeCreateAccount() {
     // createAccount(address _admin, bytes _salt)
-    final salt = _config.salt.isEmpty ? '0x' : _config.salt;
-    final saltBytes = Hex.decode(salt);
+    // JS: salt ? toHex(salt) : "0x" — toHex UTF-8-encodes the string.
+    final saltBytes = _saltToBytes(_config.salt);
 
     return Hex.concat([
       ThirdwebSelectors.createAccount,
@@ -186,6 +191,18 @@ class ThirdwebSmartAccount implements SmartAccount {
           ),
         ),
     ]);
+  }
+
+  /// Converts the salt config string to bytes matching permissionless.js.
+  ///
+  /// JS uses `salt ? toHex(salt) : "0x"` where `toHex` on a string is UTF-8.
+  /// Empty string and the historical Dart default `"0x"` map to empty bytes
+  /// (JS omitted / falsy salt).
+  static Uint8List _saltToBytes(String salt) {
+    if (salt.isEmpty || salt == '0x') {
+      return Uint8List(0);
+    }
+    return Uint8List.fromList(utf8.encode(salt));
   }
 
   /// Encodes a single call.
@@ -446,6 +463,9 @@ class ThirdwebSmartAccount implements SmartAccount {
 /// You must provide either [publicClient] or [address] for address computation:
 /// - [publicClient] - Address will be computed automatically via RPC (recommended)
 /// - [address] - Use a pre-computed address
+///
+/// [salt] is a plain UTF-8 string (not hex), matching permissionless.js
+/// `toHex(salt)`. Omit or pass empty/`"0x"` for empty salt bytes.
 ///
 /// Example with publicClient (recommended):
 /// ```dart
