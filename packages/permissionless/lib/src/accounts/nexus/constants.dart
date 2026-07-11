@@ -25,5 +25,6 @@ class NexusSelectors {
   static const String createAccount = '0x0d51f0b7';
 
   /// computeAccountAddress(address eoaOwner, uint256 index, address[] attesters, uint8 threshold)
-  static const String computeAccountAddress = '0x8b97fea1';
+  /// `keccak256("computeAccountAddress(address,uint256,address[],uint8)")[0:4]` = 0x322cc8ca
+  static const String computeAccountAddress = '0x322cc8ca';
 }

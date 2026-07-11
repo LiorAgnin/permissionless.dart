@@ -256,22 +256,19 @@ class NexusSmartAccount implements SmartAccount {
   /// The signing flow for Nexus K1 validator:
   /// 1. Compute userOpHash
   /// 2. Sign with EIP-191 personal message
-  /// 3. Pack as: validatorAddress (20 bytes) + signature (65 bytes)
+  /// 3. Return the bare 65-byte ECDSA signature
   ///
-  /// Note: Nexus expects the signature to be packed with validator address
-  /// as the first 20 bytes, followed by the validator-specific signature.
+  /// Nexus selects the validator via the **nonce key** and forwards
+  /// `userOp.signature` untouched to K1Validator's ECDSA recover — so the
+  /// signature must be the bare 65-byte personal signature (no validator
+  /// address prefix). The validator prefix is only used for ERC-1271
+  /// [signMessage] / [signTypedData] packing.
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
     final userOpHash = _computeUserOpHash(userOp);
 
-    // K1 validator uses EIP-191 personal sign of userOpHash
-    final signature = await _config.owner.signPersonalMessage(userOpHash);
-
-    // Pack: validator address + signature (85 bytes total)
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
+    // K1 validator uses EIP-191 personal sign of userOpHash (bare, 65 bytes)
+    return _config.owner.signPersonalMessage(userOpHash);
   }
 
   /// Signs a personal message (EIP-191) with Nexus wrapper.
