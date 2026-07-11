@@ -491,6 +491,111 @@ void main() {
 
         expect(sig1, isNot(equals(sig2)));
       });
+
+      test(
+        'v0.6 EIP-712 SafeOp signature matches permissionless.js fixture',
+        () async {
+          final owner = PrivateKeyOwner(testPrivateKey);
+          final account = createSafeSmartAccount(
+            owners: [owner],
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v06,
+            address: mockAddress,
+          );
+
+          final userOp = UserOperationV06(
+            sender: mockAddress,
+            nonce: BigInt.one,
+            initCode: '0x',
+            callData: '0xabcdef',
+            callGasLimit: BigInt.from(100000),
+            verificationGasLimit: BigInt.from(200000),
+            preVerificationGas: BigInt.from(50000),
+            maxFeePerGas: BigInt.from(1000000000),
+            maxPriorityFeePerGas: BigInt.from(100000000),
+            paymasterAndData: '0x',
+            signature: '0x',
+          );
+
+          final signature = await account.signUserOperationV06(userOp);
+
+          // viem signTypedData over EIP712_SAFE_OPERATION_TYPE_V06 with
+          // Safe4337Module 0xa581c4A4…4037, validAfter=0, validUntil=0,
+          // then packed as uint48‖uint48‖sig.
+          expect(
+            signature.toLowerCase(),
+            equals(
+              '0x000000000000000000000000c43b190628af4f8c76904c710f7a0f081556482309ff0352d0351986e0c8fecc298b32f1ccb48415db61fc1ef259f328e52e611cb13a51194a31c75036abbb971b',
+            ),
+          );
+        },
+      );
+
+      test('v0.6 throws when signUserOperation (v0.7 API) is used', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: mockAddress,
+        );
+
+        final userOp = UserOperationV07(
+          sender: mockAddress,
+          nonce: BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+        );
+
+        expect(
+          () => account.signUserOperation(userOp),
+          throwsA(isA<UnsupportedError>()),
+        );
+      });
+
+      test('v0.7 throws when signUserOperationV06 is used', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v07,
+          address: mockAddress,
+        );
+
+        final userOp = UserOperationV06(
+          sender: mockAddress,
+          nonce: BigInt.one,
+          initCode: '0x',
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          paymasterAndData: '0x',
+        );
+
+        expect(
+          () => account.signUserOperationV06(userOp),
+          throwsA(isA<UnsupportedError>()),
+        );
+      });
+
+      test('implements SmartAccountV06 for client v0.6 pipeline', () {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: mockAddress,
+        );
+
+        expect(account, isA<SmartAccountV06>());
+      });
     });
 
     group('useMultiSendForSetup', () {

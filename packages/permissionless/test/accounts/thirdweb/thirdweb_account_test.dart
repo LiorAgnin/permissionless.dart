@@ -122,4 +122,100 @@ void main() {
       );
     });
   });
+
+  group('ThirdwebSmartAccount signUserOperation', () {
+    late PrivateKeyOwner owner;
+
+    setUp(() {
+      owner = PrivateKeyOwner(testPrivateKey);
+    });
+
+    UserOperationV07 fixtureUserOpV07(EthereumAddress sender) =>
+        UserOperationV07(
+          sender: sender,
+          nonce: BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          signature: '0x',
+        );
+
+    UserOperationV06 fixtureUserOpV06(EthereumAddress sender) =>
+        UserOperationV06(
+          sender: sender,
+          nonce: BigInt.one,
+          initCode: '0x',
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          paymasterAndData: '0x',
+          signature: '0x',
+        );
+
+    test('v0.6 personal-signs v0.6 userOpHash matching viem fixture',
+        () async {
+      final account = createThirdwebSmartAccount(
+        owner: owner,
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        address: mockAddress,
+      );
+
+      final signature =
+          await account.signUserOperationV06(fixtureUserOpV06(mockAddress));
+
+      // viem getUserOperationHash (v0.6) + signMessage({ raw: hash })
+      expect(
+        signature.toLowerCase(),
+        equals(
+          '0x722cff5408f0bfb44be7b89c1352926b788b13e3aab3ca90eba3f140541ef0e84f013c007081d3f0d27f5fccbdb10d1d33c7582f930504f7b874134d1781c55d1b',
+        ),
+      );
+    });
+
+    test('v0.6 throws when signUserOperation (v0.7 API) is used', () async {
+      final account = createThirdwebSmartAccount(
+        owner: owner,
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        address: mockAddress,
+      );
+
+      expect(
+        () => account.signUserOperation(fixtureUserOpV07(mockAddress)),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('v0.7 throws when signUserOperationV06 is used', () async {
+      final account = createThirdwebSmartAccount(
+        owner: owner,
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v07,
+        address: mockAddress,
+      );
+
+      expect(
+        () => account.signUserOperationV06(fixtureUserOpV06(mockAddress)),
+        throwsA(isA<UnsupportedError>()),
+      );
+    });
+
+    test('implements SmartAccountV06 for client v0.6 pipeline', () {
+      final account = createThirdwebSmartAccount(
+        owner: owner,
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        address: mockAddress,
+      );
+
+      expect(account, isA<SmartAccountV06>());
+    });
+  });
 }

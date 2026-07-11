@@ -161,7 +161,7 @@ class SafeSmartAccountConfig {
 }
 
 /// A Safe smart account implementation for ERC-4337.
-class SafeSmartAccount implements SmartAccount {
+class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// Creates a Safe smart account from the given configuration.
   ///
   /// Prefer using [createSafeSmartAccount] factory function instead
@@ -794,19 +794,45 @@ class SafeSmartAccount implements SmartAccount {
     return Hex.concat([validAfter, validUntil, concatenatedSigs]);
   }
 
-  /// Signs a UserOperation.
+  /// Signs a UserOperation for EntryPoint v0.7.
   ///
-  /// For EntryPoint v0.7, creates an EIP-712 signature over the SafeOp.
+  /// Creates an EIP-712 signature over the v0.7 SafeOp typehash.
+  /// For v0.6 accounts, use [signUserOperationV06] instead.
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
+    if (_config.entryPointVersion == EntryPointVersion.v06) {
+      throw UnsupportedError(
+        'Safe account configured for EntryPoint v0.6. '
+        'Use signUserOperationV06 instead.',
+      );
+    }
+
     // Use the sender from the UserOp rather than computing locally
     // This ensures the signature matches the actual account address
-    final accountAddress = userOp.sender;
+    final safeOpHash = _computeSafeOpHashV07(userOp, userOp.sender);
+    return _signSafeOpHash(safeOpHash);
+  }
 
-    // Compute SafeOp hash for EIP-712 signing
-    final safeOpHash = _computeSafeOpHash(userOp, accountAddress);
+  /// Signs a UserOperation for EntryPoint v0.6.
+  ///
+  /// Creates an EIP-712 signature over the v0.6 SafeOp typehash
+  /// (uint256 gas fields, callGasLimit before verificationGasLimit),
+  /// matching permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`.
+  @override
+  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
+    if (_config.entryPointVersion != EntryPointVersion.v06) {
+      throw UnsupportedError(
+        'signUserOperationV06 requires EntryPoint v0.6. '
+        'This account is configured for ${_config.entryPointVersion.name}.',
+      );
+    }
 
-    // Build signature entries for each owner
+    final safeOpHash = _computeSafeOpHashV06(userOp, userOp.sender);
+    return _signSafeOpHash(safeOpHash);
+  }
+
+  /// Signs a SafeOp hash with all owners and packs validAfter/validUntil.
+  Future<String> _signSafeOpHash(String safeOpHash) async {
     final signatureEntries = <_SignatureEntry>[];
 
     // Sort owners by their "effective" address (shared signer for WebAuthn)
@@ -1019,26 +1045,35 @@ class SafeSmartAccount implements SmartAccount {
     return '0x${hex.substring(0, 128)}${v.toRadixString(16).padLeft(2, '0')}';
   }
 
-  /// Computes the SafeOp hash for EIP-712 signing.
-  String _computeSafeOpHash(
+  /// Computes the SafeOp EIP-712 hash for EntryPoint v0.7.
+  String _computeSafeOpHashV07(
     UserOperationV07 userOp,
     EthereumAddress accountAddress,
   ) {
-    // IMPORTANT: Domain separator uses the Safe4337Module address as verifyingContract
-    // (not the Safe account address!) because Safe's fallback uses 'call' not 'delegatecall',
-    // so 'this' in the module's domainSeparator() refers to the module's address.
     final domainSeparator = _computeDomainSeparator();
+    final safeOpStructHash =
+        _computeSafeOpStructHashV07(userOp, accountAddress);
+    return _eip712Hash(domainSeparator, safeOpStructHash);
+  }
 
-    // SafeOp struct hash
-    final safeOpStructHash = _computeSafeOpStructHash(userOp, accountAddress);
+  /// Computes the SafeOp EIP-712 hash for EntryPoint v0.6.
+  String _computeSafeOpHashV06(
+    UserOperationV06 userOp,
+    EthereumAddress accountAddress,
+  ) {
+    final domainSeparator = _computeDomainSeparator();
+    final safeOpStructHash =
+        _computeSafeOpStructHashV06(userOp, accountAddress);
+    return _eip712Hash(domainSeparator, safeOpStructHash);
+  }
 
-    // EIP-712 hash: keccak256("\x19\x01" ++ domainSeparator ++ structHash)
+  /// EIP-712 hash: keccak256("\x19\x01" ‖ domainSeparator ‖ structHash).
+  String _eip712Hash(String domainSeparator, String structHash) {
     final preImage = Hex.concat([
       '0x1901',
       Hex.strip0x(domainSeparator),
-      Hex.strip0x(safeOpStructHash),
+      Hex.strip0x(structHash),
     ]);
-
     return Hex.fromBytes(keccak256(Hex.decode(preImage)));
   }
 
@@ -1067,12 +1102,12 @@ class SafeSmartAccount implements SmartAccount {
     return Hex.fromBytes(keccak256(Hex.decode(encoded)));
   }
 
-  /// Computes the SafeOp struct hash for EIP-712.
-  String _computeSafeOpStructHash(
+  /// Computes the SafeOp struct hash for EntryPoint v0.7 EIP-712.
+  String _computeSafeOpStructHashV07(
     UserOperationV07 userOp,
     EthereumAddress accountAddress,
   ) {
-    // SafeOp type hash for v0.7
+    // SafeOp type hash for v0.7 (uint128 gas fields; verification before call)
     const safeOpTypeString =
         'SafeOp(address safe,uint256 nonce,bytes initCode,bytes callData,uint128 verificationGasLimit,uint128 callGasLimit,uint256 preVerificationGas,uint128 maxPriorityFeePerGas,uint128 maxFeePerGas,bytes paymasterAndData,uint48 validAfter,uint48 validUntil,address entryPoint)';
 
@@ -1122,7 +1157,46 @@ class SafeSmartAccount implements SmartAccount {
       Hex.fromBytes(paymasterAndDataHash),
       AbiEncoder.encodeUint48(0), // validAfter
       AbiEncoder.encodeUint48(0), // validUntil
-      AbiEncoder.encodeAddress(EntryPointAddresses.v07),
+      AbiEncoder.encodeAddress(entryPoint),
+    ]);
+
+    return Hex.fromBytes(keccak256(Hex.decode(encoded)));
+  }
+
+  /// Computes the SafeOp struct hash for EntryPoint v0.6 EIP-712.
+  ///
+  /// Matches permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`: uint256 gas
+  /// fields with callGasLimit before verificationGasLimit, and maxFeePerGas
+  /// before maxPriorityFeePerGas.
+  String _computeSafeOpStructHashV06(
+    UserOperationV06 userOp,
+    EthereumAddress accountAddress,
+  ) {
+    const safeOpTypeString =
+        'SafeOp(address safe,uint256 nonce,bytes initCode,bytes callData,uint256 callGasLimit,uint256 verificationGasLimit,uint256 preVerificationGas,uint256 maxFeePerGas,uint256 maxPriorityFeePerGas,bytes paymasterAndData,uint48 validAfter,uint48 validUntil,address entryPoint)';
+
+    final safeOpTypeHash =
+        keccak256(Uint8List.fromList(safeOpTypeString.codeUnits));
+
+    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
+    final callDataHash = keccak256(Hex.decode(userOp.callData));
+    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
+
+    final encoded = Hex.concat([
+      Hex.fromBytes(safeOpTypeHash),
+      AbiEncoder.encodeAddress(accountAddress),
+      AbiEncoder.encodeUint256(userOp.nonce),
+      Hex.fromBytes(initCodeHash),
+      Hex.fromBytes(callDataHash),
+      AbiEncoder.encodeUint256(userOp.callGasLimit),
+      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
+      AbiEncoder.encodeUint256(userOp.preVerificationGas),
+      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
+      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
+      Hex.fromBytes(paymasterAndDataHash),
+      AbiEncoder.encodeUint48(0), // validAfter
+      AbiEncoder.encodeUint48(0), // validUntil
+      AbiEncoder.encodeAddress(entryPoint),
     ]);
 
     return Hex.fromBytes(keccak256(Hex.decode(encoded)));

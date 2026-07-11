@@ -82,7 +82,7 @@ class ThirdwebSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Thirdweb account: $address');
 /// ```
-class ThirdwebSmartAccount implements SmartAccount {
+class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   /// Creates a Thirdweb smart account from the given configuration.
   ///
   /// Prefer using [createThirdwebSmartAccount] factory function instead
@@ -318,10 +318,36 @@ class ThirdwebSmartAccount implements SmartAccount {
   String getStubSignature() =>
       '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
 
-  /// Signs a UserOperation.
+  /// Signs a UserOperation for EntryPoint v0.7.
+  ///
+  /// For v0.6 accounts, use [signUserOperationV06] instead.
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = _computeUserOpHash(userOp);
+    if (_config.entryPointVersion == EntryPointVersion.v06) {
+      throw UnsupportedError(
+        'Thirdweb account configured for EntryPoint v0.6. '
+        'Use signUserOperationV06 instead.',
+      );
+    }
+
+    final userOpHash = _computeUserOpHashV07(userOp);
+    return _config.owner.signPersonalMessage(userOpHash);
+  }
+
+  /// Signs a UserOperation for EntryPoint v0.6.
+  ///
+  /// Uses the v0.6 userOpHash layout (unpacked gas fields) and EIP-191
+  /// personal-sign, matching permissionless.js / viem.
+  @override
+  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
+    if (_config.entryPointVersion != EntryPointVersion.v06) {
+      throw UnsupportedError(
+        'signUserOperationV06 requires EntryPoint v0.6. '
+        'This account is configured for ${_config.entryPointVersion.name}.',
+      );
+    }
+
+    final userOpHash = _computeUserOpHashV06(userOp);
     return _config.owner.signPersonalMessage(userOpHash);
   }
 
@@ -389,9 +415,9 @@ class ThirdwebSmartAccount implements SmartAccount {
     return _config.owner.signTypedData(wrappedTypedData);
   }
 
-  /// Computes the userOpHash for signing.
-  String _computeUserOpHash(UserOperationV07 userOp) {
-    final packed = _packUserOpForHash(userOp);
+  /// Computes the userOpHash for EntryPoint v0.7 signing.
+  String _computeUserOpHashV07(UserOperationV07 userOp) {
+    final packed = _packUserOpForHashV07(userOp);
     final packedHash = keccak256(Hex.decode(packed));
 
     final hashInput = Hex.concat([
@@ -403,8 +429,8 @@ class ThirdwebSmartAccount implements SmartAccount {
     return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
   }
 
-  /// Packs a UserOperation for hashing.
-  String _packUserOpForHash(UserOperationV07 userOp) {
+  /// Packs a UserOperation for EntryPoint v0.7 hashing.
+  String _packUserOpForHashV07(UserOperationV07 userOp) {
     var initCode = '0x';
     if (userOp.factory != null) {
       initCode = Hex.concat([
@@ -450,6 +476,40 @@ class ThirdwebSmartAccount implements SmartAccount {
       Hex.strip0x(accountGasLimits),
       AbiEncoder.encodeUint256(userOp.preVerificationGas),
       Hex.strip0x(gasFees),
+      Hex.fromBytes(paymasterAndDataHash),
+    ]);
+  }
+
+  /// Computes the userOpHash for EntryPoint v0.6 signing.
+  String _computeUserOpHashV06(UserOperationV06 userOp) {
+    final packed = _packUserOpForHashV06(userOp);
+    final packedHash = keccak256(Hex.decode(packed));
+
+    final hashInput = Hex.concat([
+      Hex.fromBytes(packedHash),
+      AbiEncoder.encodeAddress(entryPoint),
+      AbiEncoder.encodeUint256(_config.chainId),
+    ]);
+
+    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
+  }
+
+  /// Packs a UserOperation for EntryPoint v0.6 hashing.
+  String _packUserOpForHashV06(UserOperationV06 userOp) {
+    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
+    final callDataHash = keccak256(Hex.decode(userOp.callData));
+    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
+
+    return Hex.concat([
+      AbiEncoder.encodeAddress(userOp.sender),
+      AbiEncoder.encodeUint256(userOp.nonce),
+      Hex.fromBytes(initCodeHash),
+      Hex.fromBytes(callDataHash),
+      AbiEncoder.encodeUint256(userOp.callGasLimit),
+      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
+      AbiEncoder.encodeUint256(userOp.preVerificationGas),
+      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
+      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
       Hex.fromBytes(paymasterAndDataHash),
     ]);
   }
