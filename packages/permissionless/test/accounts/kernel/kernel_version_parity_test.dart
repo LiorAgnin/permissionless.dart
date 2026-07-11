@@ -1,0 +1,289 @@
+import 'package:permissionless/permissionless.dart';
+import 'package:test/test.dart';
+
+/// Fixtures generated from permissionless.js (viem encodeFunctionData) for
+/// Hardhat account #0 owner, index 0, useMetaFactory=true unless noted.
+///
+/// Owner: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+/// Private key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+void main() {
+  const testPrivateKey =
+      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+  final mockAddress =
+      EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+  late PrivateKeyOwner owner;
+
+  setUp(() {
+    owner = PrivateKeyOwner(testPrivateKey);
+  });
+
+  group('KernelVersion coverage', () {
+    test('all eight JS versions are defined', () {
+      expect(
+        KernelVersion.values.map((v) => v.value).toSet(),
+        equals({
+          '0.2.1',
+          '0.2.2',
+          '0.2.3',
+          '0.2.4',
+          '0.3.0-beta',
+          '0.3.1',
+          '0.3.2',
+          '0.3.3',
+        }),
+      );
+    });
+
+    test('defaults match permissionless.js getDefaultKernelVersion', () {
+      expect(
+        KernelVersion.defaultForEntryPoint(isEntryPointV06: true),
+        equals(KernelVersion.v0_2_2),
+      );
+      expect(
+        KernelVersion.defaultForEntryPoint(isEntryPointV06: false),
+        equals(KernelVersion.v0_3_0_beta),
+      );
+    });
+
+    test('version-less createKernelSmartAccount defaults to 0.3.0-beta',
+        () async {
+      final account = createKernelSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+        address: mockAddress,
+      );
+      expect(account.entryPointVersion, equals(EntryPointVersion.v07));
+      final factoryData = await account.getFactoryData();
+      // Meta factory for 0.3.0-beta
+      expect(
+        factoryData!.factory.hex.toLowerCase(),
+        equals('0xd703aae79538628d27099b8c4f621be4ccd142d5'),
+      );
+      // 4-arg initialize selector for beta
+      expect(
+        factoryData.factoryData.toLowerCase(),
+        contains('12af322c'),
+      );
+    });
+
+    test('isV2 / isV3 / usesBetaInitialize helpers', () {
+      for (final v in [
+        KernelVersion.v0_2_1,
+        KernelVersion.v0_2_2,
+        KernelVersion.v0_2_3,
+        KernelVersion.v0_2_4,
+      ]) {
+        expect(v.isV2, isTrue, reason: v.value);
+        expect(v.isV3, isFalse, reason: v.value);
+        expect(v.usesErc7579, isFalse, reason: v.value);
+      }
+      for (final v in [
+        KernelVersion.v0_3_0_beta,
+        KernelVersion.v0_3_1,
+        KernelVersion.v0_3_2,
+        KernelVersion.v0_3_3,
+      ]) {
+        expect(v.isV3, isTrue, reason: v.value);
+        expect(v.usesErc7579, isTrue, reason: v.value);
+      }
+      expect(KernelVersion.v0_3_0_beta.usesBetaInitialize, isTrue);
+      expect(KernelVersion.v0_3_1.usesBetaInitialize, isFalse);
+      expect(KernelVersion.v0_2_1.skipsKernelMessageWrap, isTrue);
+      expect(KernelVersion.v0_2_2.skipsKernelMessageWrap, isTrue);
+      expect(KernelVersion.v0_2_3.skipsKernelMessageWrap, isFalse);
+      expect(KernelVersion.v0_2_4.skipsKernelMessageWrap, isFalse);
+    });
+  });
+
+  group('KernelVersionAddresses parity with JS', () {
+    final expected = <KernelVersion, Map<String, String?>>{
+      KernelVersion.v0_2_1: {
+        'logic': '0xf048ad83cb2dfd6037a43902a2a5be04e53cd2eb',
+        'factory': '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        'ecdsa': '0xd9ab5096a832b9ce79914329daee236f8eea0390',
+        'meta': null,
+      },
+      KernelVersion.v0_2_2: {
+        'logic': '0x0da6a956b9488ed4dd761e59f52fdc6c8068e6b5',
+        'factory': '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        'ecdsa': '0xd9ab5096a832b9ce79914329daee236f8eea0390',
+        'meta': null,
+      },
+      KernelVersion.v0_2_3: {
+        'logic': '0xd3f582f6b4814e989ee8e96bc3175320b5a540ab',
+        'factory': '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        'ecdsa': '0xd9ab5096a832b9ce79914329daee236f8eea0390',
+        'meta': null,
+      },
+      KernelVersion.v0_2_4: {
+        'logic': '0xd3082872f8b06073a021b4602e022d5a070d7cfc',
+        'factory': '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        'ecdsa': '0xd9ab5096a832b9ce79914329daee236f8eea0390',
+        'meta': null,
+      },
+      KernelVersion.v0_3_0_beta: {
+        'logic': '0x94f097e1ebeb4eca3aae54cabb08905b239a7d27',
+        'factory': '0x6723b44abeec4e71ebe3232bd5b455805badd22f',
+        'ecdsa': '0x8104e3ad430ea6d354d013a6789fdfc71e671c43',
+        'meta': '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        'webauthn': '0x7ab16ff354acb328452f1d445b3ddee9a91e9e69',
+      },
+      KernelVersion.v0_3_1: {
+        'logic': '0xbac849bb641841b44e965fb01a4bf5f074f84b4d',
+        'factory': '0xaac5d4240af87249b3f71bc8e4a2cae074a3e419',
+        'ecdsa': '0x845adb2c711129d4f3966735ed98a9f09fc4ce57',
+        'meta': '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        'webauthn': '0x7ab16ff354acb328452f1d445b3ddee9a91e9e69',
+      },
+      KernelVersion.v0_3_2: {
+        'logic': '0xd830d15d3dc0c269f3dbaa0f3e8626d33cfdabe1',
+        'factory': '0x7a1dbab750f12a90eb1b60d2ae3ad17d4d81effe',
+        'ecdsa': '0x845adb2c711129d4f3966735ed98a9f09fc4ce57',
+        'meta': '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        'webauthn': null,
+      },
+      KernelVersion.v0_3_3: {
+        'logic': '0xd6cedde84be40893d153be9d467cd6ad37875b28',
+        'factory': '0x2577507b78c2008ff367261cb6285d44ba5ef2e9',
+        'ecdsa': '0x845adb2c711129d4f3966735ed98a9f09fc4ce57',
+        'meta': '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+      },
+    };
+
+    for (final entry in expected.entries) {
+      test('${entry.key.value} addresses match JS map', () {
+        final addrs = KernelVersionAddresses.getAddresses(entry.key)!;
+        final e = entry.value;
+        expect(addrs.accountImplementation.hex.toLowerCase(), e['logic']);
+        expect(addrs.factory.hex.toLowerCase(), e['factory']);
+        expect(addrs.ecdsaValidator!.hex.toLowerCase(), e['ecdsa']);
+        if (e['meta'] == null) {
+          expect(addrs.metaFactory, isNull);
+        } else {
+          expect(addrs.metaFactory!.hex.toLowerCase(), e['meta']);
+        }
+        if (e.containsKey('webauthn')) {
+          if (e['webauthn'] == null) {
+            expect(addrs.webAuthnValidator, isNull);
+          } else {
+            expect(
+              addrs.webAuthnValidator!.hex.toLowerCase(),
+              e['webauthn'],
+            );
+          }
+        }
+      });
+    }
+  });
+
+  group('factoryData byte-match JS fixtures', () {
+    // Fixtures from permissionless.js viem encodeFunctionData (case-insensitive).
+    const fixtures = <String, ({String factory, String factoryData})>{
+      '0.2.1': (
+        factory: '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        factoryData:
+            '0x296601cd000000000000000000000000f048ad83cb2dfd6037a43902a2a5be04e53cd2eb000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084d1f57894000000000000000000000000d9ab5096a832b9ce79914329daee236f8eea039000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.2.2': (
+        factory: '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        factoryData:
+            '0x296601cd0000000000000000000000000da6a956b9488ed4dd761e59f52fdc6c8068e6b5000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084d1f57894000000000000000000000000d9ab5096a832b9ce79914329daee236f8eea039000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.2.3': (
+        factory: '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        factoryData:
+            '0x296601cd000000000000000000000000d3f582f6b4814e989ee8e96bc3175320b5a540ab000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084d1f57894000000000000000000000000d9ab5096a832b9ce79914329daee236f8eea039000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.2.4': (
+        factory: '0x5de4839a76cf55d0c90e2061ef4386d962e15ae3',
+        factoryData:
+            '0x296601cd000000000000000000000000d3082872f8b06073a021b4602e022d5a070d7cfc000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084d1f57894000000000000000000000000d9ab5096a832b9ce79914329daee236f8eea039000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb9226600000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.3.0-beta': (
+        factory: '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        factoryData:
+            '0xc5265d5d0000000000000000000000006723b44abeec4e71ebe3232bd5b455805badd22f0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e412af322c018104e3ad430ea6d354d013a6789fdfc71e671c4300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c00000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.3.1': (
+        factory: '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        factoryData:
+            '0xc5265d5d000000000000000000000000aac5d4240af87249b3f71bc8e4a2cae074a3e4190000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001243c3b752b01845adb2c711129d4f3966735ed98a9f09fc4ce570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.3.2': (
+        factory: '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        factoryData:
+            '0xc5265d5d0000000000000000000000007a1dbab750f12a90eb1b60d2ae3ad17d4d81effe0000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001243c3b752b01845adb2c711129d4f3966735ed98a9f09fc4ce570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+      '0.3.3': (
+        factory: '0xd703aae79538628d27099b8c4f621be4ccd142d5',
+        factoryData:
+            '0xc5265d5d0000000000000000000000002577507b78c2008ff367261cb6285d44ba5ef2e90000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001243c3b752b01845adb2c711129d4f3966735ed98a9f09fc4ce570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+      ),
+    };
+
+    final versionByValue = {
+      for (final v in KernelVersion.values) v.value: v,
+    };
+
+    for (final entry in fixtures.entries) {
+      test('${entry.key} factoryData matches permissionless.js', () async {
+        final version = versionByValue[entry.key]!;
+        final account = createKernelSmartAccount(
+          owner: owner,
+          chainId: BigInt.from(1),
+          version: version,
+          address: mockAddress,
+        );
+        final result = await account.getFactoryData();
+        expect(result, isNotNull);
+        expect(
+          result!.factory.hex.toLowerCase(),
+          equals(entry.value.factory),
+        );
+        expect(
+          result.factoryData.toLowerCase(),
+          equals(entry.value.factoryData),
+        );
+      });
+    }
+
+    test('0.3.1 useMetaFactory:false matches direct factory path', () async {
+      const jsFactory = '0xaac5d4240af87249b3f71bc8e4a2cae074a3e419';
+      const jsFactoryData =
+          '0xea6d13ac0000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001243c3b752b01845adb2c711129d4f3966735ed98a9f09fc4ce570000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000014f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+      final account = createKernelSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+        version: KernelVersion.v0_3_1,
+        useMetaFactory: false,
+        address: mockAddress,
+      );
+      final result = await account.getFactoryData();
+      expect(result!.factory.hex.toLowerCase(), equals(jsFactory));
+      expect(result.factoryData.toLowerCase(), equals(jsFactoryData));
+    });
+  });
+
+  group('createEcdsaKernelSmartAccount alias', () {
+    test('delegates to createKernelSmartAccount with same factory data',
+        () async {
+      // ignore: deprecated_member_use_from_same_package
+      final ecdsa = createEcdsaKernelSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+        version: KernelVersion.v0_3_1,
+        address: mockAddress,
+      );
+      final kernel = createKernelSmartAccount(
+        owner: owner,
+        chainId: BigInt.from(1),
+        version: KernelVersion.v0_3_1,
+        address: mockAddress,
+      );
+      final a = await ecdsa.getFactoryData();
+      final b = await kernel.getFactoryData();
+      expect(a!.factoryData.toLowerCase(), equals(b!.factoryData.toLowerCase()));
+    });
+  });
+}

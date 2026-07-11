@@ -29,19 +29,21 @@ class KernelSmartAccountConfig {
   ///
   /// - [owner]: The account owner
   /// - [chainId]: Chain ID for the network
-  /// - [version]: Kernel version (defaults to v0.3.1)
+  /// - [version]: Kernel version (defaults to `0.3.0-beta`, matching JS EP v0.7)
   /// - [index]: Index/salt for address derivation (defaults to 0)
   /// - [nonceKey]: Custom nonce key (v2: passthrough; v3: ≤ maxUint16, 2-byte slot)
+  /// - [useMetaFactory]: For v0.3.x, route deployment via meta factory (default true)
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   ///
   /// Throws [ArgumentError] if version-specific requirements aren't met.
   KernelSmartAccountConfig({
     required this.owner,
     required this.chainId,
-    this.version = KernelVersion.v0_3_1,
+    this.version = KernelVersion.v0_3_0_beta,
     BigInt? index,
     this.customAddresses,
     this.nonceKey,
+    this.useMetaFactory = true,
     this.entryPointAddress,
     this.publicClient,
     this.address,
@@ -59,12 +61,16 @@ class KernelSmartAccountConfig {
         'ECDSA validator address required for Kernel ${version.value}',
       );
     }
-    if (version != KernelVersion.v0_2_4 &&
-        nonceKey != null &&
-        nonceKey! > _kernelMaxUint16) {
+    if (version.isV3 && nonceKey != null && nonceKey! > _kernelMaxUint16) {
       throw ArgumentError(
         'nonce key must be equal or less than 2 bytes(maxUint16) for '
         'Kernel version ${version.value}',
+      );
+    }
+    if (version.isV3 && useMetaFactory && addresses.metaFactory == null) {
+      throw ArgumentError(
+        'Meta factory address required when useMetaFactory is true for '
+        'Kernel ${version.value}',
       );
     }
   }
@@ -89,6 +95,16 @@ class KernelSmartAccountConfig {
   /// For v0.2.x: used as-is. For v0.3.x: must be ≤ maxUint16 and occupies the
   /// trailing 2 bytes of the 24-byte encoded key.
   final BigInt? nonceKey;
+
+  /// Whether to deploy v0.3.x accounts via the meta factory.
+  ///
+  /// When `true` (default), factory args use
+  /// `metaFactory.deployWithFactory(factory, initData, salt)`.
+  /// When `false`, factory args use
+  /// `factory.createAccount(initData, salt)` directly.
+  ///
+  /// Mirrors permissionless.js `useMetaFactory` (boolean path).
+  final bool useMetaFactory;
 
   /// Optional EntryPoint address override.
   final EthereumAddress? entryPointAddress;
@@ -123,10 +139,9 @@ class KernelSmartAccount implements SmartAccount {
   EthereumAddress? _cachedAddress;
 
   /// Returns the entry point version for this account.
-  EntryPointVersion get entryPointVersion =>
-      _config.version == KernelVersion.v0_2_4
-          ? EntryPointVersion.v06
-          : EntryPointVersion.v07;
+  EntryPointVersion get entryPointVersion => _config.version.isV2
+      ? EntryPointVersion.v06
+      : EntryPointVersion.v07;
 
   @override
   BigInt get chainId => _config.chainId;
@@ -163,10 +178,10 @@ class KernelSmartAccount implements SmartAccount {
   BigInt get nonceKey {
     final userKey = _config.nonceKey ?? BigInt.zero;
 
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       if (_isWebAuthn) {
         throw StateError(
-          'WebAuthn owners are not supported on Kernel v0.2.4. '
+          'WebAuthn owners are not supported on Kernel v0.2.x. '
           'Use Kernel v0.3.x or later.',
         );
       }
@@ -365,7 +380,7 @@ class KernelSmartAccount implements SmartAccount {
   @override
   Future<({EthereumAddress factory, String factoryData})?>
       getFactoryData() async {
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       return _getFactoryDataV2();
     } else {
       return _getFactoryDataV3();
@@ -392,29 +407,29 @@ class KernelSmartAccount implements SmartAccount {
 
   Future<({EthereumAddress factory, String factoryData})>
       _getFactoryDataV3() async {
-    final initializeData = _encodeInitializeV3();
-
-    // Full initialize calldata (with selector) for the factory
-    final initializeCalldata = Hex.concat([
-      KernelSelectors.initializeV3,
-      Hex.strip0x(initializeData),
-    ]);
-
-    // Salt for deployment
+    final initializeCalldata = _encodeInitializeV3Calldata();
     final salt = Hex.fromBigInt(_config.index, byteLength: 32);
 
-    // Use metaFactory with deployWithFactory(address factory, bytes createData, bytes32 salt)
-    // This is the default pattern in permissionless.js
+    if (!_config.useMetaFactory) {
+      // Direct factory: createAccount(bytes data, bytes32 salt)
+      final factoryData = Hex.concat([
+        KernelSelectors.createAccountV3,
+        AbiEncoder.encodeUint256(BigInt.from(2 * 32)), // offset to bytes
+        Hex.strip0x(salt),
+        Hex.strip0x(AbiEncoder.encodeBytes(initializeCalldata)),
+      ]);
+      return (factory: _addresses.factory, factoryData: factoryData);
+    }
+
+    // Meta factory: deployWithFactory(address factory, bytes createData, bytes32 salt)
     final factoryData = Hex.concat([
       KernelSelectors.deployWithFactory,
       AbiEncoder.encodeAddress(_addresses.factory),
-      // bytes createData - dynamic parameter
       AbiEncoder.encodeUint256(BigInt.from(3 * 32)), // offset to bytes (96)
       Hex.strip0x(salt),
       Hex.strip0x(AbiEncoder.encodeBytes(initializeCalldata)),
     ]);
 
-    // Return metaFactory address (not inner factory)
     return (factory: _addresses.metaFactory!, factoryData: factoryData);
   }
 
@@ -438,9 +453,18 @@ class KernelSmartAccount implements SmartAccount {
     ]);
   }
 
-  String _encodeInitializeV3() {
-    // initialize(bytes21 rootValidator, address hook, bytes validatorData, bytes hookData, bytes[] initConfig)
+  /// Full initialize calldata (selector + args) for v0.3.x factory deploy.
+  String _encodeInitializeV3Calldata() {
+    final selector = _config.version.usesBetaInitialize
+        ? KernelSelectors.initializeV3Beta
+        : KernelSelectors.initializeV3;
+    return Hex.concat([
+      selector,
+      Hex.strip0x(_encodeInitializeV3Args()),
+    ]);
+  }
 
+  String _encodeInitializeV3Args() {
     // Root validator ID: type (1) + validator address (20) = 21 bytes
     // Type 0x01 = VALIDATOR (not 0x00 which is ROOT/sudo mode)
     final validatorId = Hex.concat([
@@ -470,37 +494,46 @@ class KernelSmartAccount implements SmartAccount {
     // Hook data (empty)
     const hookData = '0x';
 
-    // Dynamic offsets (relative to start of params, not including selector)
-    const validatorDataOffset = 5 * 32; // 5 static params (160 bytes)
     final validatorDataEncoded = AbiEncoder.encodeBytes(validatorData);
+    final hookDataEncoded = AbiEncoder.encodeBytes(hookData);
+
+    if (_config.version.usesBetaInitialize) {
+      // initialize(bytes21, address, bytes, bytes) — 4 args, no initConfig
+      const validatorDataOffset = 4 * 32;
+      final hookDataOffset =
+          validatorDataOffset + Hex.byteLength(validatorDataEncoded);
+
+      return Hex.concat([
+        Hex.padRight(validatorId, 32),
+        AbiEncoder.encodeAddress(hookAddress),
+        AbiEncoder.encodeUint256(BigInt.from(validatorDataOffset)),
+        AbiEncoder.encodeUint256(BigInt.from(hookDataOffset)),
+        Hex.strip0x(validatorDataEncoded),
+        Hex.strip0x(hookDataEncoded),
+      ]);
+    }
+
+    // initialize(bytes21, address, bytes, bytes, bytes[]) — 5 args
+    const validatorDataOffset = 5 * 32;
     final hookDataOffset =
         validatorDataOffset + Hex.byteLength(validatorDataEncoded);
-    final hookDataEncoded = AbiEncoder.encodeBytes(hookData);
     final initConfigOffset = hookDataOffset + Hex.byteLength(hookDataEncoded);
 
     return Hex.concat([
-      // bytes21 rootValidator (right-padded to 32 bytes per ABI spec)
       Hex.padRight(validatorId, 32),
-      // address hook
       AbiEncoder.encodeAddress(hookAddress),
-      // offset to validatorData
       AbiEncoder.encodeUint256(BigInt.from(validatorDataOffset)),
-      // offset to hookData
       AbiEncoder.encodeUint256(BigInt.from(hookDataOffset)),
-      // offset to initConfig
       AbiEncoder.encodeUint256(BigInt.from(initConfigOffset)),
-      // validatorData (bytes) - raw 20-byte owner address
       Hex.strip0x(validatorDataEncoded),
-      // hookData (bytes) - empty
       Hex.strip0x(hookDataEncoded),
-      // initConfig (bytes[]) - empty array
-      AbiEncoder.encodeUint256(BigInt.zero), // array length = 0
+      AbiEncoder.encodeUint256(BigInt.zero), // initConfig length = 0
     ]);
   }
 
   @override
   String encodeCall(Call call) {
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       return _encodeCallV2(call);
     } else {
       return encode7579Execute(call);
@@ -527,7 +560,7 @@ class KernelSmartAccount implements SmartAccount {
       return encodeCall(calls.first);
     }
 
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       return _encodeCallsV2(calls);
     } else {
       return encode7579ExecuteBatch(calls);
@@ -536,7 +569,7 @@ class KernelSmartAccount implements SmartAccount {
 
   @override
   List<Call> decodeCalls(String callData) {
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       final selector = Hex.strip0x(callData).substring(0, 8).toLowerCase();
       if (selector == Hex.strip0x(KernelSelectors.executeBatchV2).toLowerCase()) {
         return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
@@ -612,9 +645,9 @@ class KernelSmartAccount implements SmartAccount {
 
   @override
   String getStubSignature() {
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       // v0.2.x: ROOT_MODE (4 bytes) + ECDSA signature (65 bytes)
-      // WebAuthn not supported on v0.2.4
+      // WebAuthn not supported on v0.2.x
       return Hex.concat([
         '0x00000000', // ROOT_MODE
         Hex.strip0x(kernelDummyEcdsaSignature),
@@ -649,7 +682,7 @@ class KernelSmartAccount implements SmartAccount {
     // permissionless.js owner.signMessage({ message: { raw: hash } })).
     final signature = await _config.owner.signPersonalMessage(userOpHash);
 
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       // v0.2.x: ROOT_MODE (4 bytes) + signature
       return Hex.concat([
         '0x00000000',
@@ -661,7 +694,7 @@ class KernelSmartAccount implements SmartAccount {
     }
   }
 
-  /// Signs a v0.6 UserOperation (for Kernel v0.2.4).
+  /// Signs a v0.6 UserOperation (for Kernel v0.2.x).
   ///
   /// This method computes the correct hash for EntryPoint v0.6 format
   /// and returns the signature with ROOT_MODE prefix.
@@ -716,9 +749,15 @@ class KernelSmartAccount implements SmartAccount {
   /// Returns the signature in the appropriate format for the owner type:
   /// - ECDSA: Kernel-wrapped personal signature, with `0x01‖validator` prefix on v0.3.x
   /// - WebAuthn: ABI-encoded P256 signature over the wrapped digest (same prefix rules)
+  ///
+  /// On Kernel 0.2.1 / 0.2.2, signs without Kernel wrapping (matches JS).
   @override
   Future<String> signMessage(String message) async {
     final messageHash = hashMessage(message);
+    if (_config.version.skipsKernelMessageWrap && !_isWebAuthn) {
+      // Bare personal_sign of the message (= raw sign of hashMessage).
+      return _config.owner.signRawHash(messageHash);
+    }
     return _signWithKernelWrapper(messageHash);
   }
 
@@ -727,8 +766,13 @@ class KernelSmartAccount implements SmartAccount {
   /// Returns the signature in the appropriate format for the owner type:
   /// - ECDSA: Kernel-wrapped personal signature, with `0x01‖validator` prefix on v0.3.x
   /// - WebAuthn: ABI-encoded P256 signature over the wrapped digest (same prefix rules)
+  ///
+  /// On Kernel 0.2.1 / 0.2.2, signs typed data without Kernel wrapping (matches JS).
   @override
   Future<String> signTypedData(TypedData typedData) async {
+    if (_config.version.skipsKernelMessageWrap && !_isWebAuthn) {
+      return _config.owner.signTypedData(typedData);
+    }
     final hash = hashTypedData(typedData);
     return _signWithKernelWrapper(hash);
   }
@@ -754,7 +798,7 @@ class KernelSmartAccount implements SmartAccount {
       signature = await _config.owner.signPersonalMessage(wrappedDigest);
     }
 
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       return signature;
     }
 
@@ -780,7 +824,7 @@ class KernelSmartAccount implements SmartAccount {
     final domainSep = computeDomainSeparator(domain);
 
     final String structHash;
-    if (_config.version == KernelVersion.v0_2_4) {
+    if (_config.version.isV2) {
       structHash = messageHash;
     } else {
       final typeHash = keccak256(
@@ -890,6 +934,11 @@ class KernelSmartAccount implements SmartAccount {
 
 /// Creates a Kernel smart account.
 ///
+/// Default [version] is [KernelVersion.v0_3_0_beta] (EntryPoint v0.7 default),
+/// matching permissionless.js `toKernelSmartAccount`. For EntryPoint v0.6,
+/// pass [KernelVersion.v0_2_2] (or another v0.2.x) explicitly — the JS default
+/// for EP v0.6 is `0.2.2`.
+///
 /// You must provide either [publicClient] or [address] for address computation:
 /// - [publicClient] - Address will be computed automatically via RPC (recommended)
 /// - [address] - Use a pre-computed address
@@ -900,7 +949,6 @@ class KernelSmartAccount implements SmartAccount {
 /// final account = createKernelSmartAccount(
 ///   owner: owner,
 ///   chainId: BigInt.from(11155111),
-///   version: KernelVersion.v0_3_1,
 ///   publicClient: publicClient,
 /// );
 ///
@@ -910,10 +958,11 @@ class KernelSmartAccount implements SmartAccount {
 KernelSmartAccount createKernelSmartAccount({
   required AccountOwner owner,
   required BigInt chainId,
-  KernelVersion version = KernelVersion.v0_3_1,
+  KernelVersion version = KernelVersion.v0_3_0_beta,
   BigInt? index,
   KernelAddresses? customAddresses,
   BigInt? nonceKey,
+  bool useMetaFactory = true,
   EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
@@ -926,8 +975,61 @@ KernelSmartAccount createKernelSmartAccount({
         index: index,
         customAddresses: customAddresses,
         nonceKey: nonceKey,
+        useMetaFactory: useMetaFactory,
         entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),
     );
+
+/// Creates a Kernel smart account with an ECDSA validator.
+///
+/// Deprecated alias of [createKernelSmartAccount] that maps
+/// [ecdsaValidatorAddress] → custom addresses, matching permissionless.js
+/// `toEcdsaKernelSmartAccount`.
+@Deprecated('Use createKernelSmartAccount instead')
+KernelSmartAccount createEcdsaKernelSmartAccount({
+  required AccountOwner owner,
+  required BigInt chainId,
+  KernelVersion version = KernelVersion.v0_3_0_beta,
+  BigInt? index,
+  KernelAddresses? customAddresses,
+  EthereumAddress? ecdsaValidatorAddress,
+  BigInt? nonceKey,
+  bool useMetaFactory = true,
+  EthereumAddress? entryPointAddress,
+  PublicClient? publicClient,
+  EthereumAddress? address,
+}) {
+  final base = customAddresses ?? KernelVersionAddresses.getAddresses(version);
+  final KernelAddresses? resolved;
+  if (ecdsaValidatorAddress != null) {
+    if (base == null) {
+      throw ArgumentError(
+        'No addresses found for Kernel version ${version.value}',
+      );
+    }
+    resolved = KernelAddresses(
+      accountImplementation: base.accountImplementation,
+      factory: base.factory,
+      metaFactory: base.metaFactory,
+      ecdsaValidator: ecdsaValidatorAddress,
+      webAuthnValidator: base.webAuthnValidator,
+    );
+  } else {
+    resolved = customAddresses;
+  }
+
+  return createKernelSmartAccount(
+    owner: owner,
+    chainId: chainId,
+    version: version,
+    index: index,
+    customAddresses: resolved,
+    nonceKey: nonceKey,
+    useMetaFactory: useMetaFactory,
+    entryPointAddress: entryPointAddress,
+    publicClient: publicClient,
+    address: address,
+  );
+}

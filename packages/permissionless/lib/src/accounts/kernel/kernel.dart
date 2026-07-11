@@ -5,9 +5,14 @@
 ///
 /// ## Supported Versions
 ///
-/// - **Kernel v0.2.4** (EntryPoint v0.6) - Legacy version, no ERC-7579
-/// - **Kernel v0.3.1** (EntryPoint v0.7) - Full ERC-7579 modular account
-/// - **Kernel v0.3.3** (EntryPoint v0.7) - Latest, includes EIP-7702 support
+/// EntryPoint v0.6 (no ERC-7579):
+/// - **0.2.1**, **0.2.2** (default for EP v0.6), **0.2.3**, **0.2.4**
+///
+/// EntryPoint v0.7 (ERC-7579):
+/// - **0.3.0-beta** (default for EP v0.7; 4-arg `initialize`)
+/// - **0.3.1**, **0.3.2**, **0.3.3** (EIP-7702)
+///
+/// Defaults match permissionless.js `toKernelSmartAccount`.
 ///
 /// ## ERC-7579 Support
 ///
