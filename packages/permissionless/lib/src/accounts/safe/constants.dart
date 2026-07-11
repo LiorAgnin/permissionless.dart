@@ -194,7 +194,7 @@ class SafeVersionAddresses {
           '0x218543288004CD07832472D464648173c77D7eB7',
         ),
         multiSendCallOnlyAddress: EthereumAddress.fromHex(
-          '0x0c28E9886f79618371c5Af86aA7e5Cf62dddd8dC',
+          '0xA83c336B20401Af773B6219BA5027174338D1836',
         ),
         webAuthnSharedSignerAddress: EthereumAddress.fromHex(
           '0x94a4F6affBd8975951142c3999aEAB7ecee555c2',
