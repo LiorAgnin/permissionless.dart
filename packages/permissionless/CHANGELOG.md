@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **PasskeyServerClient** (`createPasskeyServerClient`) — port of permissionless.js
+  `clients/passkeyServer` + `actions/passkeyServer`. Exposes all five `pks_*` RPC
+  methods: `startRegistration`, `verifyRegistration`, `startAuthentication`,
+  `verifyAuthentication`, and `getCredentials`. Placed in the core `permissionless`
+  package for JS layout parity (client-side passkey creation remains in
+  `permissionless_passkeys`).
+
 ### Changed
 
 - **Safe default threshold** is now `owners.length` (all owners must sign), matching

@@ -39,6 +39,7 @@ export 'src/actions/smart_account/smart_account.dart';
 // Clients
 export 'src/clients/bundler/bundler.dart';
 export 'src/clients/etherspot/etherspot.dart';
+export 'src/clients/passkey_server/passkey_server.dart';
 export 'src/clients/paymaster/paymaster.dart';
 export 'src/clients/pimlico/pimlico.dart';
 export 'src/clients/public/public.dart';
