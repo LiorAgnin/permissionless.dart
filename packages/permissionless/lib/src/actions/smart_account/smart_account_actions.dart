@@ -2,6 +2,7 @@ import '../../clients/bundler/types.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../types/address.dart';
 import '../../types/calls_status.dart';
+import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
@@ -96,14 +97,16 @@ extension SmartAccountActions on SmartAccountClient {
 
   /// Sends a contract write call.
   ///
-  /// Encodes the function call using the provided signature and arguments,
-  /// then sends it as a transaction.
+  /// Encodes the function call using the provided signature and arguments
+  /// (via web3dart ABI encoding, matching viem `encodeFunctionData`), then
+  /// sends it as a transaction.
   ///
   /// Parameters:
   /// - [address] - The contract address
   /// - [functionSignature] - The function signature (e.g., 'transfer(address,uint256)')
   /// - [args] - The function arguments (must match signature order)
   /// - [value] - ETH value to send (defaults to 0)
+  /// - [dataSuffix] - Optional hex appended after the encoded calldata
   /// - [maxFeePerGas] - Maximum fee per gas
   /// - [maxPriorityFeePerGas] - Maximum priority fee per gas
   /// - [nonce] - Optional nonce override
@@ -124,12 +127,16 @@ extension SmartAccountActions on SmartAccountClient {
     required String functionSignature,
     List<dynamic> args = const [],
     BigInt? value,
+    String? dataSuffix,
     required BigInt maxFeePerGas,
     required BigInt maxPriorityFeePerGas,
     BigInt? nonce,
     Duration timeout = const Duration(seconds: 60),
   }) async {
-    final callData = _encodeFunction(functionSignature, args);
+    var callData = AbiEncoder.encodeFunctionData(functionSignature, args);
+    if (dataSuffix != null && dataSuffix.isNotEmpty) {
+      callData = Hex.concat([callData, dataSuffix]);
+    }
 
     return sendTransaction(
       to: address,
@@ -257,83 +264,4 @@ extension SmartAccountActions on SmartAccountClient {
         gasUsed: receipt.gasUsed,
         transactionHash: receipt.transactionHash,
       );
-
-  /// Encodes a function call with the given signature and arguments.
-  ///
-  /// This is a simplified encoder that supports basic types:
-  /// - address
-  /// - uint256, uint128, uint48, etc.
-  /// - bool
-  /// - bytes, bytes32
-  String _encodeFunction(String signature, List<dynamic> args) {
-    final selector = AbiEncoder.functionSelector(signature);
-
-    if (args.isEmpty) {
-      return selector;
-    }
-
-    // Parse argument types from signature
-    final paramsStart = signature.indexOf('(');
-    final paramsEnd = signature.lastIndexOf(')');
-    if (paramsStart == -1 || paramsEnd == -1) {
-      throw ArgumentError('Invalid function signature: $signature');
-    }
-
-    final paramsStr = signature.substring(paramsStart + 1, paramsEnd);
-    final types = paramsStr.isEmpty ? <String>[] : paramsStr.split(',');
-
-    if (types.length != args.length) {
-      throw ArgumentError(
-        'Argument count mismatch: expected ${types.length}, got ${args.length}',
-      );
-    }
-
-    // Encode each argument
-    final encodedParams = <String>[];
-    for (var i = 0; i < args.length; i++) {
-      final type = types[i].trim();
-      final value = args[i];
-      encodedParams.add(_encodeArg(type, value));
-    }
-
-    return AbiEncoder.encodeFunctionCall(selector, encodedParams);
-  }
-
-  /// Encodes a single argument based on its Solidity type.
-  String _encodeArg(String type, dynamic value) {
-    if (type == 'address') {
-      if (value is EthereumAddress) {
-        return AbiEncoder.encodeAddress(value);
-      }
-      return AbiEncoder.encodeAddress(
-        EthereumAddress.fromHex(value.toString()),
-      );
-    }
-
-    if (type.startsWith('uint')) {
-      BigInt bigValue;
-      if (value is BigInt) {
-        bigValue = value;
-      } else if (value is int) {
-        bigValue = BigInt.from(value);
-      } else {
-        bigValue = BigInt.parse(value.toString());
-      }
-      return AbiEncoder.encodeUint256(bigValue);
-    }
-
-    if (type == 'bool') {
-      return AbiEncoder.encodeBool(value: value as bool);
-    }
-
-    if (type == 'bytes32') {
-      return AbiEncoder.encodeBytes32(value.toString());
-    }
-
-    if (type == 'bytes') {
-      return AbiEncoder.encodeBytes(value.toString());
-    }
-
-    throw ArgumentError('Unsupported argument type: $type');
-  }
 }

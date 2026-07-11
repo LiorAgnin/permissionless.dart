@@ -57,6 +57,49 @@ class AbiEncoder {
   ) =>
       Hex.concat([selector, ...encodedParams.map(Hex.strip0x)]);
 
+  /// Encodes function calldata from a Solidity signature and arguments.
+  ///
+  /// Uses web3dart's ABI encoder so encoding matches Solidity and viem
+  /// `encodeFunctionData` for static types, dynamic `bytes`/`string`, arrays,
+  /// and tuples (including nested).
+  ///
+  /// [functionSignature] examples:
+  /// - `transfer(address,uint256)`
+  /// - `execute(address,uint256,bytes)`
+  /// - `setPoint((uint256,uint256))`
+  ///
+  /// Accepted argument forms:
+  /// - `address`: [EthereumAddress] or hex [String]
+  /// - `uint*` / `int*`: [BigInt] or [int]
+  /// - `bool`: [bool]
+  /// - `bytes` / `bytesN`: hex [String] or [Uint8List]
+  /// - `string`: [String]
+  /// - arrays / tuples: [List], converted element-wise
+  static String encodeFunctionData(
+    String functionSignature, [
+    List<dynamic> args = const [],
+  ]) {
+    final parsed = _parseFunctionSignature(functionSignature);
+    if (parsed.types.length != args.length) {
+      throw ArgumentError(
+        'Argument count mismatch: expected ${parsed.types.length}, '
+        'got ${args.length}',
+      );
+    }
+
+    final parameters = <FunctionParameter<dynamic>>[
+      for (var i = 0; i < parsed.types.length; i++)
+        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
+    ];
+    final function = ContractFunction(parsed.name, parameters);
+    final converted = <dynamic>[
+      for (var i = 0; i < args.length; i++)
+        _convertAbiArg(parsed.types[i], args[i]),
+    ];
+
+    return Hex.fromBytes(function.encodeCall(converted));
+  }
+
   /// Encodes multiple values with dynamic types.
   ///
   /// `parts` - List of tuples (isStatic, encodedValue).
@@ -80,6 +123,156 @@ class AbiEncoder {
     }
 
     return Hex.concat([...staticParts, ...dynamicParts]);
+  }
+
+  static ({String name, List<String> types}) _parseFunctionSignature(
+    String signature,
+  ) {
+    final paramsStart = signature.indexOf('(');
+    final paramsEnd = signature.lastIndexOf(')');
+    if (paramsStart == -1 || paramsEnd == -1 || paramsEnd < paramsStart) {
+      throw ArgumentError('Invalid function signature: $signature');
+    }
+
+    final name = signature.substring(0, paramsStart).trim();
+    if (name.isEmpty) {
+      throw ArgumentError('Invalid function signature: $signature');
+    }
+
+    final paramsStr = signature.substring(paramsStart + 1, paramsEnd);
+    return (name: name, types: _splitAbiParameterTypes(paramsStr));
+  }
+
+  /// Splits a top-level ABI parameter list, respecting nested tuples.
+  static List<String> _splitAbiParameterTypes(String params) {
+    final trimmed = params.trim();
+    if (trimmed.isEmpty) return [];
+
+    final types = <String>[];
+    final buffer = StringBuffer();
+    var depth = 0;
+
+    for (var i = 0; i < trimmed.length; i++) {
+      final char = trimmed[i];
+      if (char == '(') {
+        depth++;
+        buffer.write(char);
+      } else if (char == ')') {
+        depth--;
+        buffer.write(char);
+      } else if (char == ',' && depth == 0) {
+        types.add(buffer.toString().trim());
+        buffer.clear();
+      } else {
+        buffer.write(char);
+      }
+    }
+
+    if (buffer.isNotEmpty) {
+      types.add(buffer.toString().trim());
+    }
+
+    if (depth != 0) {
+      throw ArgumentError(
+        'Invalid ABI type list (mismatched parentheses): $params',
+      );
+    }
+
+    return types;
+  }
+
+  /// Converts a Dart-friendly argument into the form web3dart expects.
+  static dynamic _convertAbiArg(String type, dynamic value) {
+    final arrayMatch = RegExp(r'^(.*)\[(\d*)\]$').firstMatch(type);
+    if (arrayMatch != null) {
+      final elementType = arrayMatch.group(1)!;
+      if (value is! List) {
+        throw ArgumentError(
+          'Expected List for array type $type, got ${value.runtimeType}',
+        );
+      }
+      final lengthStr = arrayMatch.group(2)!;
+      if (lengthStr.isNotEmpty) {
+        final expectedLength = int.parse(lengthStr);
+        if (value.length != expectedLength) {
+          throw ArgumentError(
+            'Array length mismatch for $type: expected $expectedLength, '
+            'got ${value.length}',
+          );
+        }
+      }
+      return [
+        for (final element in value) _convertAbiArg(elementType, element),
+      ];
+    }
+
+    if (type.startsWith('(') && type.endsWith(')')) {
+      if (value is! List) {
+        throw ArgumentError(
+          'Expected List for tuple type $type, got ${value.runtimeType}',
+        );
+      }
+      final componentTypes = _splitAbiParameterTypes(
+        type.substring(1, type.length - 1),
+      );
+      if (componentTypes.length != value.length) {
+        throw ArgumentError(
+          'Tuple length mismatch for $type: expected '
+          '${componentTypes.length}, got ${value.length}',
+        );
+      }
+      return [
+        for (var i = 0; i < componentTypes.length; i++)
+          _convertAbiArg(componentTypes[i], value[i]),
+      ];
+    }
+
+    if (type == 'address') {
+      if (value is EthereumAddress) return value;
+      return EthereumAddress.fromHex(value.toString());
+    }
+
+    if (type == 'bool') {
+      return value as bool;
+    }
+
+    if (type == 'string') {
+      return value as String;
+    }
+
+    if (type == 'bytes' || (type.startsWith('bytes') && type.length > 5)) {
+      return _toBytes(
+        value,
+        fixedLength: type == 'bytes' ? null : int.parse(type.substring(5)),
+      );
+    }
+
+    if (type.startsWith('uint') || type.startsWith('int')) {
+      if (value is BigInt) return value;
+      if (value is int) return BigInt.from(value);
+      return BigInt.parse(value.toString());
+    }
+
+    return value;
+  }
+
+  static Uint8List _toBytes(dynamic value, {int? fixedLength}) {
+    final Uint8List bytes;
+    if (value is Uint8List) {
+      bytes = value;
+    } else if (value is List<int>) {
+      bytes = Uint8List.fromList(value);
+    } else {
+      bytes = Hex.decode(value.toString());
+    }
+
+    if (fixedLength != null && bytes.length != fixedLength) {
+      throw ArgumentError(
+        'Invalid bytes$fixedLength length: expected $fixedLength, '
+        'got ${bytes.length}',
+      );
+    }
+    return bytes;
   }
 }
 
