@@ -50,12 +50,16 @@ class SimpleAccountSelectors {
   /// Used by all versions for single call execution.
   static const String execute = '0xb61d27f6';
 
+  /// executeBatch(address[] calldata dest, bytes[] calldata func)
+  /// Used by EntryPoint v0.6 SimpleAccount (no values array).
+  static const String executeBatchV06 = '0x18dfb3c7';
+
   /// executeBatch(address[] calldata dest, uint256[] calldata values, bytes[] calldata func)
-  /// Used by v0.6 and v0.7 for batch execution.
+  /// Used by EntryPoint v0.7 SimpleAccount for batch execution.
   static const String executeBatch = '0x47e1da2a';
 
   /// executeBatch(Call[] calldata calls) where Call = (address target, uint256 value, bytes data)
-  /// Used by v0.8 for batch execution with tuple array.
+  /// Used by EntryPoint v0.8 SimpleAccount for batch execution with tuple array.
   static const String executeBatchV08 = '0x34fcd5be';
 
   /// createAccount(address owner, uint256 salt)
