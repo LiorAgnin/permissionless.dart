@@ -135,20 +135,29 @@ enum Erc7579CallKind {
 /// The execution mode determines how the account executes calls and
 /// handles errors. It is encoded as a 32-byte value:
 /// - Byte 0: Call type (call=0x00, batch=0x01, delegatecall=0xff)
-/// - Byte 1: Revert behavior (0x00=revert on error, 0x01=try/continue)
+/// - Byte 1: Exec type (0x00=default/revert on failure, 0x01=try/continue)
 /// - Bytes 2-5: Reserved (padding)
 /// - Bytes 6-9: Optional function selector
 /// - Bytes 10-31: Optional context data (22 bytes)
 ///
+/// ## `revertOnError` polarity (permissionless.js parity)
+///
+/// The [revertOnError] flag matches permissionless.js `encodeExecutionMode`:
+/// `true` → execType `0x01`, `false` → execType `0x00`.
+///
+/// That is **not** English/ERC-7579 naming: ERC-7579 `0x00` is default (revert
+/// on failure) and `0x01` is try. Prefer thinking in execType bytes for on-chain
+/// semantics; use [revertOnError] only when mirroring JS callers.
+///
 /// Example:
 /// ```dart
-/// // Default single call mode (reverts on error)
+/// // Default single call mode (execType 0x00 — reverts on failure)
 /// final mode = ExecutionMode(type: Erc7579CallKind.call);
 ///
-/// // Batch call that continues on error
+/// // Batch call with execType 0x01 (try / continue on error) — JS true
 /// final batchMode = ExecutionMode(
 ///   type: Erc7579CallKind.batchCall,
-///   revertOnError: false,
+///   revertOnError: true,
 /// );
 ///
 /// // Check if account supports a mode
@@ -158,7 +167,7 @@ class ExecutionMode {
   /// Creates an execution mode configuration.
   const ExecutionMode({
     required this.type,
-    this.revertOnError = true,
+    this.revertOnError = false,
     this.selector,
     this.context,
   });
@@ -166,10 +175,14 @@ class ExecutionMode {
   /// The type of call execution.
   final Erc7579CallKind type;
 
-  /// Whether to revert the entire operation on error.
+  /// permissionless.js-compatible flag mapped onto the ERC-7579 execType byte.
   ///
-  /// When true (default), any error reverts the transaction.
-  /// When false, errors are caught and execution continues (try mode).
+  /// Wire mapping (matches JS `encodeExecutionMode`):
+  /// - `false` (default) → execType `0x00` (ERC-7579 default: revert on failure)
+  /// - `true` → execType `0x01` (ERC-7579 try: continue on failure)
+  ///
+  /// The field name follows permissionless.js, not the English meaning of
+  /// "revert on error".
   final bool revertOnError;
 
   /// Optional 4-byte function selector.
@@ -186,9 +199,9 @@ class ExecutionMode {
 
   /// Encodes this execution mode as a 32-byte hex string.
   ///
-  /// The encoding follows ERC-7579:
+  /// The encoding follows ERC-7579 layout with permissionless.js polarity:
   /// - Byte 0: call type
-  /// - Byte 1: exec type (0x00 if revertOnError, 0x01 if try)
+  /// - Byte 1: exec type (`0x01` if [revertOnError], else `0x00`)
   /// - Bytes 2-5: padding (zeros)
   /// - Bytes 6-9: selector (or zeros)
   /// - Bytes 10-31: context (or zeros)
@@ -198,8 +211,8 @@ class ExecutionMode {
     // Byte 0: Call type
     mode[0] = type.value;
 
-    // Byte 1: Exec type (0x00 = revert on error, 0x01 = try/continue)
-    mode[1] = revertOnError ? 0x00 : 0x01;
+    // Byte 1: Exec type — permissionless.js: revertOnError ? 0x01 : 0x00
+    mode[1] = revertOnError ? 0x01 : 0x00;
 
     // Bytes 2-5: Reserved (already zeros)
 
@@ -350,21 +363,42 @@ String encode7579Execute(Call call) {
 
 /// Encodes a complete ERC-7579 execute call (batch calls).
 ///
-/// Generates: execute(mode, executionCalldata) with batch call encoding.
+/// Generates: execute(mode, executionCalldata) with batch call encoding
+/// (`callType = 0x01`, `abi.encode(Execution[])`).
+///
+/// A single-element [calls] list still uses batch mode — it is **not**
+/// silently downgraded to [encode7579Execute]. Callers that want call mode for
+/// one item should use [encode7579Execute] (or branch on `calls.length` like
+/// permissionless.js accounts do).
 String encode7579ExecuteBatch(List<Call> calls) {
   if (calls.isEmpty) {
     throw ArgumentError('At least one call is required');
-  }
-
-  // Single call optimization
-  if (calls.length == 1) {
-    return encode7579Execute(calls.first);
   }
 
   final mode = encode7579ExecuteMode(callType: Erc7579CallType.batchCall);
   final executionData = encode7579BatchCallData(calls);
 
   // Encode the execute function call
+  const executionDataOffset = 2 * 32;
+  final executionDataEncoded = AbiEncoder.encodeBytes(executionData);
+
+  return Hex.concat([
+    Erc7579Selectors.execute,
+    Hex.strip0x(mode),
+    AbiEncoder.encodeUint256(BigInt.from(executionDataOffset)),
+    Hex.strip0x(executionDataEncoded),
+  ]);
+}
+
+/// Encodes a complete ERC-7579 execute call as a delegatecall.
+///
+/// Generates: execute(mode, executionCalldata) with `callType = 0xff` and
+/// packed single-call execution data (`to || value || data`), matching
+/// permissionless.js `encode7579Calls` when `mode.type === "delegatecall"`.
+String encode7579ExecuteDelegateCall(Call call) {
+  final mode = encode7579ExecuteMode(callType: Erc7579CallType.delegateCall);
+  final executionData = encode7579SingleCallData(call);
+
   const executionDataOffset = 2 * 32;
   final executionDataEncoded = AbiEncoder.encodeBytes(executionData);
 
@@ -514,7 +548,7 @@ String encode7579SupportsModule(Erc7579ModuleType moduleType) => Hex.concat([
 /// ```dart
 /// final mode = ExecutionMode(
 ///   type: Erc7579CallKind.batchCall,
-///   revertOnError: false,
+///   revertOnError: true, // JS polarity → execType 0x01 (try)
 /// );
 /// final callData = encode7579SupportsExecutionMode(mode);
 /// final result = await publicClient.call(Call(to: account, data: callData));
@@ -741,7 +775,24 @@ class Decoded7579Calls {
 
 /// Decodes ERC-7579 execute call data back into mode and calls.
 ///
-/// Reverses the encoding done by [encode7579Execute] or [encode7579ExecuteBatch].
+/// Reverses the encoding done by [encode7579Execute], [encode7579ExecuteBatch],
+/// or [encode7579ExecuteDelegateCall].
+///
+/// ## Mode layout (deliberate decode-offset stance)
+///
+/// Mode is decoded with the ERC-7579 layout used by both this library's encoder
+/// and permissionless.js `encodeExecutionMode`:
+/// `callType(1) | execType(1) | unused(4) | modeSelector(4 @ bytes 6-9) |
+/// modePayload(22 @ bytes 10-31)`.
+///
+/// permissionless.js `decode7579Calls` currently slices selector/context at
+/// bytes 3-6 / 7-31 (lossy vs its own encoder). Dart **keeps** the
+/// spec-aligned offsets so encode→decode round-trips of non-zero selector /
+/// context succeed. Cross-port comparisons of decoded `selector`/`context`
+/// against JS decode output will differ for non-zero fields.
+///
+/// [ExecutionMode.revertOnError] uses permissionless.js polarity:
+/// execType `0x01` → `true`, `0x00` → `false`.
 ///
 /// Example:
 /// ```dart
@@ -775,9 +826,10 @@ Decoded7579Calls decode7579Calls(String callData) {
 
   // Decode mode components
   final callType = Erc7579CallKind.fromValue(modeBytes[0]);
-  final revertOnError = modeBytes[1] == 0x00;
+  // permissionless.js: revertOnError === (execType == 0x01)
+  final revertOnError = modeBytes[1] == 0x01;
 
-  // Bytes 6-9: selector (4 bytes)
+  // Bytes 6-9: selector (4 bytes) — ERC-7579 / JS encoder layout (not JS decode)
   String? modeSelector;
   if (modeBytes[6] != 0 ||
       modeBytes[7] != 0 ||

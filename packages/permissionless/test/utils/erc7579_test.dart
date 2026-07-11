@@ -240,7 +240,8 @@ void main() {
         );
       });
 
-      test('optimizes single call to non-batch encoding', () {
+      test('keeps batch mode for a single-element batch (no silent downgrade)',
+          () {
         final calls = [
           Call(
             to: EthereumAddress.fromHex(
@@ -254,8 +255,18 @@ void main() {
         final batchEncoded = encode7579ExecuteBatch(calls);
         final singleEncoded = encode7579Execute(calls.first);
 
-        // Should be identical for single call
-        expect(batchEncoded, equals(singleEncoded));
+        // Mode byte 0 must stay batch (0x01), not collapse to call (0x00).
+        final mode = batchEncoded.substring(10, 74);
+        expect(mode.substring(0, 2), equals('01'));
+        expect(batchEncoded, isNot(equals(singleEncoded)));
+
+        final decoded = decode7579Calls(batchEncoded);
+        expect(decoded.mode.type, equals(Erc7579CallKind.batchCall));
+        expect(decoded.calls, hasLength(1));
+        expect(
+          decoded.calls[0].to.hex.toLowerCase(),
+          equals(calls[0].to.hex.toLowerCase()),
+        );
       });
 
       test('uses batch mode for multiple calls', () {
@@ -306,6 +317,51 @@ void main() {
         expect(
           encoded.substring(2, 10).toLowerCase(),
           equals(Erc7579Selectors.execute.substring(2).toLowerCase()),
+        );
+      });
+    });
+
+    group('encode7579ExecuteDelegateCall', () {
+      test('uses delegatecall mode 0xff', () {
+        final call = Call(
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          value: BigInt.zero,
+          data: '0xabcdef',
+        );
+
+        final encoded = encode7579ExecuteDelegateCall(call);
+        expect(
+          encoded.substring(2, 10).toLowerCase(),
+          equals(Erc7579Selectors.execute.substring(2).toLowerCase()),
+        );
+        final mode = encoded.substring(10, 74);
+        expect(mode.substring(0, 2), equals('ff'));
+        expect(mode.substring(2, 4), equals('00')); // default execType
+      });
+
+      test('round-trips through decode7579Calls', () {
+        final call = Call(
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          value: BigInt.from(42),
+          data: '0xdeadbeef',
+        );
+
+        final decoded = decode7579Calls(encode7579ExecuteDelegateCall(call));
+        expect(decoded.mode.type, equals(Erc7579CallKind.delegateCall));
+        expect(decoded.mode.revertOnError, isFalse);
+        expect(decoded.calls, hasLength(1));
+        expect(
+          decoded.calls[0].to.hex.toLowerCase(),
+          equals(call.to.hex.toLowerCase()),
+        );
+        expect(decoded.calls[0].value, equals(call.value));
+        expect(
+          decoded.calls[0].data.toLowerCase(),
+          equals(call.data.toLowerCase()),
         );
       });
     });
@@ -768,7 +824,8 @@ void main() {
         const mode = ExecutionMode(type: Erc7579CallKind.call);
 
         expect(mode.type, equals(Erc7579CallKind.call));
-        expect(mode.revertOnError, isTrue);
+        // Default matches permissionless.js (undefined → falsy → execType 0x00).
+        expect(mode.revertOnError, isFalse);
         expect(mode.selector, isNull);
         expect(mode.context, isNull);
       });
@@ -776,19 +833,63 @@ void main() {
       test('creates with custom values', () {
         const mode = ExecutionMode(
           type: Erc7579CallKind.batchCall,
-          revertOnError: false,
+          revertOnError: true,
           selector: '0x12345678',
           context: '0xaabbccdd',
         );
 
         expect(mode.type, equals(Erc7579CallKind.batchCall));
-        expect(mode.revertOnError, isFalse);
+        expect(mode.revertOnError, isTrue);
         expect(mode.selector, equals('0x12345678'));
         expect(mode.context, equals('0xaabbccdd'));
       });
 
       group('encode', () {
-        test('encodes single call with revert on error', () {
+        // Wire vectors from permissionless.js encodeExecutionMode
+        // (actions/erc7579/supportsExecutionMode.ts):
+        //   revertOnError ? 0x01 : 0x00
+        test('byte-matches JS for all (callType, revertOnError) combos', () {
+          const cases = <(Erc7579CallKind, bool, String)>[
+            // call + false → 0x00 0x00
+            (
+              Erc7579CallKind.call,
+              false,
+              '0x0000000000000000000000000000000000000000000000000000000000000000',
+            ),
+            // call + true → 0x00 0x01
+            (
+              Erc7579CallKind.call,
+              true,
+              '0x0001000000000000000000000000000000000000000000000000000000000000',
+            ),
+            // batchcall + false → 0x01 0x00
+            (
+              Erc7579CallKind.batchCall,
+              false,
+              '0x0100000000000000000000000000000000000000000000000000000000000000',
+            ),
+            // batchcall + true → 0x01 0x01
+            (
+              Erc7579CallKind.batchCall,
+              true,
+              '0x0101000000000000000000000000000000000000000000000000000000000000',
+            ),
+          ];
+
+          for (final (type, revertOnError, expected) in cases) {
+            final encoded = ExecutionMode(
+              type: type,
+              revertOnError: revertOnError,
+            ).encode();
+            expect(
+              encoded.toLowerCase(),
+              equals(expected),
+              reason: 'type=$type revertOnError=$revertOnError',
+            );
+          }
+        });
+
+        test('default mode emits execType 0x00 (JS undefined polarity)', () {
           const mode = ExecutionMode(type: Erc7579CallKind.call);
           final encoded = mode.encode();
 
@@ -797,29 +898,42 @@ void main() {
 
           // Byte 0: call type = 0x00
           expect(encoded.substring(2, 4), equals('00'));
-          // Byte 1: revert on error = 0x00
+          // Byte 1: default / JS falsy = 0x00
           expect(encoded.substring(4, 6), equals('00'));
         });
 
-        test('encodes batch call with try mode', () {
+        test('revertOnError true emits execType 0x01 (try / JS polarity)', () {
           const mode = ExecutionMode(
             type: Erc7579CallKind.batchCall,
-            revertOnError: false,
+            revertOnError: true,
           );
           final encoded = mode.encode();
 
           // Byte 0: batch call = 0x01
           expect(encoded.substring(2, 4), equals('01'));
-          // Byte 1: try mode (no revert) = 0x01
+          // Byte 1: JS true → 0x01 (ERC-7579 try)
           expect(encoded.substring(4, 6), equals('01'));
         });
 
-        test('encodes delegate call', () {
-          const mode = ExecutionMode(type: Erc7579CallKind.delegateCall);
-          final encoded = mode.encode();
-
-          // Byte 0: delegate call = 0xff
-          expect(encoded.substring(2, 4), equals('ff'));
+        test('encodes delegate call with JS polarity', () {
+          // JS: delegatecall + false → 0xff00..., + true → 0xff01...
+          expect(
+            const ExecutionMode(type: Erc7579CallKind.delegateCall)
+                .encode()
+                .toLowerCase(),
+            equals(
+              '0xff00000000000000000000000000000000000000000000000000000000000000',
+            ),
+          );
+          expect(
+            const ExecutionMode(
+              type: Erc7579CallKind.delegateCall,
+              revertOnError: true,
+            ).encode().toLowerCase(),
+            equals(
+              '0xff01000000000000000000000000000000000000000000000000000000000000',
+            ),
+          );
         });
 
         test('encodes with selector', () {
@@ -829,7 +943,7 @@ void main() {
           );
           final encoded = mode.encode();
 
-          // Bytes 6-9 contain the selector
+          // Bytes 6-9 contain the selector (ERC-7579 / JS encoder layout)
           // Position: 0x + 2 chars per byte * 6 = 14
           expect(encoded.substring(14, 22), equals('aabbccdd'));
         });
@@ -851,7 +965,7 @@ void main() {
             const ExecutionMode(type: Erc7579CallKind.call),
             const ExecutionMode(
               type: Erc7579CallKind.batchCall,
-              revertOnError: false,
+              revertOnError: true,
             ),
             const ExecutionMode(
               type: Erc7579CallKind.delegateCall,
@@ -873,12 +987,12 @@ void main() {
       test('toString returns readable format', () {
         const mode = ExecutionMode(
           type: Erc7579CallKind.batchCall,
-          revertOnError: false,
+          revertOnError: true,
         );
         final str = mode.toString();
 
         expect(str, contains('batchCall'));
-        expect(str, contains('revertOnError: false'));
+        expect(str, contains('revertOnError: true'));
       });
     });
 
@@ -915,14 +1029,14 @@ void main() {
       test('includes mode bytes after selector', () {
         const mode = ExecutionMode(
           type: Erc7579CallKind.batchCall,
-          revertOnError: false,
+          revertOnError: true,
         );
         final callData = encode7579SupportsExecutionMode(mode);
 
         // After selector (4 bytes = 8 hex chars), mode starts
         // Byte 0 of mode should be 0x01 (batchCall)
         expect(callData.substring(10, 12), equals('01'));
-        // Byte 1 of mode should be 0x01 (try mode)
+        // Byte 1 of mode should be 0x01 (JS true / ERC-7579 try)
         expect(callData.substring(12, 14), equals('01'));
       });
     });
@@ -1048,6 +1162,44 @@ void main() {
     });
 
     group('decode7579Calls', () {
+      test('round-trips ExecutionMode with explicit revertOnError true', () {
+        // Build execute calldata whose mode has execType 0x01 (JS true).
+        const mode = ExecutionMode(
+          type: Erc7579CallKind.call,
+          revertOnError: true,
+          selector: '0xaabbccdd',
+          context: '0x11223344556677889900112233445566778899001122',
+        );
+        final call = Call(
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          value: BigInt.from(7),
+          data: '0xabcdef',
+        );
+        final executionData = encode7579SingleCallData(call);
+        const executionDataOffset = 2 * 32;
+        final encoded = Hex.concat([
+          Erc7579Selectors.execute,
+          Hex.strip0x(mode.encode()),
+          AbiEncoder.encodeUint256(BigInt.from(executionDataOffset)),
+          Hex.strip0x(AbiEncoder.encodeBytes(executionData)),
+        ]);
+
+        final decoded = decode7579Calls(encoded);
+
+        expect(decoded.mode.type, equals(Erc7579CallKind.call));
+        expect(decoded.mode.revertOnError, isTrue);
+        // Spec-aligned offsets (bytes 6-9 / 10-31), not JS's lossy 3-6 / 7-31.
+        expect(decoded.mode.selector?.toLowerCase(), equals('0xaabbccdd'));
+        expect(
+          decoded.mode.context?.toLowerCase(),
+          equals('0x11223344556677889900112233445566778899001122'),
+        );
+        expect(decoded.calls, hasLength(1));
+        expect(decoded.calls[0].value, equals(BigInt.from(7)));
+      });
+
       test('decodes single call execution', () {
         final call = Call(
           to: EthereumAddress.fromHex(
@@ -1061,6 +1213,7 @@ void main() {
         final decoded = decode7579Calls(encoded);
 
         expect(decoded.mode.type, equals(Erc7579CallKind.call));
+        expect(decoded.mode.revertOnError, isFalse);
         expect(decoded.calls, hasLength(1));
         expect(
           decoded.calls[0].to.hex.toLowerCase(),

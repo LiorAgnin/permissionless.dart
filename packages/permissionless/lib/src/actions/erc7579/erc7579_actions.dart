@@ -293,12 +293,12 @@ extension Erc7579Actions on SmartAccountClient {
   ///
   /// Example:
   /// ```dart
-  /// // Check if batch calls with try mode are supported
+  /// // Check if batch calls with try mode (execType 0x01) are supported
   /// final supportsBatchTry = await client.supportsExecutionMode(
   ///   publicClient: publicClient,
   ///   mode: ExecutionMode(
   ///     type: Erc7579CallKind.batchCall,
-  ///     revertOnError: false,
+  ///     revertOnError: true, // JS polarity → execType 0x01
   ///   ),
   /// );
   ///

@@ -665,8 +665,13 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       throw ArgumentError('At least one call is required');
     }
 
-    // ERC-7579 mode uses standard 7579 batch encoding
+    // ERC-7579 mode: call vs batchcall by length (permissionless.js parity).
+    // encode7579ExecuteBatch always emits batch mode — do not pass a single
+    // call through it when call mode is intended.
     if (isErc7579Enabled) {
+      if (calls.length == 1) {
+        return encode7579Execute(calls.first);
+      }
       return encode7579ExecuteBatch(calls);
     }
 
@@ -707,8 +712,10 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       throw ArgumentError('At least one call is required');
     }
 
-    // Encode the user's calls using ERC-7579 format
-    final userCallData = encode7579ExecuteBatch(calls);
+    // Encode the user's calls using ERC-7579 format (call vs batch by length)
+    final userCallData = calls.length == 1
+        ? encode7579Execute(calls.first)
+        : encode7579ExecuteBatch(calls);
 
     // Build the full InitData for setupSafe
     return _encodeSetupSafe(userCallData);
