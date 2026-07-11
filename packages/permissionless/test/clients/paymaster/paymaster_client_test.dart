@@ -86,6 +86,55 @@ void main() {
           equals(EntryPointAddresses.v07.hex),
         );
         expect(capturedRequests[0]['params'][2], equals('0x1'));
+        // Always 4 params; context is null when omitted
+        final params = capturedRequests[0]['params'] as List<dynamic>;
+        expect(params.length, equals(4));
+        expect(params[3], isNull);
+        // Gas fields present (defaults / carried from userOp)
+        final userOpJson = params[0] as Map<String, dynamic>;
+        expect(userOpJson['callGasLimit'], isNotNull);
+        expect(userOpJson['verificationGasLimit'], isNotNull);
+        expect(userOpJson['preVerificationGas'], isNotNull);
+      });
+
+      test('always includes null context slot when context omitted', () async {
+        final mockClient = createMockClient(
+          (_) => {
+            'paymaster': '0x1234567890123456789012345678901234567890',
+            'paymasterData': '0xabcdef',
+          },
+        );
+        client = createPaymasterClient(
+          url: 'http://localhost:3000/rpc',
+          httpClient: mockClient,
+        );
+
+        final userOp = UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.zero,
+          verificationGasLimit: BigInt.zero,
+          preVerificationGas: BigInt.zero,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        await client.getPaymasterStubData(
+          userOp: userOp,
+          entryPoint: EntryPointAddresses.v07,
+          chainId: BigInt.one,
+        );
+
+        final params = capturedRequests[0]['params'] as List<dynamic>;
+        expect(params.length, equals(4));
+        expect(params[3], isNull);
+        expect(
+          (params[0] as Map<String, dynamic>)['callGasLimit'],
+          equals('0x0'),
+        );
       });
 
       test('includes context when provided', () async {
@@ -166,6 +215,9 @@ void main() {
         );
         expect(result.paymasterData, equals('0xsigneddata123456'));
         expect(capturedRequests[0]['method'], equals('pm_getPaymasterData'));
+        final params = capturedRequests[0]['params'] as List<dynamic>;
+        expect(params.length, equals(4));
+        expect(params[3], isNull);
       });
     });
 

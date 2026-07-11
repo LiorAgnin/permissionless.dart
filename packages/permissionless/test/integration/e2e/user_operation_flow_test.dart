@@ -163,8 +163,7 @@ void main() {
               timeout: TestTimeouts.e2eFlow,
             );
 
-            expect(receipt, isNotNull);
-            expect(receipt!.success, isTrue);
+            expect(receipt.success, isTrue);
             expect(receipt.receipt?.transactionHash, startsWith('0x'));
           },
           timeout: const Timeout(TestTimeouts.e2eFlow),
@@ -232,8 +231,7 @@ void main() {
               timeout: TestTimeouts.e2eFlow,
             );
 
-            expect(receipt, isNotNull);
-            expect(receipt!.success, isTrue);
+            expect(receipt.success, isTrue);
           },
           timeout: const Timeout(TestTimeouts.e2eFlow),
         );

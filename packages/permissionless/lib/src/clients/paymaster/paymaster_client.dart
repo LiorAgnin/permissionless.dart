@@ -57,11 +57,13 @@ class PaymasterClient {
     required BigInt chainId,
     PaymasterContext? context,
   }) async {
+    // viem always sends 4 positional params (context may be null) and ensures
+    // gas fields default to 0x0 when missing.
     final params = <dynamic>[
-      userOp.toJson(),
+      _userOpJsonForPaymaster(userOp),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
-      if (context != null) context.toJson(),
+      context?.toJson(),
     ];
 
     final result = await rpcClient.call('pm_getPaymasterStubData', params);
@@ -78,15 +80,27 @@ class PaymasterClient {
     required BigInt chainId,
     PaymasterContext? context,
   }) async {
+    // viem always sends 4 positional params (context may be null) and ensures
+    // gas fields default to 0x0 when missing.
     final params = <dynamic>[
-      userOp.toJson(),
+      _userOpJsonForPaymaster(userOp),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
-      if (context != null) context.toJson(),
+      context?.toJson(),
     ];
 
     final result = await rpcClient.call('pm_getPaymasterData', params);
     return PaymasterData.fromJson(result as Map<String, dynamic>);
+  }
+
+  /// Builds paymaster request body matching viem's formatUserOperationRequest
+  /// defaults: gas fields fall back to `0x0` when absent.
+  Map<String, dynamic> _userOpJsonForPaymaster(UserOperation userOp) {
+    final json = userOp.toJson();
+    json['callGasLimit'] = json['callGasLimit'] ?? '0x0';
+    json['verificationGasLimit'] = json['verificationGasLimit'] ?? '0x0';
+    json['preVerificationGas'] = json['preVerificationGas'] ?? '0x0';
+    return json;
   }
 
   /// Sponsors a UserOperation in a single call.

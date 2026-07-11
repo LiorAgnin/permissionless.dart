@@ -5,7 +5,6 @@ import '../../types/hex.dart';
 import '../../types/user_operation.dart';
 import '../../utils/parsing.dart';
 import '../bundler/rpc_client.dart';
-import '../bundler/types.dart';
 import 'types.dart';
 
 /// Client for read-only Ethereum JSON-RPC operations.
@@ -181,9 +180,11 @@ class PublicClient {
 
   /// Gets the counterfactual address for a smart account before deployment.
   ///
-  /// This calls the EntryPoint's `getSenderAddress` function which simulates
-  /// account creation with the provided [initCode] and returns the address
-  /// that would be created.
+  /// Uses the Pimlico [GetSenderAddressHelper] deploy-bytecode trick (same as
+  /// permissionless.js): `eth_call`s the helper **without a `to` address** so
+  /// the constructor runs EntryPoint.getSenderAddress, catches the
+  /// `SenderAddressResult` revert, and returns the address as normal return
+  /// data. This is more node-robust than decoding revert payloads.
   ///
   /// The [initCode] is the concatenation of factory address + factory calldata.
   /// It's the same value used in UserOperation.initCode.
@@ -197,68 +198,67 @@ class PublicClient {
   /// print('Account will be deployed at: ${address.checksummed}');
   /// ```
   ///
-  /// Throws [PublicRpcError] if the initCode is invalid or the call fails
-  /// for reasons other than the expected SenderAddressResult revert.
+  /// Throws [PublicRpcError] if the helper does not return an address.
   Future<EthereumAddress> getSenderAddress({
     required String initCode,
     required EthereumAddress entryPoint,
   }) async {
-    // EntryPoint.getSenderAddress(bytes initCode) selector: 0x9b249f69
-    final callData = Hex.concat([
-      '0x9b249f69',
-      // Offset to initCode bytes (32 = 0x20)
-      '0000000000000000000000000000000000000000000000000000000000000020',
-      // Length of initCode
-      Hex.padLeft(
-        Hex.fromBigInt(BigInt.from((initCode.length - 2) ~/ 2)),
-        32,
-      ).substring(2),
-      // initCode data (padded to 32-byte boundary)
-      _padToWordBoundary(Hex.strip0x(initCode)),
+    // encodeDeployData(helperBytecode, [entryPoint, initCode])
+    final deployData = Hex.concat([
+      _getSenderAddressHelperBytecode,
+      _encodeConstructorArgs(entryPoint, initCode),
     ]);
 
-    try {
-      // This call is expected to revert with SenderAddressResult
-      await call(Call(to: entryPoint, data: callData));
+    // eth_call with no `to` — executes creation bytecode
+    final result = await rpcClient.call(
+      'eth_call',
+      [
+        {'data': deployData},
+        'latest',
+      ],
+    );
 
-      // If we get here, something unexpected happened
-      throw const PublicRpcError(
-        code: -1,
-        message: 'getSenderAddress did not revert as expected',
-      );
-    } on BundlerRpcError catch (e) {
-      // Parse the revert data to extract the address
-      // SenderAddressResult(address) selector: 0x6ca7b806
-      final data = e.data?.toString() ?? '';
-
-      if (data.length >= 74 && data.startsWith('0x6ca7b806')) {
-        // Extract address from bytes 4-36 (after selector)
-        // Address is at offset 4 (selector) + 12 (padding) = 16
-        final addressHex = '0x${data.substring(34, 74)}';
-        return EthereumAddress.fromHex(addressHex);
-      }
-
-      // Check for alternative error format (some nodes wrap the error)
-      if (data.contains('6ca7b806')) {
-        final selectorIndex = data.indexOf('6ca7b806');
-        if (selectorIndex != -1 && data.length >= selectorIndex + 72) {
-          final addressHex =
-              '0x${data.substring(selectorIndex + 32, selectorIndex + 72)}';
-          return EthereumAddress.fromHex(addressHex);
-        }
-      }
-
-      // Not the expected revert, rethrow
+    final data = result as String?;
+    if (data == null || data == '0x' || Hex.strip0x(data).length < 64) {
       throw PublicRpcError(
-        code: e.code,
-        message: e.message,
-        data: e.data?.toString(),
+        code: -1,
+        message:
+            'Failed to get sender address: helper returned no data for '
+            'entryPoint ${entryPoint.hex}',
       );
     }
+
+    // decodeAbiParameters([{type: 'address'}], data)
+    final clean = Hex.strip0x(data);
+    final addressHex = '0x${clean.substring(clean.length - 40)}';
+    return EthereumAddress.fromHex(addressHex);
   }
 
   /// Closes the underlying HTTP client.
   void close() => rpcClient.close();
+}
+
+/// Pimlico GetSenderAddressHelper creation bytecode.
+///
+/// Source: https://github.com/pimlicolabs/contracts (GetSenderAddressHelper.sol)
+/// Used by permissionless.js `getSenderAddress` to convert the EntryPoint
+/// `SenderAddressResult` revert into a normal eth_call return value.
+const _getSenderAddressHelperBytecode =
+    '0x60806040526102a28038038091610015826100ae565b6080396040816080019112610093576080516001600160a01b03811681036100935760a0516001600160401b0381116100935782609f82011215610093578060800151610061816100fc565b9361006f60405195866100d9565b81855260a082840101116100935761008e9160a0602086019101610117565b610196565b600080fd5b634e487b7160e01b600052604160045260246000fd5b6080601f91909101601f19168101906001600160401b038211908210176100d457604052565b610098565b601f909101601f19168101906001600160401b038211908210176100d457604052565b6001600160401b0381116100d457601f01601f191660200190565b60005b83811061012a5750506000910152565b818101518382015260200161011a565b6040916020825261015a8151809281602086015260208686019101610117565b601f01601f1916010190565b3d15610191573d90610177826100fc565b9161018560405193846100d9565b82523d6000602084013e565b606090565b600091908291826040516101cd816101bf6020820195639b249f6960e01b87526024830161013a565b03601f1981018352826100d9565b51925af16101d9610166565b906102485760048151116000146101f7576024015160005260206000f35b60405162461bcd60e51b8152602060048201526024808201527f67657453656e64657241646472657373206661696c656420776974686f7574206044820152636461746160e01b6064820152608490fd5b60405162461bcd60e51b815260206004820152602b60248201527f67657453656e6465724164647265737320646964206e6f74207265766572742060448201526a185cc8195e1c1958dd195960aa1b6064820152608490fdfe';
+
+/// ABI-encodes constructor args `(address entryPoint, bytes initCode)`.
+String _encodeConstructorArgs(EthereumAddress entryPoint, String initCode) {
+  final initCodeHex = Hex.strip0x(initCode);
+  final initCodeLength = initCodeHex.length ~/ 2;
+
+  // Head: address (static) + offset to bytes (0x40)
+  // Tail: length + data padded to 32-byte boundary
+  return Hex.concat([
+    _abiEncodeAddress(entryPoint),
+    Hex.padLeft(Hex.fromBigInt(BigInt.from(0x40)), 32),
+    Hex.padLeft(Hex.fromBigInt(BigInt.from(initCodeLength)), 32),
+    '0x${_padToWordBoundary(initCodeHex)}',
+  ]);
 }
 
 /// Creates a [PublicClient] from a URL.

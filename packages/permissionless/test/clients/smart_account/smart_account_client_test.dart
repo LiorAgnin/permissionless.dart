@@ -117,7 +117,11 @@ void main() {
 
     /// Creates a mock PublicClient for testing.
     /// By default returns empty code (not deployed account).
-    PublicClient createPublicClientMock({bool isDeployed = false}) {
+    PublicClient createPublicClientMock({
+      bool isDeployed = false,
+      BigInt? gasPrice,
+      BigInt? maxPriorityFeePerGas,
+    }) {
       final mock = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final method = body['method'] as String;
@@ -130,6 +134,11 @@ void main() {
           // Return nonce for getAccountNonce
           result =
               '0x0000000000000000000000000000000000000000000000000000000000000000';
+        } else if (method == 'eth_gasPrice') {
+          result = '0x${(gasPrice ?? BigInt.from(1000000000)).toRadixString(16)}';
+        } else if (method == 'eth_maxPriorityFeePerGas') {
+          result =
+              '0x${(maxPriorityFeePerGas ?? BigInt.from(100000000)).toRadixString(16)}';
         }
 
         return http.Response(
@@ -376,6 +385,178 @@ void main() {
         expect(userOp.factory, isNull);
         expect(userOp.factoryData, isNull);
       });
+
+      test('respects partial overrides and skips gas estimate when all set',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          publicClient: createPublicClientMock(isDeployed: true),
+        );
+
+        const prefilledCallData = '0xdeadbeef';
+        final userOp = await client.prepareUserOperation(
+          callData: prefilledCallData,
+          callGasLimit: BigInt.from(50000),
+          verificationGasLimit: BigInt.from(60000),
+          preVerificationGas: BigInt.from(21000),
+          signature: '0xcafebabe',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(userOp.callData, equals(prefilledCallData));
+        expect(userOp.callGasLimit, equals(BigInt.from(50000)));
+        expect(userOp.verificationGasLimit, equals(BigInt.from(60000)));
+        expect(userOp.preVerificationGas, equals(BigInt.from(21000)));
+        expect(userOp.signature, equals('0xcafebabe'));
+        // No eth_estimateUserOperationGas when all gas fields provided
+        expect(bundlerRequests, isEmpty);
+      });
+
+      test('preserves caller gas fields while estimating missing ones',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          publicClient: createPublicClientMock(isDeployed: true),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+            ),
+          ],
+          callGasLimit: BigInt.from(99999),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        // Caller callGasLimit preserved; others estimated (1.1x of 0x186a0)
+        expect(userOp.callGasLimit, equals(BigInt.from(99999)));
+        expect(userOp.verificationGasLimit, equals(BigInt.from(110000)));
+        expect(userOp.preVerificationGas, equals(BigInt.from(21000)));
+        expect(bundlerRequests.length, equals(1));
+      });
+
+      test('uses client paymasterContext default when per-call omitted',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+        final paymaster = createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(),
+        );
+
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          paymaster: paymaster,
+          publicClient: createPublicClientMock(),
+          paymasterContext:
+              const PaymasterContext(sponsorshipPolicyId: 'default-policy'),
+        );
+
+        await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+            ),
+          ],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        final stubParams = paymasterRequests[0]['params'] as List<dynamic>;
+        expect(stubParams.length, equals(4));
+        expect(stubParams[3]['sponsorshipPolicyId'], equals('default-policy'));
+      });
+
+      test('uses estimateFeesPerGas hook when fees not supplied', () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+
+        var hookCalled = false;
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          publicClient: createPublicClientMock(),
+          estimateFeesPerGas: () async {
+            hookCalled = true;
+            return FeeEstimate(
+              maxFeePerGas: BigInt.from(42),
+              maxPriorityFeePerGas: BigInt.from(7),
+            );
+          },
+        );
+
+        final userOp = await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+            ),
+          ],
+        );
+
+        expect(hookCalled, isTrue);
+        expect(userOp.maxFeePerGas, equals(BigInt.from(42)));
+        expect(userOp.maxPriorityFeePerGas, equals(BigInt.from(7)));
+      });
+
+      test('falls back to 2x fee data when no hook and fees omitted', () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          publicClient: createPublicClientMock(
+            gasPrice: BigInt.from(1000),
+            maxPriorityFeePerGas: BigInt.from(100),
+          ),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+            ),
+          ],
+        );
+
+        expect(userOp.maxFeePerGas, equals(BigInt.from(2000)));
+        expect(userOp.maxPriorityFeePerGas, equals(BigInt.from(200)));
+      });
     });
 
     group('signUserOperation', () {
@@ -548,8 +729,7 @@ void main() {
           timeout: const Duration(seconds: 5),
         );
 
-        expect(receipt, isNotNull);
-        expect(receipt!.success, isTrue);
+        expect(receipt.success, isTrue);
         expect(receipt.userOpHash, equals('0xabcdef1234567890'));
       });
     });

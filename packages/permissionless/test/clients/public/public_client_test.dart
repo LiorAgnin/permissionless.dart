@@ -359,20 +359,15 @@ void main() {
     });
 
     group('getSenderAddress', () {
-      test('returns address from SenderAddressResult revert', () async {
-        // Mock client that simulates the EntryPoint revert with SenderAddressResult
+      test('returns address from helper-bytecode eth_call result', () async {
+        // Helper returns ABI-encoded address as normal eth_call data
         final mockClient = MockClient(
           (request) async => http.Response(
             jsonEncode({
               'jsonrpc': '2.0',
               'id': 1,
-              'error': {
-                'code': 3,
-                'message': 'execution reverted',
-                // SenderAddressResult(address sender) with address 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045
-                'data':
-                    '0x6ca7b806000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa96045',
-              },
+              'result':
+                  '0x000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa96045',
             }),
             200,
           ),
@@ -396,52 +391,13 @@ void main() {
         );
       });
 
-      test('handles wrapped error format', () async {
-        // Some nodes wrap the error data differently
+      test('throws PublicRpcError when helper returns empty data', () async {
         final mockClient = MockClient(
           (request) async => http.Response(
             jsonEncode({
               'jsonrpc': '2.0',
               'id': 1,
-              'error': {
-                'code': -32000,
-                'message': 'execution reverted',
-                // Error data with SenderAddressResult embedded
-                'data':
-                    '0x08c379a00000006ca7b806000000000000000000000000abcdef1234567890abcdef1234567890abcdef12',
-              },
-            }),
-            200,
-          ),
-        );
-        final client = createPublicClient(
-          url: 'http://localhost:8545',
-          httpClient: mockClient,
-        );
-
-        final address = await client.getSenderAddress(
-          initCode: '0x1234567890123456789012345678901234567890abcdef',
-          entryPoint: EntryPointAddresses.v07,
-        );
-
-        expect(
-          address.hex.toLowerCase(),
-          equals('0xabcdef1234567890abcdef1234567890abcdef12'),
-        );
-      });
-
-      test('throws PublicRpcError for non-SenderAddressResult revert',
-          () async {
-        final mockClient = MockClient(
-          (request) async => http.Response(
-            jsonEncode({
-              'jsonrpc': '2.0',
-              'id': 1,
-              'error': {
-                'code': -32000,
-                'message': 'execution reverted: invalid initCode',
-                'data': '0x08c379a0',
-              },
+              'result': '0x',
             }),
             200,
           ),
@@ -460,23 +416,22 @@ void main() {
         );
       });
 
-      test('encodes initCode correctly in call data', () async {
+      test('uses eth_call with no to and deploy bytecode + constructor args',
+          () async {
         String? capturedData;
+        Map<String, dynamic>? capturedTx;
         final mockClient = MockClient((request) async {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
+          expect(body['method'], equals('eth_call'));
           final params = body['params'] as List<dynamic>;
-          final callParams = params[0] as Map<String, dynamic>;
-          capturedData = callParams['data'] as String;
+          capturedTx = params[0] as Map<String, dynamic>;
+          capturedData = capturedTx!['data'] as String;
           return http.Response(
             jsonEncode({
               'jsonrpc': '2.0',
               'id': 1,
-              'error': {
-                'code': 3,
-                'message': 'execution reverted',
-                'data':
-                    '0x6ca7b8060000000000000000000000001234567890123456789012345678901234567890',
-              },
+              'result':
+                  '0x0000000000000000000000001234567890123456789012345678901234567890',
             }),
             200,
           );
@@ -491,24 +446,19 @@ void main() {
           entryPoint: EntryPointAddresses.v07,
         );
 
-        // Verify function selector
-        expect(capturedData!.startsWith('0x9b249f69'), isTrue);
-        // Verify offset (32 = 0x20)
+        // No `to` — creation bytecode path
+        expect(capturedTx!.containsKey('to'), isFalse);
+        // Starts with GetSenderAddressHelper bytecode
+        expect(capturedData!.startsWith('0x6080604052'), isTrue);
+        // Constructor args appended after bytecode; entryPoint address in head
         expect(
-          capturedData!.substring(10, 74),
-          equals(
-            '0000000000000000000000000000000000000000000000000000000000000020',
-          ),
+          capturedData!.toLowerCase().contains(
+                EntryPointAddresses.v07.hex.substring(2).toLowerCase(),
+              ),
+          isTrue,
         );
-        // Verify length (4 bytes = aabbccdd)
-        expect(
-          capturedData!.substring(74, 138),
-          equals(
-            '0000000000000000000000000000000000000000000000000000000000000004',
-          ),
-        );
-        // Verify initCode (padded to word boundary)
-        expect(capturedData!.substring(138, 202), startsWith('aabbccdd'));
+        // initCode bytes present in tail
+        expect(capturedData!.contains('aabbccdd'), isTrue);
       });
     });
   });

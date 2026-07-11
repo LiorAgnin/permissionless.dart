@@ -61,7 +61,11 @@ extension SmartAccountActions on SmartAccountClient {
   /// - [maxFeePerGas] - Maximum fee per gas
   /// - [maxPriorityFeePerGas] - Maximum priority fee per gas
   /// - [nonce] - Optional nonce override
-  /// - [timeout] - How long to wait for confirmation (default 60s)
+  /// - [timeout] - How long to wait for confirmation (default 120s)
+  ///
+  /// Throws [TimeoutException] if the UserOperation is not included within
+  /// [timeout]. Never returns a UserOperation hash in place of a transaction
+  /// hash (that misleads callers into treating the hash as an on-chain tx).
   ///
   /// Example:
   /// ```dart
@@ -77,10 +81,10 @@ extension SmartAccountActions on SmartAccountClient {
     required EthereumAddress to,
     BigInt? value,
     String data = '0x',
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = const Duration(seconds: 120),
   }) async {
     final hash = await sendUserOperation(
       calls: [Call(to: to, value: value, data: data)],
@@ -91,8 +95,15 @@ extension SmartAccountActions on SmartAccountClient {
 
     final receipt = await waitForReceipt(hash, timeout: timeout);
 
-    // Return the on-chain transaction hash if available
-    return receipt?.receipt?.transactionHash ?? hash;
+    // Receipt is guaranteed non-null (timeout throws). Prefer the on-chain
+    // transaction hash; fall back only if the bundler omitted nested receipt.
+    final txHash = receipt.receipt?.transactionHash;
+    if (txHash == null) {
+      throw StateError(
+        'UserOperation $hash included but receipt has no transaction hash',
+      );
+    }
+    return txHash;
   }
 
   /// Sends a contract write call.
@@ -128,10 +139,10 @@ extension SmartAccountActions on SmartAccountClient {
     List<dynamic> args = const [],
     BigInt? value,
     String? dataSuffix,
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = const Duration(seconds: 120),
   }) async {
     var callData = AbiEncoder.encodeFunctionData(functionSignature, args);
     if (dataSuffix != null && dataSuffix.isNotEmpty) {
@@ -179,8 +190,8 @@ extension SmartAccountActions on SmartAccountClient {
   /// ```
   Future<String> sendCalls({
     required List<Call> calls,
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
   }) =>
       sendUserOperation(

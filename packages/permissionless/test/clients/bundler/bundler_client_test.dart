@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -349,6 +350,54 @@ void main() {
 
         expect(result, equals(BigInt.one));
         expect(capturedRequests[0]['method'], equals('eth_chainId'));
+      });
+    });
+
+    group('waitForUserOperationReceipt', () {
+      test('returns receipt when found', () async {
+        final mockClient = createMockClient(
+          (_) => {
+            'userOpHash': '0xabcdef1234567890',
+            'sender': '0x1234567890123456789012345678901234567890',
+            'nonce': '0x0',
+            'success': true,
+            'actualGasCost': '0x1234',
+            'actualGasUsed': '0x5678',
+            'logs': <dynamic>[],
+          },
+        );
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: mockClient,
+        );
+
+        final receipt = await client.waitForUserOperationReceipt(
+          '0xabcdef1234567890',
+          timeout: const Duration(seconds: 5),
+          pollingInterval: const Duration(milliseconds: 10),
+        );
+
+        expect(receipt.success, isTrue);
+        expect(receipt.userOpHash, equals('0xabcdef1234567890'));
+      });
+
+      test('throws TimeoutException when not found before deadline', () async {
+        final mockClient = createMockClient((_) => null);
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: mockClient,
+        );
+
+        await expectLater(
+          client.waitForUserOperationReceipt(
+            '0xmissing',
+            timeout: const Duration(milliseconds: 50),
+            pollingInterval: const Duration(milliseconds: 10),
+          ),
+          throwsA(isA<TimeoutException>()),
+        );
       });
     });
   });

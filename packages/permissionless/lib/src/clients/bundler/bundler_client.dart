@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 
 import '../../types/address.dart';
@@ -204,10 +206,15 @@ class BundlerClient {
   /// Polls [getUserOperationReceipt] until the operation is found
   /// or the timeout is reached.
   ///
-  /// Returns the receipt, or null if timed out.
-  Future<UserOperationReceipt?> waitForUserOperationReceipt(
+  /// Default timeout is 120 seconds, matching viem's
+  /// `waitForUserOperationReceipt`.
+  ///
+  /// Returns the receipt when found.
+  ///
+  /// Throws [TimeoutException] if the receipt is not found within [timeout].
+  Future<UserOperationReceipt> waitForUserOperationReceipt(
     String userOpHash, {
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = const Duration(seconds: 120),
     Duration pollingInterval = const Duration(seconds: 2),
   }) async {
     final deadline = DateTime.now().add(timeout);
@@ -220,7 +227,10 @@ class BundlerClient {
       await Future<void>.delayed(pollingInterval);
     }
 
-    return null;
+    throw TimeoutException(
+      'Timed out waiting for UserOperation receipt: $userOpHash',
+      timeout,
+    );
   }
 
   /// Closes the underlying HTTP client.

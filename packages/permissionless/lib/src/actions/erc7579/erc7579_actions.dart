@@ -48,8 +48,8 @@ extension Erc7579Actions on SmartAccountClient {
     required Erc7579ModuleType type,
     required EthereumAddress address,
     String initData = '0x',
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
   }) async {
     final accountAddress = await getAddress();
@@ -95,8 +95,8 @@ extension Erc7579Actions on SmartAccountClient {
   /// ```
   Future<String> installModules({
     required List<InstallModuleConfig> modules,
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
   }) async {
     if (modules.isEmpty) {
@@ -143,8 +143,8 @@ extension Erc7579Actions on SmartAccountClient {
     required Erc7579ModuleType type,
     required EthereumAddress address,
     String deInitData = '0x',
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
   }) async {
     final accountAddress = await getAddress();
@@ -188,8 +188,8 @@ extension Erc7579Actions on SmartAccountClient {
   /// ```
   Future<String> uninstallModules({
     required List<UninstallModuleConfig> modules,
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
   }) async {
     if (modules.isEmpty) {
@@ -219,15 +219,17 @@ extension Erc7579Actions on SmartAccountClient {
   ///
   /// Convenience method that combines [installModule] with [waitForReceipt].
   ///
-  /// Returns the UserOperation receipt, or null if timed out.
-  Future<UserOperationReceipt?> installModuleAndWait({
+  /// Returns the UserOperation receipt.
+  ///
+  /// Throws [TimeoutException] if the receipt is not found within [timeout].
+  Future<UserOperationReceipt> installModuleAndWait({
     required Erc7579ModuleType type,
     required EthereumAddress address,
     String initData = '0x',
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = const Duration(seconds: 120),
     Duration pollingInterval = const Duration(seconds: 2),
   }) async {
     final hash = await installModule(
@@ -250,15 +252,17 @@ extension Erc7579Actions on SmartAccountClient {
   ///
   /// Convenience method that combines [uninstallModule] with [waitForReceipt].
   ///
-  /// Returns the UserOperation receipt, or null if timed out.
-  Future<UserOperationReceipt?> uninstallModuleAndWait({
+  /// Returns the UserOperation receipt.
+  ///
+  /// Throws [TimeoutException] if the receipt is not found within [timeout].
+  Future<UserOperationReceipt> uninstallModuleAndWait({
     required Erc7579ModuleType type,
     required EthereumAddress address,
     String deInitData = '0x',
-    required BigInt maxFeePerGas,
-    required BigInt maxPriorityFeePerGas,
+    BigInt? maxFeePerGas,
+    BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 60),
+    Duration timeout = const Duration(seconds: 120),
     Duration pollingInterval = const Duration(seconds: 2),
   }) async {
     final hash = await uninstallModule(
