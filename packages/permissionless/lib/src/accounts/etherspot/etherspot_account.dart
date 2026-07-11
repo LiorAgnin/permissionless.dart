@@ -422,8 +422,10 @@ class EtherspotSmartAccount implements SmartAccount {
   /// Returns signature with validator prefix.
   @override
   Future<String> signMessage(String message) async {
+    // hashMessage already applies the EIP-191 prefix; sign that digest raw
+    // (matches viem localOwner.signMessage — one prefix only).
     final messageHash = hashMessage(message);
-    final signature = await owner.signPersonalMessage(messageHash);
+    final signature = await owner.signRawHash(messageHash);
 
     // Prepend validator address
     final validatorHex = Hex.strip0x(ecdsaValidator.hex).toLowerCase();
@@ -436,8 +438,8 @@ class EtherspotSmartAccount implements SmartAccount {
   /// Returns signature with validator prefix.
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    final signature = await owner.signPersonalMessage(hash);
+    // Sign the EIP-712 digest raw (no personal-message prefix).
+    final signature = await owner.signTypedData(typedData);
 
     // Prepend validator address
     final validatorHex = Hex.strip0x(ecdsaValidator.hex).toLowerCase();

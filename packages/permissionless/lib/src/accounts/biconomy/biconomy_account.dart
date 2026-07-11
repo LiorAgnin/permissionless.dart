@@ -352,8 +352,10 @@ class BiconomySmartAccount implements SmartAccountV06 {
   /// Signs a personal message (EIP-191).
   @override
   Future<String> signMessage(String message) async {
+    // hashMessage already applies the EIP-191 prefix; sign that digest raw
+    // (matches viem localOwner.signMessage — one prefix only).
     final messageHash = hashMessage(message);
-    final signature = await _config.owner.signPersonalMessage(messageHash);
+    final signature = await _config.owner.signRawHash(messageHash);
     return _encodeModuleSignature(signature);
   }
 

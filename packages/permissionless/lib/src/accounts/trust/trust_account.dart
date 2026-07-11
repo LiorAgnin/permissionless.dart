@@ -350,9 +350,9 @@ class TrustSmartAccount implements SmartAccountV06 {
       message: {'message': hashedMessage},
     );
 
-    // Trust signs typed data with personal message prefix
-    final hash = hashTypedData(wrappedTypedData);
-    return _config.owner.signPersonalMessage(hash);
+    // Sign the Barz EIP-712 digest raw (no EIP-191 prefix). Matches
+    // permissionless.js which uses signer.signTypedData on the wrapper.
+    return _config.owner.signTypedData(wrappedTypedData);
   }
 
   /// Computes the userOpHash for v0.6.

@@ -389,8 +389,9 @@ class LightSmartAccount implements SmartAccount {
       message: {'message': hashedMessage},
     );
 
-    final hash = hashTypedData(typedData);
-    return _config.owner.signPersonalMessage(hash);
+    // Sign the EIP-712 digest raw (no EIP-191 prefix). LightAccount's
+    // on-chain isValidSignature recovers against this digest.
+    return _config.owner.signTypedData(typedData);
   }
 
   String _computeUserOpHash(UserOperationV07 userOp) {

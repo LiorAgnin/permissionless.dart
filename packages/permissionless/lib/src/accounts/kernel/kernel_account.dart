@@ -582,8 +582,9 @@ class KernelSmartAccount implements SmartAccount {
       );
     }
 
-    // ECDSA signing
-    final signature = await _config.owner.signRawHash(userOpHash);
+    // ECDSA: EIP-191 personal_sign over the raw userOpHash (matches
+    // permissionless.js owner.signMessage({ message: { raw: hash } })).
+    final signature = await _config.owner.signPersonalMessage(userOpHash);
 
     if (_config.version == KernelVersion.v0_2_4) {
       // v0.2.x: ROOT_MODE (4 bytes) + signature
@@ -603,7 +604,8 @@ class KernelSmartAccount implements SmartAccount {
   /// and returns the signature with ROOT_MODE prefix.
   Future<String> signUserOperationV06(UserOperationV06 userOp) async {
     final userOpHash = _computeUserOpHashV06(userOp);
-    final signature = await _config.owner.signRawHash(userOpHash);
+    // EIP-191 personal_sign over the raw userOpHash (matches JS).
+    final signature = await _config.owner.signPersonalMessage(userOpHash);
 
     // v0.2.x: ROOT_MODE (4 bytes) + signature
     return Hex.concat([
@@ -646,48 +648,111 @@ class KernelSmartAccount implements SmartAccount {
     ]);
   }
 
-  /// Signs a personal message (EIP-191).
+  /// Signs a personal message (EIP-191) with Kernel EIP-712 wrapping.
   ///
   /// Returns the signature in the appropriate format for the owner type:
-  /// - ECDSA: raw 65-byte signature
-  /// - WebAuthn: ABI-encoded P256 signature with metadata
+  /// - ECDSA: Kernel-wrapped personal signature, with `0x01‖validator` prefix on v0.3.x
+  /// - WebAuthn: ABI-encoded P256 signature over the wrapped digest (same prefix rules)
   @override
   Future<String> signMessage(String message) async {
     final messageHash = hashMessage(message);
-
-    if (_isWebAuthn) {
-      final usePrecompiled = await _shouldUsePrecompile();
-      final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
-      final sigData = await webAuthnOwner.signP256(messageHash);
-      return encodeKernelWebAuthnSignature(
-        sigData,
-        usePrecompiled: usePrecompiled,
-      );
-    }
-
-    return _config.owner.signRawHash(messageHash);
+    return _signWithKernelWrapper(messageHash);
   }
 
-  /// Signs EIP-712 typed data.
+  /// Signs EIP-712 typed data with Kernel EIP-712 wrapping.
   ///
   /// Returns the signature in the appropriate format for the owner type:
-  /// - ECDSA: raw 65-byte signature
-  /// - WebAuthn: ABI-encoded P256 signature with metadata
+  /// - ECDSA: Kernel-wrapped personal signature, with `0x01‖validator` prefix on v0.3.x
+  /// - WebAuthn: ABI-encoded P256 signature over the wrapped digest (same prefix rules)
   @override
   Future<String> signTypedData(TypedData typedData) async {
+    final hash = hashTypedData(typedData);
+    return _signWithKernelWrapper(hash);
+  }
+
+  /// Wraps [messageHash] with the Kernel EIP-712 domain and signs it.
+  ///
+  /// Mirrors permissionless.js `wrapMessageHash` + `owner.signMessage({ raw })`,
+  /// then for v0.3.x prefixes `0x01 ‖ validatorAddress`.
+  Future<String> _signWithKernelWrapper(String messageHash) async {
+    final wrappedDigest = await _wrapMessageHash(messageHash);
+
+    String signature;
     if (_isWebAuthn) {
       final usePrecompiled = await _shouldUsePrecompile();
       final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
-      final hash = hashTypedData(typedData);
-      final sigData = await webAuthnOwner.signP256(hash);
-      return encodeKernelWebAuthnSignature(
+      final sigData = await webAuthnOwner.signP256(wrappedDigest);
+      signature = encodeKernelWebAuthnSignature(
         sigData,
         usePrecompiled: usePrecompiled,
       );
+    } else {
+      // EIP-191 personal_sign over the 32-byte Kernel digest.
+      signature = await _config.owner.signPersonalMessage(wrappedDigest);
     }
 
-    return _config.owner.signTypedData(typedData);
+    if (_config.version == KernelVersion.v0_2_4) {
+      return signature;
+    }
+
+    // v0.3.x: prepend root validator identifier `0x01 ‖ validatorAddress`
+    final validatorId = _getEcdsaRootIdentifier();
+    return Hex.concat([validatorId, Hex.strip0x(signature)]);
   }
+
+  /// Kernel EIP-712 wrap of a message/typed-data hash.
+  ///
+  /// v0.2.x: digest = keccak256(0x1901 ‖ domainSeparator ‖ messageHash)
+  /// v0.3.x: digest = keccak256(0x1901 ‖ domainSeparator ‖
+  ///   keccak256(keccak256("Kernel(bytes32 hash)") ‖ messageHash))
+  Future<String> _wrapMessageHash(String messageHash) async {
+    final accountAddress = await getAddress();
+
+    final domain = TypedDataDomain(
+      name: 'Kernel',
+      version: _config.version.value,
+      chainId: _config.chainId,
+      verifyingContract: accountAddress,
+    );
+    final domainSep = computeDomainSeparator(domain);
+
+    final String structHash;
+    if (_config.version == KernelVersion.v0_2_4) {
+      structHash = messageHash;
+    } else {
+      final typeHash = keccak256(
+        Uint8List.fromList('Kernel(bytes32 hash)'.codeUnits),
+      );
+      structHash = Hex.fromBytes(
+        keccak256(
+          Hex.decode(
+            Hex.concat([
+              Hex.fromBytes(typeHash),
+              messageHash,
+            ]),
+          ),
+        ),
+      );
+    }
+
+    return Hex.fromBytes(
+      keccak256(
+        Hex.decode(
+          Hex.concat([
+            '0x1901',
+            Hex.strip0x(domainSep),
+            Hex.strip0x(structHash),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  /// Root validator identifier for Kernel v0.3.x: `0x01 ‖ validatorAddress`.
+  String _getEcdsaRootIdentifier() => Hex.concat([
+        Hex.fromBigInt(BigInt.from(KernelValidatorType.validator), byteLength: 1),
+        _validatorAddress.hex,
+      ]);
 
   Future<String> _computeUserOpHash(UserOperationV07 userOp) async {
     // Pack the UserOperation according to ERC-4337

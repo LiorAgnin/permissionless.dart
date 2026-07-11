@@ -348,9 +348,8 @@ class ThirdwebSmartAccount implements SmartAccount {
       message: {'message': messageHash},
     );
 
-    // Thirdweb signs typed data with personal message prefix
-    final wrappedHash = hashTypedData(wrappedTypedData);
-    return _config.owner.signPersonalMessage(wrappedHash);
+    // Sign the AccountMessage EIP-712 digest raw (no EIP-191 prefix).
+    return _config.owner.signTypedData(wrappedTypedData);
   }
 
   /// Signs EIP-712 typed data with Thirdweb wrapper.
@@ -361,8 +360,7 @@ class ThirdwebSmartAccount implements SmartAccount {
     // Check if self-verifying contract
     if (typedData.domain.verifyingContract?.hex.toLowerCase() ==
         accountAddress.hex.toLowerCase()) {
-      final hash = hashTypedData(typedData);
-      return _config.owner.signPersonalMessage(hash);
+      return _config.owner.signTypedData(typedData);
     }
 
     // Wrap the typed data hash
@@ -387,9 +385,8 @@ class ThirdwebSmartAccount implements SmartAccount {
       message: {'message': wrappedHash},
     );
 
-    // Thirdweb signs typed data with personal message prefix
-    final finalHash = hashTypedData(wrappedTypedData);
-    return _config.owner.signPersonalMessage(finalHash);
+    // Sign the AccountMessage EIP-712 digest raw (no EIP-191 prefix).
+    return _config.owner.signTypedData(wrappedTypedData);
   }
 
   /// Computes the userOpHash for signing.

@@ -857,30 +857,89 @@ class SafeSmartAccount implements SmartAccount {
     return Hex.concat([validAfter, validUntil, concatenatedSigs]);
   }
 
-  /// Signs a personal message (EIP-191).
+  /// Signs a personal message (EIP-191) via SafeMessage EIP-712 wrapper.
   ///
-  /// The message is hashed and signed by all owners (sorted by address).
-  /// Returns a combined signature suitable for EIP-1271 verification.
+  /// Matches permissionless.js: wrap as `SafeMessage(bytes)`, each ECDSA
+  /// owner eth_signs the digest (v adjusted +4 → 31/32), then concatenate.
+  /// In ERC-7579 mode the result is prefixed with 20 zero bytes.
   @override
   Future<String> signMessage(String message) async {
-    final messageHash = hashMessage(message);
-    return _signHash(messageHash);
+    _assertCanSignMessage();
+    final accountAddress = await getAddress();
+    final safeMessage =
+        _buildSafeMessageTypedData(hashMessage(message), accountAddress);
+    final safeMessageHash = hashTypedData(safeMessage);
+    return _signSafeMessage(
+      safeMessageHash: safeMessageHash,
+      safeMessageTypedData: safeMessage,
+      ethSign: true,
+    );
   }
 
-  /// Signs EIP-712 typed data.
+  /// Signs EIP-712 typed data via SafeMessage EIP-712 wrapper.
   ///
-  /// The typed data is hashed and signed by all owners (sorted by address).
-  /// Returns a combined signature suitable for EIP-1271 verification.
+  /// Matches permissionless.js: wrap as `SafeMessage(bytes)` over the
+  /// typed-data hash; ECDSA owners sign the SafeMessage typed data
+  /// (v stays 27/28). In ERC-7579 mode the result is prefixed with 20 zero bytes.
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    return _signHash(hash);
+    _assertCanSignMessage();
+    final accountAddress = await getAddress();
+    final safeMessage =
+        _buildSafeMessageTypedData(hashTypedData(typedData), accountAddress);
+    final safeMessageHash = hashTypedData(safeMessage);
+    return _signSafeMessage(
+      safeMessageHash: safeMessageHash,
+      safeMessageTypedData: safeMessage,
+      ethSign: false,
+    );
   }
 
-  /// Signs a hash with all owners and returns the combined signature.
-  Future<String> _signHash(String hash) async {
-    // Sign with each owner (sorted by "address" for consistency)
-    // For WebAuthn owners, use the shared signer address for sorting
+  /// Guards matching permissionless.js Safe signMessage/signTypedData.
+  void _assertCanSignMessage() {
+    if (_config.owners.length < _config.threshold.toInt()) {
+      throw StateError(
+        'Owners length mismatch, currently not supported',
+      );
+    }
+    if (isErc7579Enabled && _config.version == SafeVersion.v1_5_0) {
+      throw StateError('Safe 7579 & version 1.5.0 are not compatible');
+    }
+  }
+
+  /// Builds the SafeMessage EIP-712 typed data for [innerHash].
+  ///
+  /// [accountAddress] is the Safe account (not the 4337 module).
+  TypedData _buildSafeMessageTypedData(
+    String innerHash,
+    EthereumAddress accountAddress,
+  ) =>
+      TypedData(
+        domain: TypedDataDomain(
+          chainId: _config.chainId,
+          verifyingContract: accountAddress,
+        ),
+        types: {
+          'SafeMessage': [
+            const TypedDataField(name: 'message', type: 'bytes'),
+          ],
+        },
+        primaryType: 'SafeMessage',
+        message: {'message': innerHash},
+      );
+
+  /// Signs a SafeMessage hash with all owners and concatenates signatures.
+  ///
+  /// When [ethSign] is true (signMessage path), ECDSA owners use personal_sign
+  /// and V is adjusted +4. When false (signTypedData path), they sign the
+  /// SafeMessage typed data directly and V stays 27/28.
+  Future<String> _signSafeMessage({
+    required String safeMessageHash,
+    required TypedData safeMessageTypedData,
+    required bool ethSign,
+  }) async {
+    final signatureEntries = <_SignatureEntry>[];
+
     final sortedOwners = List<AccountOwner>.from(_config.owners)
       ..sort((a, b) {
         final aAddr = isWebAuthnAccount(a)
@@ -892,22 +951,72 @@ class SafeSmartAccount implements SmartAccount {
         return aAddr.compareTo(bAddr);
       });
 
-    final signatures = <String>[];
     for (final owner in sortedOwners) {
       if (isWebAuthnAccount(owner)) {
-        // WebAuthn P256 signing with Safe encoding
         final webAuthnOwner = owner as WebAuthnAccountOwner;
-        final sigData = await webAuthnOwner.signP256(hash);
+        final sigData = await webAuthnOwner.signP256(safeMessageHash);
         final encoded = encodeSafeWebAuthnSignature(sigData);
-        signatures.add(Hex.strip0x(encoded));
+        signatureEntries.add(
+          _SignatureEntry(
+            signer: _addresses.webAuthnSharedSignerAddress!,
+            data: encoded,
+            isDynamic: true,
+          ),
+        );
       } else {
-        // ECDSA signing - Safe signs the raw hash directly
-        final sig = await owner.signRawHash(hash);
-        signatures.add(Hex.strip0x(sig));
+        final String sig;
+        if (ethSign) {
+          // eth_sign: personal_sign of the 32-byte SafeMessage hash, then V+4
+          final raw = await owner.signPersonalMessage(safeMessageHash);
+          sig = _adjustVInSignature(raw, ethSign: true);
+        } else {
+          // eth_signTypedData: sign SafeMessage typed data raw, normalize V
+          final raw = await owner.signTypedData(safeMessageTypedData);
+          sig = _adjustVInSignature(raw, ethSign: false);
+        }
+        signatureEntries.add(
+          _SignatureEntry(
+            signer: owner.address,
+            data: sig,
+            isDynamic: false,
+          ),
+        );
       }
     }
 
-    return Hex.concat(signatures);
+    final signatureBytes = _concatSignatures(signatureEntries);
+
+    // ERC-7579 mode prefixes with zero address (permissionless.js)
+    if (isErc7579Enabled) {
+      return Hex.concat([
+        Hex.fromBytes(Uint8List(20)),
+        Hex.strip0x(signatureBytes),
+      ]);
+    }
+
+    return signatureBytes;
+  }
+
+  /// Adjusts the V byte of a 65-byte ECDSA signature for Safe.
+  ///
+  /// - eth_sign: normalize to 27/28 then add 4 → 31/32
+  /// - eth_signTypedData: normalize to 27/28 only
+  String _adjustVInSignature(String signature, {required bool ethSign}) {
+    final hex = Hex.strip0x(signature);
+    if (hex.length != 130) {
+      throw ArgumentError('Expected 65-byte ECDSA signature, got ${hex.length ~/ 2} bytes');
+    }
+    var v = int.parse(hex.substring(128, 130), radix: 16);
+    if (v != 0 && v != 1 && v != 27 && v != 28) {
+      throw ArgumentError('Invalid signature V value: $v');
+    }
+    if (v < 27) {
+      v += 27;
+    }
+    if (ethSign) {
+      v += 4;
+    }
+    return '0x${hex.substring(0, 128)}${v.toRadixString(16).padLeft(2, '0')}';
   }
 
   /// Computes the SafeOp hash for EIP-712 signing.
