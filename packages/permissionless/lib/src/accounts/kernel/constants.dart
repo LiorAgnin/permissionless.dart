@@ -128,11 +128,15 @@ class KernelVersionAddresses {
 class KernelSelectors {
   KernelSelectors._();
 
-  /// v0.2.x: execute(address,uint256,bytes,uint8)
-  static const String executeV2 = '0xb61d27f6';
+  /// v0.2.x: execute(address to, uint256 value, bytes data, uint8 operation)
+  /// `keccak256("execute(address,uint256,bytes,uint8)")[0:4]` = 0x51945447
+  /// (not SimpleAccount's 3-arg execute `0xb61d27f6`)
+  static const String executeV2 = '0x51945447';
 
-  /// v0.2.x: executeBatch((address,uint256,bytes)[])
-  static const String executeBatchV2 = '0x47e1da2a';
+  /// v0.2.x: executeBatch((address to, uint256 value, bytes data)[] calls)
+  /// `keccak256("executeBatch((address,uint256,bytes)[])")[0:4]` = 0x34fcd5be
+  /// (not SimpleAccount's 3-array executeBatch `0x47e1da2a`)
+  static const String executeBatchV2 = '0x34fcd5be';
 
   /// v0.3.x: execute(bytes32,bytes) - ERC-7579 standard
   /// `keccak256("execute(bytes32,bytes)")[0:4]` = 0xe9ae5c53

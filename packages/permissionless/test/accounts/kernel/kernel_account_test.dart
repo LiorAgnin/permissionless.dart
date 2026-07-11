@@ -479,7 +479,20 @@ void main() {
     });
 
     group('call encoding', () {
-      test('encodes single call with v0.2 execute', () {
+      // Fixtures generated from permissionless.js KernelExecuteAbi via viem
+      // encodeFunctionData (accounts/kernel/abi/KernelAccountAbi.ts).
+      // execute(address,uint256,bytes,uint8) = 0x51945447
+      // executeBatch((address,uint256,bytes)[]) = 0x34fcd5be
+      const jsSingleEmpty =
+          '0x5194544700000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+      const jsSingleWithData =
+          '0x51945447000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd00000000000000000000000000000000000000000000000000000000000003e8000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004deadbeef00000000000000000000000000000000000000000000000000000000';
+      const jsBatch =
+          '0x34fcd5be00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000c000000000000000000000000011111111111111111111111111111111111111110000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002222222222222222222222222222222222222222000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000002abcd000000000000000000000000000000000000000000000000000000000000';
+      const jsBatchThree =
+          '0x34fcd5be00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000180000000000000000000000000aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000cccccccccccccccccccccccccccccccccccccccc00000000000000000000000000000000000000000000000000000000000003e700000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000004abcdef0100000000000000000000000000000000000000000000000000000000';
+
+      test('encodes single call with Kernel v2 execute selector', () {
         final call = Call(
           to: EthereumAddress.fromHex(
             '0x1234567890123456789012345678901234567890',
@@ -491,14 +504,45 @@ void main() {
         final encoded = account.encodeCall(call);
 
         expect(encoded, startsWith('0x'));
-        // Should use v0.2 execute selector
+        expect(
+          encoded.substring(2, 10).toLowerCase(),
+          equals('51945447'),
+        );
         expect(
           encoded.substring(2, 10).toLowerCase(),
           equals(KernelSelectors.executeV2.substring(2).toLowerCase()),
         );
       });
 
-      test('encodes batch calls with v0.2 executeBatch', () {
+      test('single empty call byte-matches permissionless.js', () {
+        final encoded = account.encodeCall(
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
+            value: BigInt.zero,
+            data: '0x',
+          ),
+        );
+
+        expect(encoded.toLowerCase(), equals(jsSingleEmpty.toLowerCase()));
+      });
+
+      test('single call with value/data byte-matches permissionless.js', () {
+        final encoded = account.encodeCall(
+          Call(
+            to: EthereumAddress.fromHex(
+              '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+            ),
+            value: BigInt.from(1000),
+            data: '0xdeadbeef',
+          ),
+        );
+
+        expect(encoded.toLowerCase(), equals(jsSingleWithData.toLowerCase()));
+      });
+
+      test('encodes batch calls with Kernel v2 executeBatch selector', () {
         final calls = [
           Call(
             to: EthereumAddress.fromHex(
@@ -521,8 +565,73 @@ void main() {
         expect(encoded, startsWith('0x'));
         expect(
           encoded.substring(2, 10).toLowerCase(),
+          equals('34fcd5be'),
+        );
+        expect(
+          encoded.substring(2, 10).toLowerCase(),
           equals(KernelSelectors.executeBatchV2.substring(2).toLowerCase()),
         );
+      });
+
+      test('batch calls byte-match permissionless.js', () {
+        final encoded = account.encodeCalls([
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
+            value: BigInt.zero,
+            data: '0x',
+          ),
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
+            value: BigInt.from(100),
+            data: '0xabcd',
+          ),
+        ]);
+
+        expect(encoded.toLowerCase(), equals(jsBatch.toLowerCase()));
+      });
+
+      test('three-call batch byte-matches permissionless.js', () {
+        final encoded = account.encodeCalls([
+          Call(
+            to: EthereumAddress.fromHex(
+              '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ),
+            value: BigInt.one,
+            data: '0x01',
+          ),
+          Call(
+            to: EthereumAddress.fromHex(
+              '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            ),
+            value: BigInt.zero,
+            data: '0x',
+          ),
+          Call(
+            to: EthereumAddress.fromHex(
+              '0xcccccccccccccccccccccccccccccccccccccccc',
+            ),
+            value: BigInt.from(999),
+            data: '0xabcdef01',
+          ),
+        ]);
+
+        expect(encoded.toLowerCase(), equals(jsBatchThree.toLowerCase()));
+      });
+
+      test('single call via encodeCalls matches encodeCall', () {
+        final call = Call(
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          value: BigInt.zero,
+          data: '0x',
+        );
+
+        expect(account.encodeCalls([call]), equals(account.encodeCall(call)));
       });
     });
 
@@ -730,12 +839,17 @@ void main() {
   });
 
   group('KernelSelectors', () {
-    test('executeV2 selector is correct', () {
-      expect(KernelSelectors.executeV2, equals('0xb61d27f6'));
+    test('executeV2 is Kernel execute(address,uint256,bytes,uint8)', () {
+      // cast sig "execute(address,uint256,bytes,uint8)"
+      // Not SimpleAccount's execute(address,uint256,bytes) = 0xb61d27f6
+      expect(KernelSelectors.executeV2, equals('0x51945447'));
     });
 
-    test('executeBatchV2 selector is correct', () {
-      expect(KernelSelectors.executeBatchV2, equals('0x47e1da2a'));
+    test('executeBatchV2 is Kernel executeBatch((address,uint256,bytes)[])',
+        () {
+      // cast sig "executeBatch((address,uint256,bytes)[])"
+      // Not SimpleAccount's executeBatch(address[],uint256[],bytes[]) = 0x47e1da2a
+      expect(KernelSelectors.executeBatchV2, equals('0x34fcd5be'));
     });
 
     test('executeV3 selector matches ERC-7579', () {
