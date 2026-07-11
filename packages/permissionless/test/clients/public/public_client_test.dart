@@ -193,6 +193,49 @@ void main() {
         final callParams = params[0] as Map<String, dynamic>;
         expect(callParams.containsKey('value'), isTrue);
       });
+
+      test('deployless factory call omits to and embeds factory bytecode',
+          () async {
+        final mockClient = createMockClient(
+          (_) =>
+              '0x0000000000000000000000000000000000000000000000000000000000000001',
+        );
+        client = createPublicClient(
+          url: 'http://localhost:8545',
+          httpClient: mockClient,
+        );
+
+        final to = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
+        final factory = EthereumAddress.fromHex(
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        );
+
+        await client.call(
+          Call(to: to, data: '0x9cfd7cff'),
+          factory: factory,
+          factoryData: '0xdeadbeef',
+        );
+
+        expect(capturedRequests[0]['method'], equals('eth_call'));
+        final params = capturedRequests[0]['params'] as List<dynamic>;
+        final callParams = params[0] as Map<String, dynamic>;
+        expect(callParams.containsKey('to'), isFalse);
+        final data = callParams['data'] as String;
+        // viem deploylessCallViaFactoryBytecode prefix
+        expect(
+          data.startsWith(
+            '0x608060405234801561001057600080fd5b506040516102c03803806102c0',
+          ),
+          isTrue,
+        );
+        // factory address appears in ABI-encoded constructor args (no 0x)
+        expect(
+          data.toLowerCase(),
+          contains('000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+        );
+      });
     });
 
     group('getTransactionCount', () {

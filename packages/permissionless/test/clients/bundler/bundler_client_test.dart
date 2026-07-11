@@ -487,14 +487,43 @@ void main() {
   });
 
   group('BundlerRpcError', () {
-    test('extracts AA error code', () {
+    test('extracts AA error code from data', () {
       const error = BundlerRpcError(
         code: -32602,
-        message: 'AA21 didn\'t pay prefund',
+        message: 'execution reverted',
         data: 'AA21 didn\'t pay prefund',
       );
 
       expect(error.aaErrorCode, equals('AA21'));
+    });
+
+    test('extracts AA error code from message when data is null', () {
+      const error = BundlerRpcError(
+        code: -32000,
+        message: "AA23 reverted: UserOperation reverted during simulation",
+      );
+
+      expect(error.aaErrorCode, equals('AA23'));
+      expect(error.aaErrorDescription, equals('Reverted (or OOG)'));
+    });
+
+    test('extracts lowercase aa codes (case-insensitive)', () {
+      const error = BundlerRpcError(
+        code: -32000,
+        message: 'aa21 didn\'t pay prefund',
+      );
+
+      expect(error.aaErrorCode, equals('AA21'));
+    });
+
+    test('prefers first AA code found in message then data', () {
+      const error = BundlerRpcError(
+        code: -32000,
+        message: 'bundler rejected: aa25 invalid nonce',
+        data: 'AA21 also present',
+      );
+
+      expect(error.aaErrorCode, equals('AA25'));
     });
 
     test('returns null for non-AA errors', () {
@@ -504,6 +533,18 @@ void main() {
       );
 
       expect(error.aaErrorCode, isNull);
+      expect(error.aaErrorDescription, isNull);
+    });
+
+    test('toString includes AA code description when known', () {
+      const error = BundlerRpcError(
+        code: -32000,
+        message: 'failed',
+        data: 'AA21',
+      );
+
+      expect(error.toString(), contains('AA21'));
+      expect(error.toString(), contains("Didn't pay prefund"));
     });
   });
 }

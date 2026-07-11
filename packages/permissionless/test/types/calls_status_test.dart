@@ -249,7 +249,7 @@ void main() {
         equals(CallsStatusType.success),
       );
 
-      // 300+ is failure
+      // 300-699 is failure (EIP-5792 / viem)
       expect(
         CallsStatus.fromJson({
           'id': '0x',
@@ -259,6 +259,85 @@ void main() {
           'atomic': true,
         }).status,
         equals(CallsStatusType.failure),
+      );
+      expect(
+        CallsStatus.fromJson({
+          'id': '0x',
+          'version': '1.0',
+          'chainId': '0x1',
+          'statusCode': 600,
+          'atomic': true,
+        }).status,
+        equals(CallsStatusType.failure),
+      );
+    });
+
+    test('fromJson accepts wallet `status` field as numeric code', () {
+      final status = CallsStatus.fromJson({
+        'id': '0xdead',
+        'version': '2.0.0',
+        'chainId': '0x1',
+        'status': 200,
+        'atomic': true,
+      });
+      expect(status.status, equals(CallsStatusType.success));
+      expect(status.statusCode, equals(200));
+    });
+
+    test('fromJson handles legacy string CONFIRMED and PENDING', () {
+      final confirmed = CallsStatus.fromJson({
+        'id': '0x1',
+        'version': '1.0',
+        'chainId': '0x1',
+        'status': 'CONFIRMED',
+        'atomic': true,
+      });
+      expect(confirmed.status, equals(CallsStatusType.success));
+      expect(confirmed.statusCode, equals(200));
+
+      final pending = CallsStatus.fromJson({
+        'id': '0x1',
+        'version': '1.0',
+        'chainId': '0x1',
+        'statusCode': 'PENDING',
+        'atomic': true,
+      });
+      expect(pending.status, equals(CallsStatusType.pending));
+      expect(pending.statusCode, equals(100));
+    });
+
+    test('fromJson accepts numeric status codes as strings', () {
+      final status = CallsStatus.fromJson({
+        'id': '0x1',
+        'version': '1.0',
+        'chainId': '0x1',
+        'statusCode': '100',
+        'atomic': true,
+      });
+      expect(status.status, equals(CallsStatusType.pending));
+      expect(status.statusCode, equals(100));
+    });
+
+    test('parseCallsStatusCode maps ranges like viem getCallsStatus', () {
+      expect(
+        CallsStatus.parseCallsStatusCode(100).status,
+        equals(CallsStatusType.pending),
+      );
+      expect(
+        CallsStatus.parseCallsStatusCode(250).status,
+        equals(CallsStatusType.success),
+      );
+      expect(
+        CallsStatus.parseCallsStatusCode(500).status,
+        equals(CallsStatusType.failure),
+      );
+      expect(
+        CallsStatus.parseCallsStatusCode('confirmed').status,
+        equals(CallsStatusType.success),
+      );
+      expect(
+        CallsStatus.parseCallsStatusCode('pending').statusCode,
+        equals(100),
       );
     });
 

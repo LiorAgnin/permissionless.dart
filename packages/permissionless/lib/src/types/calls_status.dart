@@ -93,32 +93,83 @@ class CallsStatus {
   });
 
   /// Creates a CallsStatus from a JSON map.
+  ///
+  /// Accepts either `statusCode` (Dart/library shape) or `status` (EIP-5792 /
+  /// wallet RPC field). Handles:
+  /// - Numeric codes: 100–199 pending, 200–299 success, 300–699 failure
+  /// - Legacy string statuses: `"CONFIRMED"` → success/200, `"PENDING"` → pending/100
+  /// - Numeric strings (e.g. `"100"`)
   factory CallsStatus.fromJson(Map<String, dynamic> json) {
-    final statusCode = json['statusCode'] as int;
-    CallsStatusType status;
-    if (statusCode >= 100 && statusCode < 200) {
-      status = CallsStatusType.pending;
-    } else if (statusCode >= 200 && statusCode < 300) {
-      status = CallsStatusType.success;
-    } else {
-      status = CallsStatusType.failure;
-    }
+    final raw = json.containsKey('statusCode')
+        ? json['statusCode']
+        : json['status'];
+    final parsed = parseCallsStatusCode(raw);
 
     return CallsStatus(
       id: json['id'] as String,
-      version: json['version'] as String,
+      version: json['version'] as String? ?? '1.0',
       chainId: json['chainId'] is BigInt
           ? json['chainId'] as BigInt
-          : BigInt.parse(json['chainId'].toString()),
-      status: status,
-      statusCode: statusCode,
-      atomic: json['atomic'] as bool,
+          : BigInt.parse(json['chainId']?.toString() ?? '0'),
+      status: parsed.status,
+      statusCode: parsed.statusCode,
+      atomic: json['atomic'] as bool? ?? true,
       receipts: json['receipts'] != null
           ? (json['receipts'] as List<dynamic>)
               .map((e) => CallReceipt.fromJson(e as Map<String, dynamic>))
               .toList()
           : null,
     );
+  }
+
+  /// Parses an EIP-5792 status value into [CallsStatusType] + numeric code.
+  ///
+  /// Matches viem `getCallsStatus` mapping (including legacy string statuses).
+  static ({CallsStatusType status, int statusCode}) parseCallsStatusCode(
+    dynamic raw,
+  ) {
+    if (raw is String) {
+      final upper = raw.toUpperCase();
+      if (upper == 'CONFIRMED') {
+        return (status: CallsStatusType.success, statusCode: 200);
+      }
+      if (upper == 'PENDING') {
+        return (status: CallsStatusType.pending, statusCode: 100);
+      }
+      final asInt = int.tryParse(raw) ??
+          (raw.startsWith('0x') || raw.startsWith('0X')
+              ? int.tryParse(raw.substring(2), radix: 16)
+              : null);
+      if (asInt != null) {
+        return _mapNumericStatusCode(asInt);
+      }
+      // Unknown string: treat as failure with a sentinel outside EIP-5792 ranges.
+      return (status: CallsStatusType.failure, statusCode: 500);
+    }
+
+    if (raw is int) {
+      return _mapNumericStatusCode(raw);
+    }
+
+    if (raw is num) {
+      return _mapNumericStatusCode(raw.toInt());
+    }
+
+    return (status: CallsStatusType.failure, statusCode: 500);
+  }
+
+  static ({CallsStatusType status, int statusCode}) _mapNumericStatusCode(
+    int statusCode,
+  ) {
+    if (statusCode >= 100 && statusCode < 200) {
+      return (status: CallsStatusType.pending, statusCode: statusCode);
+    }
+    if (statusCode >= 200 && statusCode < 300) {
+      return (status: CallsStatusType.success, statusCode: statusCode);
+    }
+    // EIP-5792 / viem: 300–699 are failure; other codes also surface as failure
+    // (Dart has no undefined status equivalent to viem's `undefined`).
+    return (status: CallsStatusType.failure, statusCode: statusCode);
   }
 
   /// The identifier for this call batch (userOperation hash).

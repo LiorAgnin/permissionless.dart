@@ -314,17 +314,11 @@ extension Erc7579Actions on SmartAccountClient {
     required PublicClient publicClient,
     required ExecutionMode mode,
   }) async {
-    final accountAddress = await getAddress();
-    final callData = encode7579SupportsExecutionMode(mode);
-
-    try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
-      return decode7579BoolResult(result);
-    } catch (_) {
-      // If the call fails, the mode is not supported
-      return false;
-    }
+    final result = await _erc7579ReadCall(
+      publicClient: publicClient,
+      data: encode7579SupportsExecutionMode(mode),
+    );
+    return decode7579BoolResult(result);
   }
 
   /// Checks if the account supports a specific module type.
@@ -346,16 +340,11 @@ extension Erc7579Actions on SmartAccountClient {
     required PublicClient publicClient,
     required Erc7579ModuleType moduleType,
   }) async {
-    final accountAddress = await getAddress();
-    final callData = encode7579SupportsModule(moduleType);
-
-    try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
-      return decode7579BoolResult(result);
-    } catch (_) {
-      return false;
-    }
+    final result = await _erc7579ReadCall(
+      publicClient: publicClient,
+      data: encode7579SupportsModule(moduleType),
+    );
+    return decode7579BoolResult(result);
   }
 
   /// Checks if a specific module is installed on the account.
@@ -377,20 +366,15 @@ extension Erc7579Actions on SmartAccountClient {
     required EthereumAddress address,
     String additionalContext = '0x',
   }) async {
-    final accountAddress = await getAddress();
-    final callData = encode7579IsModuleInstalled(
-      moduleType: type,
-      module: address,
-      additionalContext: additionalContext,
+    final result = await _erc7579ReadCall(
+      publicClient: publicClient,
+      data: encode7579IsModuleInstalled(
+        moduleType: type,
+        module: address,
+        additionalContext: additionalContext,
+      ),
     );
-
-    try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
-      return decode7579BoolResult(result);
-    } catch (_) {
-      return false;
-    }
+    return decode7579BoolResult(result);
   }
 
   /// Gets the account's implementation identifier.
@@ -406,15 +390,56 @@ extension Erc7579Actions on SmartAccountClient {
   Future<String> getAccountId({
     required PublicClient publicClient,
   }) async {
-    final accountAddress = await getAddress();
-    final callData = encode7579AccountId();
+    final result = await _erc7579ReadCall(
+      publicClient: publicClient,
+      data: encode7579AccountId(),
+    );
+    return decode7579StringResult(result);
+  }
 
+  /// eth_call against the account, with counterfactual factory fallback.
+  ///
+  /// Mirrors permissionless.js ERC-7579 read actions:
+  /// 1. Try a normal `eth_call` to the account address
+  /// 2. On failure **or empty `0x` result** (common for undeployed accounts
+  ///    on Geth-style nodes), if the account still has factory args, retry
+  ///    via deployless call (`factory` + `factoryData`)
+  /// 3. Propagate errors (no silent `false` / `''` swallowing)
+  Future<String> _erc7579ReadCall({
+    required PublicClient publicClient,
+    required String data,
+  }) async {
+    final accountAddress = await getAddress();
+    final call = Call(to: accountAddress, data: data);
+
+    Object? firstError;
     try {
-      final result =
-          await publicClient.call(Call(to: accountAddress, data: callData));
-      return decode7579StringResult(result);
-    } catch (_) {
-      return '';
+      final result = await publicClient.call(call);
+      // Empty return from eth_call to an undeployed address is not always an
+      // RPC error — many nodes succeed with "0x". Treat that like a failed
+      // read so the factory fallback can run (matches viem readContract
+      // ContractFunctionZeroDataError → factory retry).
+      if (result.isNotEmpty && result != '0x') {
+        return result;
+      }
+      firstError = StateError('ERC-7579 query returned empty data');
+    } catch (e) {
+      firstError = e;
     }
+
+    final factoryArgs = await account.getFactoryData();
+    if (factoryArgs == null) {
+      Error.throwWithStackTrace(firstError!, StackTrace.current);
+    }
+
+    final result = await publicClient.call(
+      call,
+      factory: factoryArgs.factory,
+      factoryData: factoryArgs.factoryData,
+    );
+    if (result.isEmpty || result == '0x') {
+      throw StateError('ERC-7579 counterfactual query returned empty data');
+    }
+    return result;
   }
 }

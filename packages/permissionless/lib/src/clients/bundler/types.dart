@@ -314,17 +314,73 @@ class BundlerRpcError implements Exception {
   /// Additional error data (often contains AA* error code).
   final dynamic data;
 
-  /// Returns the AA error code if present (e.g., "AA21", "AA25").
+  /// Case-insensitive AA## matcher (matches viem `getBundlerError` lowercasing).
+  static final RegExp _aaCodePattern = RegExp(r'AA\d+', caseSensitive: false);
+
+  /// Known ERC-4337 AA code short descriptions (EntryPoint / bundler).
+  static const Map<String, String> aaErrorDescriptions = {
+    'AA10': 'Sender already constructed',
+    'AA13': 'InitCode failed or OOG',
+    'AA14': 'InitCode must return sender',
+    'AA15': 'InitCode must create sender',
+    'AA20': 'Account not deployed',
+    'AA21': "Didn't pay prefund",
+    'AA22': 'Expired or not due',
+    'AA23': 'Reverted (or OOG)',
+    'AA24': 'Signature error',
+    'AA25': 'Invalid account nonce',
+    'AA30': 'Paymaster not deployed',
+    'AA31': 'Paymaster deposit too low',
+    'AA32': 'Paymaster expired or not due',
+    'AA33': 'Paymaster reverted (or OOG)',
+    'AA34': 'Paymaster signature error',
+    'AA40': 'Over verificationGasLimit',
+    'AA41': 'Over paymasterVerificationGasLimit',
+    'AA50': 'PostOp reverted',
+    'AA51': 'Paymaster postOp reverted',
+    'AA90': 'Invalid aggregator',
+    'AA91': 'Failed to send to beneficiary',
+    'AA92': 'Gas values overflow',
+    'AA93': 'Internal call only',
+    'AA94': 'Gas value overflow',
+    'AA95': 'Out of gas',
+    'AA96': 'Invalid aggregator',
+  };
+
+  /// Returns the AA error code if present (e.g., `"AA21"`, `"AA25"`).
+  ///
+  /// Scans both [message] and [data] (case-insensitive), matching viem's
+  /// `getBundlerError` which lowercases the error details before matching.
+  /// Codes are always returned uppercased.
   String? get aaErrorCode {
-    if (data == null) return null;
-    final dataStr = data.toString();
-    final match = RegExp(r'AA\d+').firstMatch(dataStr);
-    return match?.group(0);
+    for (final source in [message, if (data != null) data.toString()]) {
+      final match = _aaCodePattern.firstMatch(source);
+      if (match != null) {
+        return match.group(0)!.toUpperCase();
+      }
+    }
+    return null;
+  }
+
+  /// Human-readable description for [aaErrorCode], if known.
+  String? get aaErrorDescription {
+    final code = aaErrorCode;
+    if (code == null) return null;
+    return aaErrorDescriptions[code];
   }
 
   @override
-  String toString() =>
-      'BundlerRpcError($code): $message${data != null ? ' - $data' : ''}';
+  String toString() {
+    final aa = aaErrorCode;
+    final desc = aaErrorDescription;
+    final aaPart = aa == null
+        ? ''
+        : desc == null
+            ? ' [$aa]'
+            : ' [$aa: $desc]';
+    return 'BundlerRpcError($code)$aaPart: $message'
+        '${data != null ? ' - $data' : ''}';
+  }
 }
 
 // Helper to parse hex or decimal int

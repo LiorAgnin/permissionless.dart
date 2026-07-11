@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verifyAuthentication`, and `getCredentials`. Placed in the core `permissionless`
   package for JS layout parity (client-side passkey creation remains in
   `permissionless_passkeys`).
+- **`PublicClient.call` deployless factory path** — optional `factory` /
+  `factoryData` parameters perform a viem-style deployless `eth_call` via
+  `deploylessCallViaFactoryBytecode`, enabling counterfactual ERC-7579 reads.
+- **`BundlerRpcError.aaErrorDescription`** — short descriptions for known ERC-4337
+  AA## codes; `toString` includes the description when available.
+- **`CallsStatus.parseCallsStatusCode`** — public helper matching viem
+  `getCallsStatus` numeric ranges and legacy string statuses.
 
 ### Changed
 
@@ -27,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching permissionless.js safety property (no inner delegatecalls).
 - **Safe stub signatures** byte-match permissionless.js (ECDSA ecrecover-path dummy
   and WebAuthn dummy with realistic authenticatorData / long clientDataFields).
+- **ERC-7579 query actions** (`supportsModule`, `supportsExecutionMode`,
+  `isModuleInstalled`, `getAccountId`) no longer swallow errors to `false`/`''`.
+  On call failure they retry with the account's `factory`/`factoryData`
+  (counterfactual path), matching permissionless.js; other errors propagate.
 
 ### Fixed
 
@@ -34,6 +45,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   SafeProxyFactory via `publicClient` when available, with fallback to the verified
   hardcoded v1.4.1 constant. Avoids silent getAddress-vs-deploy mismatch for v1.5.0
   and custom factories.
+- **`BundlerRpcError.aaErrorCode`** scans both `message` and `data`, case-insensitively
+  (matches viem `getBundlerError`); previously only scanned `data` with `AA\d+`.
+- **`CallsStatus.fromJson`** accepts wallet `status` field, numeric strings, and
+  legacy `"CONFIRMED"` / `"PENDING"` strings without throwing on `as int`.
+
+### Deliberate deviations from permissionless.js (parity audit 018)
+
+The following items were reviewed and intentionally not ported in this release:
+
+- **EIP-712 edge cases** (`message_hash.dart`): custom `EIP712Domain` types,
+  value-range/`bytesN` validation, and UTF-8 type-string hashing remain
+  deferred. Standard ASCII domains and types match JS/viem.
+- **ERC-20 paymaster flow shape** (`experimental/pimlico/erc20_paymaster.dart`):
+  Dart still uses a stub+real estimation path with a re-fetch rather than JS's
+  stub-substitution + single final data fetch; standalone function API vs JS
+  decorator remains. Functional sponsorship works; round-trip efficiency is a
+  follow-up.
+- **install/uninstall / signMessage / sendTransaction surfaces**: per-op
+  paymaster/authorization/appended-`calls` overrides on install/uninstall,
+  raw-bytes `signMessage`, and batch/userop-params `sendTransaction` are not
+  ported (narrower Dart API; core flows work via existing methods).
+- **`AccountNotFoundError`**: structurally unnecessary — Dart always requires
+  an account on `SmartAccountClient` construction, so the JS error cannot
+  arise at action time.
 
 ## [0.3.0] - 2026-04-17
 
