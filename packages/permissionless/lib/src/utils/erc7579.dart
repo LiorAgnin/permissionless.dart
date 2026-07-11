@@ -77,20 +77,20 @@ class Erc7579Selectors {
   static const String installModule = '0x9517e29f';
 
   /// uninstallModule(uint256 moduleTypeId, address module, bytes deInitData)
-  /// `keccak256("uninstallModule(uint256,address,bytes)")[0:4]` = 0xa4d6f1d2
-  static const String uninstallModule = '0xa4d6f1d2';
+  /// `keccak256("uninstallModule(uint256,address,bytes)")[0:4]` = 0xa71763a8
+  static const String uninstallModule = '0xa71763a8';
 
   /// isModuleInstalled(uint256 moduleTypeId, address module, bytes additionalContext)
-  /// `keccak256("isModuleInstalled(uint256,address,bytes)")[0:4]` = 0x6d61fe70
-  static const String isModuleInstalled = '0x6d61fe70';
+  /// `keccak256("isModuleInstalled(uint256,address,bytes)")[0:4]` = 0x112d3a7d
+  static const String isModuleInstalled = '0x112d3a7d';
 
   /// supportsModule(uint256 moduleTypeId)
-  /// `keccak256("supportsModule(uint256)")[0:4]` = 0x12d79da3
-  static const String supportsModule = '0x12d79da3';
+  /// `keccak256("supportsModule(uint256)")[0:4]` = 0xf2dc691d
+  static const String supportsModule = '0xf2dc691d';
 
   /// accountId()
-  /// `keccak256("accountId()")[0:4]` = 0x7b60424a
-  static const String accountId = '0x7b60424a';
+  /// `keccak256("accountId()")[0:4]` = 0x9cfd7cff
+  static const String accountId = '0x9cfd7cff';
 
   /// supportsExecutionMode(bytes32 mode)
   /// `keccak256("supportsExecutionMode(bytes32)")[0:4]` = 0xd03c7914

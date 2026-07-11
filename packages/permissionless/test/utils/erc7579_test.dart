@@ -311,36 +311,61 @@ void main() {
     });
 
     group('Erc7579Selectors', () {
-      test('execute selector is correct', () {
-        // execute(bytes32,bytes) should have selector 0x61461954
-        // (this is the standard ERC-7579 selector)
-        expect(Erc7579Selectors.execute, startsWith('0x'));
-        expect(Erc7579Selectors.execute.length, equals(10));
+      // Expected selectors are derived from the canonical ERC-7579 signatures
+      // (first 4 bytes of keccak256) so wrong hard-coded values fail the suite.
+      // Verified against `cast sig` / ERC-7579 interface.
+      String expectedSelector(String signature) =>
+          AbiEncoder.functionSelector(signature);
+
+      test('execute selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.execute,
+          equals(expectedSelector('execute(bytes32,bytes)')),
+        );
       });
 
-      test('installModule selector is correct', () {
-        // keccak256("installModule(uint256,address,bytes)")[0:4] = 0x9517e29f
-        expect(Erc7579Selectors.installModule, equals('0x9517e29f'));
+      test('installModule selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.installModule,
+          equals(expectedSelector('installModule(uint256,address,bytes)')),
+        );
       });
 
-      test('uninstallModule selector is correct', () {
-        // keccak256("uninstallModule(uint256,address,bytes)")[0:4] = 0xa4d6f1d2
-        expect(Erc7579Selectors.uninstallModule, equals('0xa4d6f1d2'));
+      test('uninstallModule selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.uninstallModule,
+          equals(expectedSelector('uninstallModule(uint256,address,bytes)')),
+        );
       });
 
-      test('isModuleInstalled selector is correct', () {
-        // keccak256("isModuleInstalled(uint256,address,bytes)")[0:4] = 0x6d61fe70
-        expect(Erc7579Selectors.isModuleInstalled, equals('0x6d61fe70'));
+      test('isModuleInstalled selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.isModuleInstalled,
+          equals(
+            expectedSelector('isModuleInstalled(uint256,address,bytes)'),
+          ),
+        );
       });
 
-      test('supportsModule selector is correct', () {
-        // keccak256("supportsModule(uint256)")[0:4] = 0x12d79da3
-        expect(Erc7579Selectors.supportsModule, equals('0x12d79da3'));
+      test('supportsModule selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.supportsModule,
+          equals(expectedSelector('supportsModule(uint256)')),
+        );
       });
 
-      test('accountId selector is correct', () {
-        // keccak256("accountId()")[0:4] = 0x7b60424a
-        expect(Erc7579Selectors.accountId, equals('0x7b60424a'));
+      test('accountId selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.accountId,
+          equals(expectedSelector('accountId()')),
+        );
+      });
+
+      test('supportsExecutionMode selector matches keccak of signature', () {
+        expect(
+          Erc7579Selectors.supportsExecutionMode,
+          equals(expectedSelector('supportsExecutionMode(bytes32)')),
+        );
       });
     });
 
@@ -539,6 +564,68 @@ void main() {
       test('returns accountId selector', () {
         final encoded = encode7579AccountId();
         expect(encoded, equals(Erc7579Selectors.accountId));
+      });
+    });
+
+    group('7579 query encode + recorded eth_call fixtures', () {
+      // Recorded ABI-encoded eth_call results as returned by a modular
+      // ERC-7579 account (bool true / string account id). Combined with
+      // correct query selectors this exercises the full read path without
+      // a live network.
+      const recordedBoolTrue =
+          '0x0000000000000000000000000000000000000000000000000000000000000001';
+      const recordedBoolFalse =
+          '0x0000000000000000000000000000000000000000000000000000000000000000';
+      // ABI-encoded string "rhinestone.nexus.1.0.0" (22 bytes, length 0x16)
+      const recordedAccountId = '0x'
+          '0000000000000000000000000000000000000000000000000000000000000020'
+          '0000000000000000000000000000000000000000000000000000000000000016'
+          '7268696e6573746f6e652e6e657875732e312e302e3000000000000000000000';
+
+      test('isModuleInstalled query uses derived selector and decodes true',
+          () {
+        final module = EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        );
+        final callData = encode7579IsModuleInstalled(
+          moduleType: Erc7579ModuleType.validator,
+          module: module,
+        );
+
+        expect(
+          callData.substring(0, 10),
+          equals(
+            AbiEncoder.functionSelector(
+              'isModuleInstalled(uint256,address,bytes)',
+            ),
+          ),
+        );
+        expect(decode7579BoolResult(recordedBoolTrue), isTrue);
+        expect(decode7579BoolResult(recordedBoolFalse), isFalse);
+      });
+
+      test('supportsModule query uses derived selector and decodes true', () {
+        final callData = encode7579SupportsModule(Erc7579ModuleType.validator);
+
+        expect(
+          callData.substring(0, 10),
+          equals(AbiEncoder.functionSelector('supportsModule(uint256)')),
+        );
+        expect(decode7579BoolResult(recordedBoolTrue), isTrue);
+      });
+
+      test('accountId query uses derived selector and decodes fixture string',
+          () {
+        final callData = encode7579AccountId();
+
+        expect(
+          callData,
+          equals(AbiEncoder.functionSelector('accountId()')),
+        );
+        expect(
+          decode7579StringResult(recordedAccountId),
+          equals('rhinestone.nexus.1.0.0'),
+        );
       });
     });
 
