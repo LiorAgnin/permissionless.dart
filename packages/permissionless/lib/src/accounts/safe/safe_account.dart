@@ -9,6 +9,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
@@ -44,6 +45,8 @@ class SafeSmartAccountConfig {
     BigInt? saltNonce,
     required this.chainId,
     this.customAddresses,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
     // ERC-7579 parameters
@@ -88,6 +91,12 @@ class SafeSmartAccountConfig {
 
   /// Optional custom contract addresses.
   final SafeAddresses? customAddresses;
+
+  /// Optional custom nonce key for parallel transaction support.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
@@ -208,11 +217,12 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
+      _config.entryPointAddress ??
       EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
-  BigInt get nonceKey => BigInt.zero;
+  BigInt get nonceKey => _config.nonceKey ?? BigInt.zero;
 
   @override
   bool get isWebAuthn => _hasWebAuthnOwner;
@@ -690,6 +700,33 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       operation: OperationType.delegateCall.value,
     );
   }
+
+  @override
+  List<Call> decodeCalls(String callData) {
+    // 1) setupSafe (ERC-7579 first UserOp) — nested 7579 callData
+    try {
+      return CallDataDecoder.decodeSafeSetupSafe(callData);
+    } catch (_) {}
+
+    // 2) Direct ERC-7579 execute
+    try {
+      return decode7579Calls(callData).calls;
+    } catch (_) {}
+
+    // 3) executeUserOpWithErrorString (+ MultiSend unpack)
+    final multiSendAddrs = <String>{
+      _addresses.multiSendAddress.hex.toLowerCase(),
+      _addresses.multiSendCallOnlyAddress.hex.toLowerCase(),
+    };
+    return CallDataDecoder.decodeSafeExecuteUserOp(
+      callData,
+      multiSendAddresses: multiSendAddrs,
+    );
+  }
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes calls for the first UserOperation during ERC-7579 Safe deployment.
   ///
@@ -1337,6 +1374,8 @@ SafeSmartAccount createSafeSmartAccount({
   BigInt? saltNonce,
   required BigInt chainId,
   SafeAddresses? customAddresses,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
   // ERC-7579 parameters
@@ -1358,6 +1397,8 @@ SafeSmartAccount createSafeSmartAccount({
         saltNonce: saltNonce,
         chainId: chainId,
         customAddresses: customAddresses,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
         erc7579LaunchpadAddress: erc7579LaunchpadAddress,

@@ -25,6 +25,8 @@ class NexusSmartAccountConfig {
   /// - [index]: Salt for deterministic address generation (defaults to 0)
   /// - [attesters]: Optional attesters for multi-sig validation
   /// - [threshold]: Threshold for multi-sig (0 = disabled)
+  /// - [nonceKey]: User nonce key (3-byte slot, `key % 16777215`)
+  /// - [entryPointAddress]: Override the canonical EntryPoint v0.7 address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
   NexusSmartAccountConfig({
@@ -36,6 +38,8 @@ class NexusSmartAccountConfig {
     this.customValidatorAddress,
     this.attesters = const [],
     this.threshold = 0,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   }) : index = index ?? BigInt.zero;
@@ -63,6 +67,12 @@ class NexusSmartAccountConfig {
 
   /// Threshold for multi-sig (0 = no multi-sig).
   final int threshold;
+
+  /// Optional user nonce key (encoded into a 3-byte slot: `key % 16777215`).
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
@@ -120,18 +130,19 @@ class NexusSmartAccount implements SmartAccount {
 
   /// The EntryPoint address (v0.7).
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v07;
 
   /// The nonce key for Nexus accounts.
   ///
   /// Nexus uses a special nonce key format that includes the validator address.
+  /// Layout: `(key % 16777215)` (3 bytes) ‖ validationMode (1) ‖ validator (20).
   @override
   BigInt get nonceKey {
-    // Nexus nonce key: (key % TIMESTAMP_ADJUSTMENT) || validationMode || validator
     // TIMESTAMP_ADJUSTMENT = 16777215 (max value for 3 bytes)
-    // validationMode = 0x00 for regular validation
     const timestampAdjustment = 16777215;
-    final defaultedKey = BigInt.zero % BigInt.from(timestampAdjustment);
+    final defaultedKey =
+        (_config.nonceKey ?? BigInt.zero) % BigInt.from(timestampAdjustment);
 
     // Pack: key (3 bytes) || validationMode (1 byte) || validator (20 bytes)
     final keyHex = Hex.fromBigInt(defaultedKey, byteLength: 3);
@@ -237,6 +248,13 @@ class NexusSmartAccount implements SmartAccount {
     }
     return encode7579ExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Gets a stub signature for gas estimation.
   @override
@@ -439,6 +457,8 @@ NexusSmartAccount createNexusSmartAccount({
   EthereumAddress? customValidatorAddress,
   List<EthereumAddress> attesters = const [],
   int threshold = 0,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -452,6 +472,8 @@ NexusSmartAccount createNexusSmartAccount({
         customValidatorAddress: customValidatorAddress,
         attesters: attesters,
         threshold: threshold,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

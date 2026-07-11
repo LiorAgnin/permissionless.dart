@@ -9,6 +9,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
@@ -19,6 +20,9 @@ import '../webauthn_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
 
+/// Maximum nonce key for Kernel v0.3.x (2 bytes / maxUint16).
+final BigInt _kernelMaxUint16 = BigInt.from(0xffff);
+
 /// Configuration for creating a Kernel smart account.
 class KernelSmartAccountConfig {
   /// Creates a configuration for a Kernel smart account.
@@ -27,6 +31,8 @@ class KernelSmartAccountConfig {
   /// - [chainId]: Chain ID for the network
   /// - [version]: Kernel version (defaults to v0.3.1)
   /// - [index]: Index/salt for address derivation (defaults to 0)
+  /// - [nonceKey]: Custom nonce key (v2: passthrough; v3: ≤ maxUint16, 2-byte slot)
+  /// - [entryPointAddress]: Override the canonical EntryPoint address
   ///
   /// Throws [ArgumentError] if version-specific requirements aren't met.
   KernelSmartAccountConfig({
@@ -35,6 +41,8 @@ class KernelSmartAccountConfig {
     this.version = KernelVersion.v0_3_1,
     BigInt? index,
     this.customAddresses,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   }) : index = index ?? BigInt.zero {
@@ -49,6 +57,14 @@ class KernelSmartAccountConfig {
     if (version.hasExternalValidator && addresses.ecdsaValidator == null) {
       throw ArgumentError(
         'ECDSA validator address required for Kernel ${version.value}',
+      );
+    }
+    if (version != KernelVersion.v0_2_4 &&
+        nonceKey != null &&
+        nonceKey! > _kernelMaxUint16) {
+      throw ArgumentError(
+        'nonce key must be equal or less than 2 bytes(maxUint16) for '
+        'Kernel version ${version.value}',
       );
     }
   }
@@ -67,6 +83,15 @@ class KernelSmartAccountConfig {
 
   /// Custom contract addresses (optional).
   final KernelAddresses? customAddresses;
+
+  /// Optional custom nonce key.
+  ///
+  /// For v0.2.x: used as-is. For v0.3.x: must be ≤ maxUint16 and occupies the
+  /// trailing 2 bytes of the 24-byte encoded key.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   ///
@@ -107,9 +132,11 @@ class KernelSmartAccount implements SmartAccount {
   BigInt get chainId => _config.chainId;
 
   @override
-  EthereumAddress get entryPoint => entryPointVersion == EntryPointVersion.v06
-      ? EntryPointAddresses.v06
-      : EntryPointAddresses.v07;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ??
+      (entryPointVersion == EntryPointVersion.v06
+          ? EntryPointAddresses.v06
+          : EntryPointAddresses.v07);
 
   /// Whether the owner is a WebAuthn account.
   bool get _isWebAuthn => isWebAuthnAccount(_config.owner);
@@ -134,6 +161,8 @@ class KernelSmartAccount implements SmartAccount {
 
   @override
   BigInt get nonceKey {
+    final userKey = _config.nonceKey ?? BigInt.zero;
+
     if (_config.version == KernelVersion.v0_2_4) {
       if (_isWebAuthn) {
         throw StateError(
@@ -141,7 +170,15 @@ class KernelSmartAccount implements SmartAccount {
           'Use Kernel v0.3.x or later.',
         );
       }
-      return BigInt.zero;
+      // v2: passthrough (permissionless.js getNonceKeyWithEncoding)
+      return userKey;
+    }
+
+    if (userKey > _kernelMaxUint16) {
+      throw StateError(
+        'nonce key must be equal or less than 2 bytes(maxUint16) for '
+        'Kernel version ${_config.version.value}',
+      );
     }
 
     // v0.3.x: 24-byte encoding
@@ -155,7 +192,10 @@ class KernelSmartAccount implements SmartAccount {
     bytes[1] = KernelValidatorType.root;
     // Validator address (20 bytes)
     bytes.setRange(2, 22, validator.bytes);
-    // Nonce salt (2 bytes) - defaults to 0
+    // Nonce salt (2 bytes) from user key
+    final saltBytes = Hex.decode(Hex.fromBigInt(userKey, byteLength: 2));
+    bytes[22] = saltBytes[0];
+    bytes[23] = saltBytes[1];
 
     return Hex.toBigInt(Hex.fromBytes(bytes));
   }
@@ -493,6 +533,29 @@ class KernelSmartAccount implements SmartAccount {
       return encode7579ExecuteBatch(calls);
     }
   }
+
+  @override
+  List<Call> decodeCalls(String callData) {
+    if (_config.version == KernelVersion.v0_2_4) {
+      final selector = Hex.strip0x(callData).substring(0, 8).toLowerCase();
+      if (selector == Hex.strip0x(KernelSelectors.executeBatchV2).toLowerCase()) {
+        return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
+      }
+      if (selector == Hex.strip0x(KernelSelectors.executeV2).toLowerCase()) {
+        return CallDataDecoder.decodeKernelV2Execute(callData);
+      }
+      try {
+        return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
+      } catch (_) {
+        return CallDataDecoder.decodeKernelV2Execute(callData);
+      }
+    }
+    return decode7579Calls(callData).calls;
+  }
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   String _encodeCallsV2(List<Call> calls) {
     // executeBatch((address,uint256,bytes)[])
@@ -850,6 +913,8 @@ KernelSmartAccount createKernelSmartAccount({
   KernelVersion version = KernelVersion.v0_3_1,
   BigInt? index,
   KernelAddresses? customAddresses,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -860,6 +925,8 @@ KernelSmartAccount createKernelSmartAccount({
         version: version,
         index: index,
         customAddresses: customAddresses,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

@@ -7,6 +7,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../account_owner.dart';
@@ -21,6 +22,8 @@ class LightSmartAccountConfig {
   /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
   /// - [version]: Light Account version (auto-selected based on EntryPoint)
   /// - [salt]: Salt for deterministic address generation (defaults to 0)
+  /// - [nonceKey]: Custom nonce key for parallel transactions (defaults to 0)
+  /// - [entryPointAddress]: Override the canonical EntryPoint address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
   LightSmartAccountConfig({
@@ -30,6 +33,8 @@ class LightSmartAccountConfig {
     BigInt? salt,
     this.customFactoryAddress,
     LightAccountVersion? version,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   })  : salt = salt ?? BigInt.zero,
@@ -53,6 +58,12 @@ class LightSmartAccountConfig {
 
   /// Optional custom factory address.
   final EthereumAddress? customFactoryAddress;
+
+  /// Optional custom nonce key for parallel transaction support.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   ///
@@ -116,10 +127,11 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
 
   @override
   EthereumAddress get entryPoint =>
+      _config.entryPointAddress ??
       EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   @override
-  BigInt get nonceKey => BigInt.zero;
+  BigInt get nonceKey => _config.nonceKey ?? BigInt.zero;
 
   @override
   bool get isWebAuthn => false;
@@ -213,6 +225,13 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
 
     return _encodeExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) =>
+      CallDataDecoder.decodeStandardExecute(callData: callData);
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   String _encodeExecute(EthereumAddress to, BigInt value, String data) {
     const dataOffset = 3 * 32;
@@ -545,6 +564,8 @@ LightSmartAccount createLightSmartAccount({
   LightAccountVersion? version,
   BigInt? salt,
   EthereumAddress? customFactoryAddress,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -556,6 +577,8 @@ LightSmartAccount createLightSmartAccount({
         version: version,
         salt: salt,
         customFactoryAddress: customFactoryAddress,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

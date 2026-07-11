@@ -135,6 +135,8 @@ class Eip7702KernelSmartAccountConfig {
     this.publicClient,
     EthereumAddress? accountLogicAddress,
     EthereumAddress? ecdsaValidatorAddress,
+    this.nonceKey,
+    this.entryPointAddress,
   })  : accountLogicAddress = accountLogicAddress ??
             KernelVersionAddresses.getAddresses(version)!.accountImplementation,
         ecdsaValidatorAddress = ecdsaValidatorAddress ??
@@ -143,6 +145,12 @@ class Eip7702KernelSmartAccountConfig {
       throw ArgumentError(
         'Kernel version ${version.value} does not support EIP-7702. '
         'Use v0.3.3 or later.',
+      );
+    }
+    if (nonceKey != null && nonceKey! > BigInt.from(0xffff)) {
+      throw ArgumentError(
+        'nonce key must be equal or less than 2 bytes(maxUint16) for '
+        'Kernel version ${version.value}',
       );
     }
   }
@@ -155,6 +163,12 @@ class Eip7702KernelSmartAccountConfig {
 
   /// Kernel version (must support EIP-7702).
   final KernelVersion version;
+
+  /// Optional custom nonce key (≤ maxUint16, 2-byte slot).
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for checking deployment status.
   ///
@@ -223,7 +237,8 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v07;
 
   /// The nonce key for this account.
   ///
@@ -231,6 +246,14 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// Uses ROOT type (0x00) with the ECDSA validator address.
   @override
   BigInt get nonceKey {
+    final userKey = _config.nonceKey ?? BigInt.zero;
+    if (userKey > BigInt.from(0xffff)) {
+      throw StateError(
+        'nonce key must be equal or less than 2 bytes(maxUint16) for '
+        'Kernel version ${_config.version.value}',
+      );
+    }
+
     // Kernel v3 nonce key: mode (1) + type (1) + validatorAddress (20) + salt (2) = 24 bytes
     final validatorBytes = Hex.decode(_config.ecdsaValidatorAddress.hex);
 
@@ -243,7 +266,10 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     for (var i = 0; i < 20; i++) {
       bytes[2 + i] = validatorBytes[i];
     }
-    // Salt: 0x0000 (2 bytes) - already zero
+    // Salt from user nonce key (2 bytes)
+    final saltBytes = Hex.decode(Hex.fromBigInt(userKey, byteLength: 2));
+    bytes[22] = saltBytes[0];
+    bytes[23] = saltBytes[1];
 
     return Hex.toBigInt(Hex.fromBytes(bytes));
   }
@@ -301,6 +327,13 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
     return encode7579ExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Gets a stub signature for gas estimation.
   ///
@@ -540,6 +573,8 @@ Eip7702KernelSmartAccount createEip7702KernelSmartAccount({
   PublicClient? publicClient,
   EthereumAddress? accountLogicAddress,
   EthereumAddress? ecdsaValidatorAddress,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
 }) =>
     Eip7702KernelSmartAccount(
       Eip7702KernelSmartAccountConfig(
@@ -549,5 +584,7 @@ Eip7702KernelSmartAccount createEip7702KernelSmartAccount({
         publicClient: publicClient,
         accountLogicAddress: accountLogicAddress,
         ecdsaValidatorAddress: ecdsaValidatorAddress,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
       ),
     );

@@ -7,6 +7,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../account_owner.dart';
@@ -20,12 +21,16 @@ class SimpleSmartAccountConfig {
   /// - [chainId]: Chain ID for signature domain
   /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
   /// - [salt]: Salt for deterministic address generation (defaults to 0)
+  /// - [nonceKey]: Custom nonce key for parallel transactions (defaults to 0)
+  /// - [entryPointAddress]: Override the canonical EntryPoint address
   SimpleSmartAccountConfig({
     required this.owner,
     required this.chainId,
     this.entryPointVersion = EntryPointVersion.v07,
     BigInt? salt,
     this.customFactoryAddress,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   }) : salt = salt ?? BigInt.zero;
@@ -44,6 +49,13 @@ class SimpleSmartAccountConfig {
 
   /// Optional custom factory address.
   final EthereumAddress? customFactoryAddress;
+
+  /// Optional custom nonce key for parallel transaction support.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override (defaults to the canonical address
+  /// for [entryPointVersion]).
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   ///
@@ -107,11 +119,12 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
+      _config.entryPointAddress ??
       EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
-  BigInt get nonceKey => BigInt.zero;
+  BigInt get nonceKey => _config.nonceKey ?? BigInt.zero;
 
   @override
   bool get isWebAuthn => false;
@@ -241,6 +254,15 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
       EntryPointVersion.v08 => _encodeExecuteBatchV08(calls),
     };
   }
+
+  @override
+  List<Call> decodeCalls(String callData) => CallDataDecoder.decodeStandardExecute(
+        callData: callData,
+        entryPointVersion: _config.entryPointVersion,
+      );
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes a single execute call.
   String _encodeExecute(EthereumAddress to, BigInt value, String data) {
@@ -656,6 +678,8 @@ SimpleSmartAccount createSimpleSmartAccount({
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
   BigInt? salt,
   EthereumAddress? customFactoryAddress,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -666,6 +690,8 @@ SimpleSmartAccount createSimpleSmartAccount({
         entryPointVersion: entryPointVersion,
         salt: salt,
         customFactoryAddress: customFactoryAddress,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

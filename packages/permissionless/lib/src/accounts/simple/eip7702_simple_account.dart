@@ -11,6 +11,7 @@ import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import 'constants.dart';
@@ -129,6 +130,8 @@ class Eip7702SimpleSmartAccountConfig {
     required this.chainId,
     this.publicClient,
     EthereumAddress? accountLogicAddress,
+    this.nonceKey,
+    this.entryPointAddress,
   }) : accountLogicAddress =
             accountLogicAddress ?? Simple7702AccountAddresses.defaultLogic;
 
@@ -148,6 +151,12 @@ class Eip7702SimpleSmartAccountConfig {
   ///
   /// Defaults to the official eth-infinitism Simple7702Account.
   final EthereumAddress accountLogicAddress;
+
+  /// Optional custom nonce key for parallel transaction support.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override (defaults to v0.8 canonical).
+  final EthereumAddress? entryPointAddress;
 }
 
 /// An EIP-7702 Simple smart account implementation.
@@ -203,11 +212,12 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
 
   /// The EntryPoint address for this account.
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v08;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v08;
 
   /// The nonce key for parallel transaction support.
   @override
-  BigInt get nonceKey => BigInt.zero;
+  BigInt get nonceKey => _config.nonceKey ?? BigInt.zero;
 
   @override
   bool get isWebAuthn => false;
@@ -275,6 +285,15 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
     // v0.8 executeBatch(Call[] calls) where Call = (address target, uint256 value, bytes data)
     return _encodeExecuteBatchV08(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) => CallDataDecoder.decodeStandardExecute(
+        callData: callData,
+        entryPointVersion: EntryPointVersion.v08,
+      );
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes a single execute call.
   String _encodeExecute(EthereumAddress to, BigInt value, String data) {
@@ -541,6 +560,8 @@ Eip7702SimpleSmartAccount createEip7702SimpleSmartAccount({
   required BigInt chainId,
   PublicClient? publicClient,
   EthereumAddress? accountLogicAddress,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
 }) =>
     Eip7702SimpleSmartAccount(
       Eip7702SimpleSmartAccountConfig(
@@ -548,5 +569,7 @@ Eip7702SimpleSmartAccount createEip7702SimpleSmartAccount({
         chainId: chainId,
         publicClient: publicClient,
         accountLogicAddress: accountLogicAddress,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
       ),
     );

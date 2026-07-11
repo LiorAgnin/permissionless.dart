@@ -10,6 +10,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../account_owner.dart';
@@ -28,6 +29,7 @@ class ThirdwebSmartAccountConfig {
   ///   the historical default `"0x"` produce empty salt bytes.
   /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
   /// - [nonceKey]: Custom nonce key for parallel transaction support
+  /// - [entryPointAddress]: Override the canonical EntryPoint address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
   ThirdwebSmartAccountConfig({
@@ -37,6 +39,7 @@ class ThirdwebSmartAccountConfig {
     this.entryPointVersion = EntryPointVersion.v07,
     this.customFactoryAddress,
     this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   });
@@ -60,6 +63,9 @@ class ThirdwebSmartAccountConfig {
 
   /// Optional custom nonce key.
   final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
@@ -110,9 +116,10 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   /// The EntryPoint address.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointVersion == EntryPointVersion.v07
+      _config.entryPointAddress ??
+      (_config.entryPointVersion == EntryPointVersion.v07
           ? EntryPointAddresses.v07
-          : EntryPointAddresses.v06;
+          : EntryPointAddresses.v06);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -240,6 +247,13 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
     // executeBatch(address[] dest, uint256[] values, bytes[] func)
     return _encodeExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) =>
+      CallDataDecoder.decodeStandardExecute(callData: callData);
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes executeBatch call.
   String _encodeExecuteBatch(List<Call> calls) {
@@ -543,6 +557,7 @@ ThirdwebSmartAccount createThirdwebSmartAccount({
   EntryPointVersion entryPointVersion = EntryPointVersion.v07,
   EthereumAddress? customFactoryAddress,
   BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -554,6 +569,7 @@ ThirdwebSmartAccount createThirdwebSmartAccount({
         entryPointVersion: entryPointVersion,
         customFactoryAddress: customFactoryAddress,
         nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

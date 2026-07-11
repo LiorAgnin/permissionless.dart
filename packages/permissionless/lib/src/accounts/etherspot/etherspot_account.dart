@@ -23,6 +23,8 @@ class EtherspotSmartAccountConfig {
   /// - [chainId]: Chain ID for the network
   /// - [index]: Salt for deterministic address generation (defaults to 0)
   /// - [customAddresses]: Optional custom contract addresses
+  /// - [nonceKey]: User nonce key (2-byte suffix in the 24-byte encoding)
+  /// - [entryPointAddress]: Override the canonical EntryPoint v0.7 address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
   EtherspotSmartAccountConfig({
@@ -30,6 +32,8 @@ class EtherspotSmartAccountConfig {
     required this.chainId,
     BigInt? index,
     this.customAddresses,
+    this.nonceKey,
+    this.entryPointAddress,
     this.address,
     this.publicClient,
   }) : index = index ?? BigInt.zero;
@@ -45,6 +49,12 @@ class EtherspotSmartAccountConfig {
 
   /// Custom contract addresses (optional).
   final EtherspotCustomAddresses? customAddresses;
+
+  /// Optional user nonce key (encoded as a 2-byte suffix).
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Pre-computed account address (optional).
   ///
@@ -119,7 +129,8 @@ class EtherspotSmartAccount implements SmartAccount {
       EtherspotAddresses.ecdsaValidator;
 
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v07;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v07;
 
   @override
   BigInt get nonceKey {
@@ -130,7 +141,9 @@ class EtherspotSmartAccount implements SmartAccount {
     final validatorHex = Hex.strip0x(ecdsaValidator.hex);
     const validatorMode = '00'; // DEFAULT
     const validatorType = '00'; // ROOT
-    const nonceKeySuffix = '0000'; // 2 bytes
+    final userKey = _config.nonceKey ?? BigInt.zero;
+    final nonceKeySuffix =
+        Hex.strip0x(Hex.fromBigInt(userKey, byteLength: 2)); // 2 bytes
 
     // Concatenate: validator (40 chars) + mode (2 chars) + type (2 chars) + nonce (4 chars) = 48 chars = 24 bytes
     final encoding = '$validatorHex$validatorMode$validatorType$nonceKeySuffix';
@@ -404,6 +417,13 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   @override
+  List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
+
+  @override
   String getStubSignature() => etherspotDummyEcdsaSignature;
 
   @override
@@ -557,6 +577,8 @@ EtherspotSmartAccount createEtherspotSmartAccount({
   required BigInt chainId,
   BigInt? index,
   EtherspotCustomAddresses? customAddresses,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   EthereumAddress? address,
   PublicClient? publicClient,
 }) =>
@@ -566,6 +588,8 @@ EtherspotSmartAccount createEtherspotSmartAccount({
         chainId: chainId,
         index: index,
         customAddresses: customAddresses,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         address: address,
         publicClient: publicClient,
       ),

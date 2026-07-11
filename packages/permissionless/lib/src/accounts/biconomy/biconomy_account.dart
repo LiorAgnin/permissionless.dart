@@ -7,6 +7,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../account_owner.dart';
@@ -25,6 +26,8 @@ class BiconomySmartAccountConfig {
   /// - [index]: Salt for deterministic address generation (defaults to 0)
   /// - [customFactoryAddress]: Override the default factory address
   /// - [customEcdsaModuleAddress]: Override the default ECDSA module address
+  /// - [nonceKey]: Custom nonce key for parallel transactions (defaults to 0)
+  /// - [entryPointAddress]: Override the canonical EntryPoint v0.6 address
   /// - [publicClient]: Client for computing the account address via RPC
   /// - [address]: Pre-computed account address to skip address derivation
   BiconomySmartAccountConfig({
@@ -33,6 +36,8 @@ class BiconomySmartAccountConfig {
     BigInt? index,
     this.customFactoryAddress,
     this.customEcdsaModuleAddress,
+    this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   }) : index = index ?? BigInt.zero;
@@ -51,6 +56,12 @@ class BiconomySmartAccountConfig {
 
   /// Optional custom ECDSA module address.
   final EthereumAddress? customEcdsaModuleAddress;
+
+  /// Optional custom nonce key.
+  final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override.
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
@@ -112,11 +123,12 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// The EntryPoint address (v0.6).
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v06;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v06;
 
-  /// The nonce key (always 0 for Biconomy v0.6).
+  /// The nonce key for parallel transaction support.
   @override
-  BigInt get nonceKey => BigInt.zero;
+  BigInt get nonceKey => _config.nonceKey ?? BigInt.zero;
 
   @override
   bool get isWebAuthn => false;
@@ -262,6 +274,27 @@ class BiconomySmartAccount implements SmartAccountV06 {
     }
     return _encodeExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) {
+    final selector = Hex.strip0x(callData).substring(0, 8).toLowerCase();
+    if (selector == Hex.strip0x(BiconomySelectors.executeBatch).toLowerCase()) {
+      return CallDataDecoder.decodeBiconomyExecuteBatch(callData);
+    }
+    if (selector == Hex.strip0x(BiconomySelectors.execute).toLowerCase()) {
+      return CallDataDecoder.decodeBiconomyExecute(callData);
+    }
+    // JS tries decodeFunctionData on BiconomyAbi which branches by name
+    try {
+      return CallDataDecoder.decodeBiconomyExecuteBatch(callData);
+    } catch (_) {
+      return CallDataDecoder.decodeBiconomyExecute(callData);
+    }
+  }
+
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes a batch execute call.
   String _encodeExecuteBatch(List<Call> calls) {
@@ -425,6 +458,8 @@ BiconomySmartAccount createBiconomySmartAccount({
   BigInt? index,
   EthereumAddress? customFactoryAddress,
   EthereumAddress? customEcdsaModuleAddress,
+  BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -435,6 +470,8 @@ BiconomySmartAccount createBiconomySmartAccount({
         index: index,
         customFactoryAddress: customFactoryAddress,
         customEcdsaModuleAddress: customEcdsaModuleAddress,
+        nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),

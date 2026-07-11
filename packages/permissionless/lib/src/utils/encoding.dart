@@ -100,6 +100,44 @@ class AbiEncoder {
     return Hex.fromBytes(function.encodeCall(converted));
   }
 
+  /// Decodes function calldata produced by [encodeFunctionData] (or equivalent).
+  ///
+  /// [functionSignature] uses the same form as [encodeFunctionData], e.g.
+  /// `execute(address,uint256,bytes)`.
+  ///
+  /// Returns the decoded argument list. Dynamic `bytes` values are [Uint8List];
+  /// addresses are [EthereumAddress]; integers are [BigInt].
+  ///
+  /// Throws [ArgumentError] if the selector does not match or the data is invalid.
+  static List<dynamic> decodeFunctionData(
+    String functionSignature,
+    String data,
+  ) {
+    final parsed = _parseFunctionSignature(functionSignature);
+    final parameters = <FunctionParameter<dynamic>>[
+      for (var i = 0; i < parsed.types.length; i++)
+        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
+    ];
+    final function = ContractFunction(parsed.name, parameters);
+    final expectedSelector = Hex.fromBytes(function.selector).toLowerCase();
+
+    final hex = Hex.strip0x(data);
+    if (hex.length < 8) {
+      throw ArgumentError('Call data too short for function selector');
+    }
+    final actualSelector = '0x${hex.substring(0, 8)}'.toLowerCase();
+    if (actualSelector != expectedSelector) {
+      throw ArgumentError(
+        'Selector mismatch: expected $expectedSelector, got $actualSelector',
+      );
+    }
+
+    final paramsHex = hex.substring(8);
+    final bytes = Hex.decode(paramsHex.isEmpty ? '0x' : '0x$paramsHex');
+    final tuple = TupleType(parameters.map((p) => p.type).toList());
+    return List<dynamic>.from(tuple.decode(bytes.buffer, 0).data);
+  }
+
   /// Encodes multiple values with dynamic types.
   ///
   /// `parts` - List of tuples (isStatic, encodedValue).

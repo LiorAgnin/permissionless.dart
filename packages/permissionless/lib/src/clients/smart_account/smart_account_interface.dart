@@ -48,6 +48,13 @@ abstract class SmartAccount {
   /// Implementations typically use MultiSend or similar patterns.
   String encodeCalls(List<Call> calls);
 
+  /// Decodes account [callData] back into the original list of [Call]s.
+  ///
+  /// Inverse of [encodeCall] / [encodeCalls]. Matches permissionless.js
+  /// `account.decodeCalls(callData)`. Used by paymaster helpers (e.g. ERC-20
+  /// prepare) that need to inspect or rewrite the call batch.
+  List<Call> decodeCalls(String callData);
+
   /// Gets a stub signature for gas estimation.
   ///
   /// This should return a signature with the correct format but
@@ -71,6 +78,15 @@ abstract class SmartAccount {
   /// final signature = await account.signMessage('Hello, World!');
   /// ```
   Future<String> signMessage(String message);
+
+  /// Signs a raw hash via the account's ERC-1271 / message-signing path.
+  ///
+  /// Matches permissionless.js `account.sign({ hash })`, which delegates to
+  /// `signMessage({ message: hash })`. Use this for ERC-6492 and other
+  /// hash-based signing flows.
+  ///
+  /// Implementations typically: `signMessage(hash)`.
+  Future<String> sign(String hash);
 
   /// Signs EIP-712 typed data.
   ///

@@ -9,6 +9,7 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
+import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../account_owner.dart';
@@ -25,6 +26,7 @@ class TrustSmartAccountConfig {
   /// - [index]: Salt for deterministic address generation (defaults to 0)
   /// - [customVerificationFacetAddress]: Custom verification facet address
   /// - [nonceKey]: Custom nonce key for parallel transaction support
+  /// - [entryPointAddress]: Override the canonical EntryPoint v0.6 address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
   TrustSmartAccountConfig({
@@ -34,6 +36,7 @@ class TrustSmartAccountConfig {
     this.customFactoryAddress,
     this.customVerificationFacetAddress,
     this.nonceKey,
+    this.entryPointAddress,
     this.publicClient,
     this.address,
   }) : index = index ?? BigInt.zero;
@@ -55,6 +58,9 @@ class TrustSmartAccountConfig {
 
   /// Optional custom nonce key.
   final BigInt? nonceKey;
+
+  /// Optional EntryPoint address override (defaults to v0.6 canonical).
+  final EthereumAddress? entryPointAddress;
 
   /// Public client for computing the account address via RPC.
   final PublicClient? publicClient;
@@ -106,7 +112,8 @@ class TrustSmartAccount implements SmartAccountV06 {
 
   /// The EntryPoint address (v0.6).
   @override
-  EthereumAddress get entryPoint => EntryPointAddresses.v06;
+  EthereumAddress get entryPoint =>
+      _config.entryPointAddress ?? EntryPointAddresses.v06;
 
   /// The nonce key for parallel transaction support.
   @override
@@ -225,6 +232,13 @@ class TrustSmartAccount implements SmartAccountV06 {
 
     return _encodeExecuteBatch(calls);
   }
+
+  @override
+  List<Call> decodeCalls(String callData) =>
+      CallDataDecoder.decodeStandardExecute(callData: callData);
+
+  @override
+  Future<String> sign(String hash) => signMessage(hash);
 
   /// Encodes executeBatch call.
   String _encodeExecuteBatch(List<Call> calls) {
@@ -417,6 +431,7 @@ TrustSmartAccount createTrustSmartAccount({
   EthereumAddress? customFactoryAddress,
   EthereumAddress? customVerificationFacetAddress,
   BigInt? nonceKey,
+  EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
@@ -428,6 +443,7 @@ TrustSmartAccount createTrustSmartAccount({
         customFactoryAddress: customFactoryAddress,
         customVerificationFacetAddress: customVerificationFacetAddress,
         nonceKey: nonceKey,
+        entryPointAddress: entryPointAddress,
         publicClient: publicClient,
         address: address,
       ),
