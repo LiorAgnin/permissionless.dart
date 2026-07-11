@@ -348,6 +348,10 @@ class SafeSelectors {
   /// Selector for MultiSend `multiSend` function.
   static final String multiSend =
       AbiEncoder.functionSelector('multiSend(bytes)');
+
+  /// Selector for SafeProxyFactory `proxyCreationCode` function.
+  static final String proxyCreationCode =
+      AbiEncoder.functionSelector('proxyCreationCode()');
 }
 
 /// Encodes a Safe `setup` function call.

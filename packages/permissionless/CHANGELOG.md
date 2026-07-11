@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Safe default threshold** is now `owners.length` (all owners must sign), matching
+  permissionless.js `toSafeSmartAccount`. Previously defaulted to `1`.
+  **Breaking:** multi-owner Safes created without an explicit `threshold` produce a
+  different setup calldata and therefore a **different counterfactual address**.
+  Pass `threshold: BigInt.one` to keep the previous 1-of-n default.
+- **Safe batch `encodeCalls`** routes through **MultiSendCallOnly** (not MultiSend),
+  matching permissionless.js safety property (no inner delegatecalls).
+- **Safe stub signatures** byte-match permissionless.js (ECDSA ecrecover-path dummy
+  and WebAuthn dummy with realistic authenticatorData / long clientDataFields).
+
+### Fixed
+
+- **Safe CREATE2 address derivation** fetches `proxyCreationCode()` from the configured
+  SafeProxyFactory via `publicClient` when available, with fallback to the verified
+  hardcoded v1.4.1 constant. Avoids silent getAddress-vs-deploy mismatch for v1.5.0
+  and custom factories.
 
 ## [0.3.0] - 2026-04-17
 

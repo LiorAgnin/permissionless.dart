@@ -30,7 +30,8 @@ class SafeSmartAccountConfig {
   /// Creates a configuration for a Safe smart account.
   ///
   /// - [owners]: The owner(s) of the Safe (at least one required)
-  /// - [threshold]: Number of signatures required (defaults to 1)
+  /// - [threshold]: Number of signatures required (defaults to
+  ///   `owners.length`, matching permissionless.js)
   /// - [version]: Safe version to use (defaults to v1.4.1)
   /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
   /// - [saltNonce]: Salt for deterministic address generation
@@ -58,7 +59,7 @@ class SafeSmartAccountConfig {
     this.attesters = const [],
     this.attestersThreshold = 0,
     this.useMultiSendForSetup = true,
-  })  : threshold = threshold ?? BigInt.one,
+  })  : threshold = threshold ?? BigInt.from(owners.length),
         saltNonce = saltNonce ?? BigInt.zero {
     if (owners.isEmpty) {
       throw ArgumentError('At least one owner is required');
@@ -74,7 +75,10 @@ class SafeSmartAccountConfig {
   /// The owner(s) of the Safe account.
   final List<AccountOwner> owners;
 
-  /// The number of signatures required (threshold). Defaults to 1.
+  /// The number of signatures required (threshold).
+  ///
+  /// Defaults to [owners.length] (all owners must sign), matching
+  /// permissionless.js `toSafeSmartAccount`.
   final BigInt threshold;
 
   /// The Safe version to use.
@@ -180,6 +184,15 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   final SafeSmartAccountConfig _config;
   final SafeAddresses _addresses;
   EthereumAddress? _cachedAddress;
+  String? _cachedProxyCreationCode;
+
+  /// ECDSA dummy signature used for gas estimation (permissionless.js parity).
+  ///
+  /// Fixed 65-byte stub that exercises the ecrecover path in Safe's
+  /// `checkSignatures` (v = 0x1c), not the approved-hash branch.
+  static const String _ecdsaStubSignature =
+      '0xfffffffffffffffffffffffffffffff000000000000000000000000000000000'
+      '7aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
 
   static SafeAddresses _resolveAddresses(SafeSmartAccountConfig config) {
     if (config.customAddresses != null) {
@@ -267,8 +280,64 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     // Option 2: Compute address locally using CREATE2 formula
     // This is the same approach as permissionless.js and works regardless
     // of whether the account is deployed or not.
-    _cachedAddress = _computeCreate2Address();
+    final proxyCode = await _getProxyCreationCode();
+    _cachedAddress = _computeCreate2Address(proxyCode);
     return _cachedAddress!;
+  }
+
+  /// Resolves proxy creation code for CREATE2 derivation.
+  ///
+  /// When a [SafeSmartAccountConfig.publicClient] is configured, reads
+  /// `proxyCreationCode()` from the configured SafeProxyFactory (matching
+  /// permissionless.js). Falls back to the verified Safe v1.4.1 constant
+  /// when no client is available or the RPC call fails.
+  Future<String> _getProxyCreationCode() async {
+    if (_cachedProxyCreationCode != null) {
+      return _cachedProxyCreationCode!;
+    }
+
+    final client = _config.publicClient;
+    if (client != null) {
+      try {
+        final result = await client.call(
+          Call(
+            to: _addresses.safeProxyFactoryAddress,
+            data: SafeSelectors.proxyCreationCode,
+          ),
+        );
+        final code = _decodeReturnedBytes(result);
+        if (code.length > 2) {
+          _cachedProxyCreationCode = code;
+          return code;
+        }
+      } catch (_) {
+        // Fall through to hardcoded constant.
+      }
+    }
+
+    _cachedProxyCreationCode = _proxyCreationCode;
+    return _proxyCreationCode;
+  }
+
+  /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
+  static String _decodeReturnedBytes(String data) {
+    final raw = Hex.decode(data);
+    if (raw.length < 64) {
+      throw ArgumentError('proxyCreationCode return data too short');
+    }
+    // Standard ABI encoding: offset (32) + length (32) + payload
+    final offset = Hex.toBigInt(Hex.fromBytes(raw.sublist(0, 32))).toInt();
+    if (offset + 32 > raw.length) {
+      throw ArgumentError('proxyCreationCode return data offset out of range');
+    }
+    final length =
+        Hex.toBigInt(Hex.fromBytes(raw.sublist(offset, offset + 32))).toInt();
+    final start = offset + 32;
+    final end = start + length;
+    if (end > raw.length) {
+      throw ArgumentError('proxyCreationCode return data truncated');
+    }
+    return Hex.fromBytes(raw.sublist(start, end));
   }
 
   /// Computes the Safe account address using the CREATE2 formula.
@@ -281,7 +350,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// - bytecode = proxyCreationCode ++ abi.encode(singleton)
   ///
   /// In ERC-7579 mode, the singleton is the launchpad address (not the Safe singleton).
-  EthereumAddress _computeCreate2Address() {
+  EthereumAddress _computeCreate2Address(String proxyCreationCode) {
     final salt = _computeSalt();
 
     // In 7579 mode, the proxy points to the launchpad which handles setup
@@ -293,7 +362,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     // deploymentCode = proxyCreationCode ++ uint256(singletonAddress)
     // This matches permissionless.js: encodePacked(["bytes", "uint256"], [proxyCreationCode, singleton])
     final deploymentCode = Hex.concat([
-      _proxyCreationCode,
+      proxyCreationCode,
       AbiEncoder.encodeUint256(Hex.toBigInt(singletonAddress.hex)),
     ]);
 
@@ -664,7 +733,8 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// Encodes multiple calls for batch execution.
   ///
   /// In ERC-7579 mode, uses the standard execute(mode, calldata) format with batch encoding.
-  /// In standard mode, uses MultiSend via DelegateCall.
+  /// In standard mode, batches route through MultiSendCallOnly via DelegateCall
+  /// (permissionless.js parity — call-only, no inner delegatecalls accepted).
   ///
   /// **Important for ERC-7579 deployment:** When deploying a Safe with ERC-7579 for the
   /// first time, use [encodeCallsForDeployment] instead. The launchpad requires
@@ -690,11 +760,11 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       return encodeCall(calls.first);
     }
 
-    // Standard mode: use MultiSend via DelegateCall
+    // Standard mode: MultiSendCallOnly via DelegateCall (JS parity)
     final multiSendData = encodeMultiSend(calls);
 
     return encodeExecuteUserOp(
-      to: _addresses.multiSendAddress,
+      to: _addresses.multiSendCallOnlyAddress,
       value: BigInt.zero,
       data: multiSendData,
       operation: OperationType.delegateCall.value,
@@ -813,15 +883,12 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
           ),
         );
       } else {
-        // ECDSA stub: r (32) + s (32) + v (1) = 65 bytes
-        final r =
-            Hex.fromBigInt(Hex.toBigInt(owner.address.hex), byteLength: 32);
-        const s = Hex.zero32;
-        final v = Hex.fromBigInt(BigInt.from(1), byteLength: 1);
+        // ECDSA stub: fixed 65-byte dummy matching permissionless.js
+        // (ecrecover path, v=0x1c — not approved-hash v=1)
         signatureEntries.add(
           _SignatureEntry(
             signer: owner.address,
-            data: Hex.concat([r, s, v]),
+            data: _ecdsaStubSignature,
             isDynamic: false,
           ),
         );

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
@@ -71,6 +74,39 @@ void main() {
 
         expect(account.owners.length, equals(2));
         expect(account.threshold, equals(BigInt.from(2)));
+      });
+
+      test('defaults threshold to owners.length (permissionless.js parity)', () {
+        final owner1 = PrivateKeyOwner(testPrivateKey);
+        final owner2 = PrivateKeyOwner(
+          '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
+        );
+        final owner3 = PrivateKeyOwner(
+          '0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a',
+        );
+
+        final twoOwners = createSafeSmartAccount(
+          owners: [owner1, owner2],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        );
+        expect(twoOwners.threshold, equals(BigInt.from(2)));
+
+        final threeOwners = createSafeSmartAccount(
+          owners: [owner1, owner2, owner3],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        );
+        expect(threeOwners.threshold, equals(BigInt.from(3)));
+
+        // Explicit threshold: 1 still works for multi-owner 1-of-n
+        final oneOfTwo = createSafeSmartAccount(
+          owners: [owner1, owner2],
+          threshold: BigInt.one,
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        );
+        expect(oneOfTwo.threshold, equals(BigInt.one));
       });
 
       test('throws when no owners provided', () {
@@ -352,13 +388,18 @@ void main() {
         expect(encodedSingle, equals(encodedMultiple));
       });
 
-      test('multiple calls use MultiSend', () {
+      test('multiple calls use MultiSendCallOnly (not MultiSend)', () {
         final owner = PrivateKeyOwner(testPrivateKey);
         final account = createSafeSmartAccount(
           owners: [owner],
           chainId: BigInt.from(1),
           address: mockAddress,
         );
+
+        final addresses = SafeVersionAddresses.getAddresses(
+          SafeVersion.v1_4_1,
+          EntryPointVersion.v07,
+        )!;
 
         final encoded = account.encodeCalls([
           Call(
@@ -378,6 +419,18 @@ void main() {
         expect(encoded.startsWith('0x'), isTrue);
         // MultiSend calls are typically longer
         expect(encoded.length > 200, isTrue);
+
+        // Target must be MultiSendCallOnly (permissionless.js parity)
+        final callOnlyPadded = addresses.multiSendCallOnlyAddress.hex
+            .toLowerCase()
+            .replaceFirst('0x', '')
+            .padLeft(64, '0');
+        final multiSendPadded = addresses.multiSendAddress.hex
+            .toLowerCase()
+            .replaceFirst('0x', '')
+            .padLeft(64, '0');
+        expect(encoded.toLowerCase(), contains(callOnlyPadded));
+        expect(encoded.toLowerCase(), isNot(contains(multiSendPadded)));
       });
 
       test('throws on empty calls', () {
@@ -408,6 +461,22 @@ void main() {
         expect(stub.startsWith('0x'), isTrue);
         // 6 bytes validAfter + 6 bytes validUntil + 65 bytes per signature
         expect(stub.length, equals(2 + 12 + 12 + 130)); // 0x + 6*2 + 6*2 + 65*2
+      });
+
+      test('ECDSA stub matches permissionless.js dummy bytes', () {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        );
+
+        final stub = account.getStubSignature().toLowerCase();
+        // validAfter(0) + validUntil(0) + JS fixed ECDSA dummy
+        const jsEcdsaDummy =
+            'fffffffffffffffffffffffffffffff000000000000000000000000000000000'
+            '7aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+        expect(stub, equals('0x${'00' * 12}$jsEcdsaDummy'));
       });
 
       test('stub signature length scales with owners', () {
@@ -730,6 +799,196 @@ void main() {
         // and never consults useMultiSendForSetup, so both addresses match.
         expect(falseAddress, equals(defaultAddress));
       });
+    });
+
+    group('7579 + v1.5.0 incompatibility', () {
+      test('signMessage throws for Safe 7579 with version 1.5.0', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          version: SafeVersion.v1_5_0,
+          entryPointVersion: EntryPointVersion.v07,
+          chainId: BigInt.from(1),
+          address: mockAddress,
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+        );
+
+        expect(
+          () => account.signMessage('0x${'11' * 32}'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Safe 7579 & version 1.5.0 are not compatible'),
+            ),
+          ),
+        );
+      });
+
+      test('signTypedData throws for Safe 7579 with version 1.5.0', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          version: SafeVersion.v1_5_0,
+          entryPointVersion: EntryPointVersion.v07,
+          chainId: BigInt.from(1),
+          address: mockAddress,
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+        );
+
+        final typedData = TypedData(
+          domain: TypedDataDomain(name: 'Test', chainId: BigInt.one),
+          types: {
+            'Mail': [const TypedDataField(name: 'contents', type: 'string')],
+          },
+          primaryType: 'Mail',
+          message: {'contents': 'hello'},
+        );
+
+        expect(
+          () => account.signTypedData(typedData),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Safe 7579 & version 1.5.0 are not compatible'),
+            ),
+          ),
+        );
+      });
+    });
+
+    group('proxyCreationCode', () {
+      /// ABI-encodes a `bytes` eth_call return value.
+      String abiEncodeBytes(String hexData) {
+        final payload = hexData.startsWith('0x')
+            ? hexData.substring(2)
+            : hexData;
+        final length = payload.length ~/ 2;
+        final offset =
+            '0000000000000000000000000000000000000000000000000000000000000020';
+        final lengthWord = length.toRadixString(16).padLeft(64, '0');
+        final padded = payload.padRight(((length + 31) ~/ 32) * 64, '0');
+        return '0x$offset$lengthWord$padded';
+      }
+
+      PublicClient publicClientReturning(String proxyCodeHex) {
+        final mock = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final method = body['method'] as String;
+          if (method == 'eth_call') {
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': abiEncodeBytes(proxyCodeHex),
+              }),
+              200,
+            );
+          }
+          return http.Response(
+            jsonEncode({
+              'jsonrpc': '2.0',
+              'id': body['id'],
+              'error': {'code': -32000, 'message': 'unexpected $method'},
+            }),
+            200,
+          );
+        });
+        return PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: mock,
+          ),
+        );
+      }
+
+      test('without publicClient falls back to hardcoded constant', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+        );
+        // Offline CREATE2 uses hardcoded proxy creation code — stable address
+        final address = await account.getAddress();
+        expect(address.hex.startsWith('0x'), isTrue);
+        expect(address.hex.length, equals(42));
+      });
+
+      test('with publicClient uses factory proxyCreationCode for CREATE2',
+          () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+
+        // Baseline: hardcoded fallback
+        final offline = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+        );
+        final offlineAddress = await offline.getAddress();
+
+        // Distinct proxy code from factory → different CREATE2 address
+        const altProxyCode =
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+        final online = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          publicClient: publicClientReturning(altProxyCode),
+        );
+        final onlineAddress = await online.getAddress();
+
+        expect(onlineAddress, isNot(equals(offlineAddress)));
+      });
+
+      test('RPC failure falls back to hardcoded constant', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final failing = MockClient((request) async {
+          throw Exception('network down');
+        });
+        final offline = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+        );
+        final withFailingClient = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          publicClient: PublicClient(
+            rpcClient: JsonRpcClient(
+              url: Uri.parse('http://localhost:8545'),
+              httpClient: failing,
+            ),
+          ),
+        );
+
+        expect(
+          await withFailingClient.getAddress(),
+          equals(await offline.getAddress()),
+        );
+      });
+    });
+  });
+
+  group('getDummySafeWebAuthnSignature parity', () {
+    test('matches permissionless.js authenticatorData and clientDataFields', () {
+      final sig = getDummySafeWebAuthnSignature().toLowerCase();
+      // authenticatorData length prefix (37) + data containing JS rpIdHash prefix
+      expect(sig, contains('49960de5880e8c687434170f6476605b'));
+      // Long origin string from JS (hex-encoded UTF-8)
+      final originHex = utf8
+          .encode(
+            '"origin":"http://somelargdomainheresothatwehaveenoughbytes.com"',
+          )
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join();
+      expect(sig, contains(originHex));
+      // Fixed r value from JS
+      expect(
+        sig,
+        contains(
+          BigInt.parse(
+            '44941127272049826721201904734628716258498742255959991581049806490182030242267',
+          ).toRadixString(16).padLeft(64, '0'),
+        ),
+      );
     });
   });
 

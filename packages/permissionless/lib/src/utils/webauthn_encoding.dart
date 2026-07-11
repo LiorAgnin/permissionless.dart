@@ -208,26 +208,29 @@ String _encodeWebAuthnSignatureData({
 ///
 /// This returns the ABI-encoded WebAuthn signature data (without validity period).
 /// The Safe account will wrap this in the contract signature format.
+///
+/// Values match permissionless.js `toSafeSmartAccount.getStubSignature`
+/// (realistic rpIdHash, intentionally long clientDataFields for gas headroom).
 String getDummySafeWebAuthnSignature() {
-  // Dummy values matching permissionless.js format
+  // authenticatorData from permissionless.js (37 bytes):
+  // 0x49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97631d00000000
   final dummyAuthData = Uint8List.fromList([
-    // rpIdHash (32 bytes) + flags (1 byte) + signCount (4 bytes) = 37 bytes
-    ...List.filled(32, 0x49), // rpIdHash
-    0x1d, // flags
-    0x00, 0x00, 0x00, 0x00, // signCount
+    0x49, 0x96, 0x0d, 0xe5, 0x88, 0x0e, 0x8c, 0x68, 0x74, 0x34, 0x17, 0x0f,
+    0x64, 0x76, 0x60, 0x5b, 0x8f, 0xe4, 0xae, 0xb9, 0xa2, 0x86, 0x32, 0xc7,
+    0x99, 0x5c, 0xf3, 0xba, 0x83, 0x1d, 0x97, 0x63, 0x1d, 0x00, 0x00, 0x00,
+    0x00,
   ]);
 
-  // Dummy clientDataFields (the portion after challenge)
-  const dummyFields = '"origin":"http://localhost:3000","crossOrigin":false';
+  // Deliberately long origin so gas estimation covers real WebAuthn payloads
+  const dummyFields =
+      '"origin":"http://somelargdomainheresothatwehaveenoughbytes.com","crossOrigin":false';
 
-  // Dummy r and s values
+  // Fixed r/s from permissionless.js toSafeSmartAccount.ts
   final dummyR = BigInt.parse(
-    'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-    radix: 16,
+    '44941127272049826721201904734628716258498742255959991581049806490182030242267',
   );
   final dummyS = BigInt.parse(
-    '7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0',
-    radix: 16,
+    '9910254599581058084911561569808925251374718953855182016200087235935345969636',
   );
 
   // ABI encode the WebAuthn signature data
