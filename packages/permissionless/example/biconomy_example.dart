@@ -23,9 +23,13 @@
 
 import 'package:permissionless/permissionless.dart';
 
+import 'example_config.dart';
+
 void main(List<String> args) async {
   // Parse command line arguments
   final selfFunded = args.contains('--self-fund') || args.contains('-s');
+
+  final config = ExampleConfig.load();
 
   print('='.padRight(60, '='));
   print('Legacy Biconomy Smart Account Example (EntryPoint v0.6)');
@@ -40,12 +44,8 @@ void main(List<String> args) async {
   // SETUP: Create an owner from a private key
   // ================================================================
   //
-  // WARNING: Never hardcode private keys in production!
-  // This is a well-known test key from Foundry/Hardhat for demonstration.
-  const testPrivateKey =
-      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-
-  final owner = PrivateKeyOwner(testPrivateKey);
+  // Private key from TEST_PRIVATE_KEY (.env) or Foundry account 0 fallback
+  final owner = PrivateKeyOwner(config.privateKey);
   print('\nOwner address: ${owner.address.checksummed}');
 
   // ================================================================
@@ -57,7 +57,7 @@ void main(List<String> args) async {
   // - ECDSA Ownership Module for signature validation
   // - Custom execute functions (execute_ncC, executeBatch_y6U)
 
-  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
+  final rpcUrl = config.sepoliaRpcUrl;
   final publicClient = createPublicClient(url: rpcUrl);
 
   final account = createBiconomySmartAccount(
@@ -84,7 +84,7 @@ void main(List<String> args) async {
   // 3. Create Clients
   // ================================================================
 
-  const pimlicoUrl = 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY';
+  final pimlicoUrl = config.sepoliaPimlicoUrl;
 
   final bundler = createBundlerClient(
     url: pimlicoUrl,

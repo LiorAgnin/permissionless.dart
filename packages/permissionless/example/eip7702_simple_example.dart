@@ -22,9 +22,13 @@
 
 import 'package:permissionless/permissionless.dart';
 
+import 'example_config.dart';
+
 void main(List<String> args) async {
   // Parse command line arguments
   final selfFunded = args.contains('--self-fund') || args.contains('-s');
+
+  final config = ExampleConfig.load();
 
   print('='.padRight(60, '='));
   print('EIP-7702 Simple Smart Account Example');
@@ -40,10 +44,8 @@ void main(List<String> args) async {
   // - A bundler that supports EntryPoint v0.8
 
   const chainId = 11155111; // Sepolia
-  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
-
-  // NOTE: Replace with a bundler URL that supports EntryPoint v0.8
-  const pimlicoUrl = 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY';
+  final rpcUrl = config.sepoliaRpcUrl;
+  final pimlicoUrl = config.sepoliaPimlicoUrl;
 
   // ================================================================
   // SETUP: Create an owner from a private key
@@ -59,12 +61,9 @@ void main(List<String> args) async {
   // For testing, generate a fresh random key:
   //   dart -e "import 'dart:math'; print('0x' + List.generate(64, (_) => Random.secure().nextInt(16).toRadixString(16)).join());"
   //
-  // This key is for example purposes only (randomly generated):
-  // NOTE: Use a fresh key without existing EIP-7702 delegation
-  const testPrivateKey =
-      '0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2';
-
-  final owner = PrivateKeyEip7702Owner(testPrivateKey);
+  // Private key from TEST_PRIVATE_KEY (.env)
+  // NOTE: Prefer a key without an existing EIP-7702 delegation on Sepolia
+  final owner = PrivateKeyEip7702Owner(config.privateKey);
   print('\nOwner address: ${owner.address.checksummed}');
 
   // ================================================================

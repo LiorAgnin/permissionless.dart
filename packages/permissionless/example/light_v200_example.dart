@@ -1,11 +1,10 @@
 // Example: Light Account v2.0.0 (EntryPoint v0.7)
 //
-// USAGE:
-//   dart run example/light_example.dart
-//   dart run example/light_example.dart --self-fund
+// Same as light_example.dart — explicit version name for discoverability.
 //
-// For every Light version:
-//   dart run example/light_all_versions_example.dart
+// USAGE:
+//   dart run example/light_v200_example.dart
+//   dart run example/light_v200_example.dart --self-fund
 
 import 'light_runner.dart';
 

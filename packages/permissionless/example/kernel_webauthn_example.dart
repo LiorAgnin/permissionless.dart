@@ -13,6 +13,8 @@ import 'dart:typed_data';
 
 import 'package:permissionless/permissionless.dart';
 
+import 'example_config.dart';
+
 /// Example WebAuthn owner implementation.
 ///
 /// In production, use web3-signers PassKeySigner or implement
@@ -47,6 +49,7 @@ class ExampleWebAuthnOwner extends WebAuthnAccountOwner {
 }
 
 void main() async {
+  final config = ExampleConfig.load();
   print('='.padRight(60, '='));
   print('Kernel WebAuthn (Passkey) Smart Account Example');
   print('='.padRight(60, '='));
@@ -83,7 +86,7 @@ void main() async {
   // The SDK automatically uses the WebAuthn validator address when a
   // WebAuthn owner is detected.
 
-  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
+  final rpcUrl = config.sepoliaRpcUrl;
   final publicClient = createPublicClient(url: rpcUrl);
 
   final account = createKernelSmartAccount(
@@ -121,7 +124,7 @@ void main() async {
   // 4. Create Smart Account Client
   // ================================================================
 
-  const pimlicoUrl = 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY';
+  final pimlicoUrl = config.sepoliaPimlicoUrl;
 
   final pimlico = createPimlicoClient(
     url: pimlicoUrl,

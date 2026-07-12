@@ -14,13 +14,14 @@ library;
 
 import 'package:permissionless/permissionless.dart';
 
-void main() async {
-  // 1. Create an owner from a private key
-  final owner = PrivateKeyOwner(
-    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-  );
+import 'example_config.dart';
 
-  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
+void main() async {
+  final config = ExampleConfig.load();
+  // 1. Create an owner from a private key (TEST_PRIVATE_KEY from .env)
+  final owner = PrivateKeyOwner(config.privateKey);
+
+  final rpcUrl = config.sepoliaRpcUrl;
   final publicClient = createPublicClient(url: rpcUrl);
 
   // 2. Create a Safe smart account
@@ -38,12 +39,12 @@ void main() async {
 
   // 4. Create clients
   final pimlico = createPimlicoClient(
-    url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+    url: config.sepoliaPimlicoUrl,
     entryPoint: EntryPointAddresses.v07,
   );
 
   final paymaster = createPaymasterClient(
-    url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+    url: config.sepoliaPimlicoUrl,
   );
 
   // 5. Create a smart account client

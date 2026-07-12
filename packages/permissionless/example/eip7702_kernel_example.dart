@@ -25,9 +25,13 @@
 
 import 'package:permissionless/permissionless.dart';
 
+import 'example_config.dart';
+
 void main(List<String> args) async {
   // Parse command line arguments
   final selfFunded = args.contains('--self-fund') || args.contains('-s');
+
+  final config = ExampleConfig.load();
 
   print('='.padRight(60, '='));
   print('EIP-7702 Kernel Smart Account Example');
@@ -43,10 +47,8 @@ void main(List<String> args) async {
   // - A bundler that supports EntryPoint v0.7 with EIP-7702
 
   const chainId = 11155111; // Sepolia
-  const rpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
-
-  // Pimlico bundler URL
-  const pimlicoUrl = 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY';
+  final rpcUrl = config.sepoliaRpcUrl;
+  final pimlicoUrl = config.sepoliaPimlicoUrl;
 
   // ================================================================
   // SETUP: Create an owner from a private key
@@ -57,12 +59,9 @@ void main(List<String> args) async {
   // For testing, generate a fresh random key:
   //   dart -e "import 'dart:math'; print('0x' + List.generate(64, (_) => Random.secure().nextInt(16).toRadixString(16)).join());"
   //
-  // This key is for example purposes only (randomly generated):
-  // NOTE: Use a fresh key without existing EIP-7702 delegation
-  const testPrivateKey =
-      '0xe9c56c50a13777407cbe1d640fcf6f6d6cdeb788a0e1d9f14a32d70723139bd5';
-
-  final owner = PrivateKeyEip7702KernelOwner(testPrivateKey);
+  // Private key from TEST_PRIVATE_KEY (.env)
+  // NOTE: Prefer a key without an existing EIP-7702 delegation on Sepolia
+  final owner = PrivateKeyEip7702KernelOwner(config.privateKey);
   print('\nOwner address: ${owner.address.checksummed}');
 
   // ================================================================
@@ -184,9 +183,10 @@ void main(List<String> args) async {
 
   print('\n--- Preparing UserOperation ---');
 
-  late final UserOperationV07 userOp;
+  late final PreparedUserOperation prepared;
   try {
-    userOp = await smartAccountClient.prepareUserOperation(
+    // Use WithAuth so first-time EIP-7702 delegation is included
+    prepared = await smartAccountClient.prepareUserOperationWithAuth(
       calls: [call],
       maxFeePerGas: gasPrices.fast.maxFeePerGas,
       maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
@@ -204,10 +204,12 @@ void main(List<String> args) async {
     return;
   }
 
+  final userOp = prepared.userOp;
   print('Sender: ${userOp.sender.checksummed}');
   print('Nonce: ${userOp.nonce}');
   print('Call gas limit: ${userOp.callGasLimit}');
   print('Verification gas limit: ${userOp.verificationGasLimit}');
+  print('Needs authorization: ${prepared.needsAuthorization}');
 
   if (userOp.paymaster != null) {
     print('Paymaster: ${userOp.paymaster!.checksummed} (SPONSORED)');
@@ -219,8 +221,8 @@ void main(List<String> args) async {
   // 7. Sign and Send
   // ================================================================
   //
-  // SmartAccountClient automatically includes authorization when sending
-  // if delegation is not yet active.
+  // sendPreparedUserOperationWithAuth includes the EIP-7702 authorization
+  // list when first-time delegation is required.
 
   print('\n--- Signing and Sending ---');
 
@@ -229,7 +231,10 @@ void main(List<String> args) async {
 
   String hash;
   try {
-    hash = await smartAccountClient.sendPreparedUserOperation(signedOp);
+    hash = await smartAccountClient.sendPreparedUserOperationWithAuth(
+      signedOp,
+      prepared.authorization,
+    );
     print('UserOperation hash: $hash');
   } on BundlerRpcError catch (e) {
     print('\nSend failed: ${e.message}');

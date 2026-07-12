@@ -1,11 +1,10 @@
-// Example: Thirdweb smart account (EntryPoint v0.7)
+// Example: Thirdweb smart account with EntryPoint v0.7
+//
+// Same as thirdweb_example.dart — explicit name for discoverability.
 //
 // USAGE:
-//   dart run example/thirdweb_example.dart
-//   dart run example/thirdweb_example.dart --self-fund
-//
-// For every EntryPoint version:
-//   dart run example/thirdweb_all_versions_example.dart
+//   dart run example/thirdweb_ep07_example.dart
+//   dart run example/thirdweb_ep07_example.dart --self-fund
 
 import 'thirdweb_runner.dart';
 
