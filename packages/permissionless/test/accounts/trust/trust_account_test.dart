@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 /// - sender: 0x1234...7890
 /// - message: "hello"
 void main() {
-
   // Hardhat account #0 — do not use in production
   const testPrivateKey =
       '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -47,8 +46,7 @@ void main() {
     message: {'contents': 'Hello'},
   );
 
-  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) =>
-      UserOperationV06(
+  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) => UserOperationV06(
         sender: sender,
         nonce: BigInt.zero,
         initCode: '0x',
@@ -124,7 +122,6 @@ void main() {
       '2a2089763d70ba54fa7b8a77faac46ca0100beb841484c4b37006e45cb0f12e5'
       '1b';
 
-
   group('TrustAddresses', () {
     test('factory matches permissionless.js', () {
       expect(
@@ -147,7 +144,8 @@ void main() {
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
-      expect(owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+      expect(
+          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
       account = createTrustSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -164,13 +162,15 @@ void main() {
     });
 
     group('counterfactual address', () {
-      test('returns pre-set address (unit path; RPC address via getSenderAddress)',
+      test(
+          'returns pre-set address (unit path; RPC address via getSenderAddress)',
           () async {
         // Trust derives address via EntryPoint.getSenderAddress when no
         // address is supplied — that path needs a publicClient (integration).
         // Unit tests assert the pre-set address path used by clients offline.
         final address = await account.getAddress();
-        expect(address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+        expect(
+            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
       });
 
       test('throws without address or publicClient', () {
@@ -201,7 +201,8 @@ void main() {
 
     group('stub signature', () {
       test('matches permissionless.js dummy signature', () {
-        expect(account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+        expect(
+            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
       });
     });
 
@@ -252,7 +253,8 @@ void main() {
     });
 
     group('ERC-1271 signing', () {
-      test('signMessage matches permissionless.js Barz EIP-712 wrapper', () async {
+      test('signMessage matches permissionless.js Barz EIP-712 wrapper',
+          () async {
         final signature = await account.signMessage('hello');
         expect(signature.toLowerCase(), equals(jsSignMessage));
       });

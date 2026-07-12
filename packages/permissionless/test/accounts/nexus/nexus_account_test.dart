@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 /// - sender: 0x1234...7890
 /// - message: "hello"
 void main() {
-
   // Hardhat account #0 — do not use in production
   const testPrivateKey =
       '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -47,8 +46,7 @@ void main() {
     message: {'contents': 'Hello'},
   );
 
-  UserOperationV07 fixtureUserOpV07(EthereumAddress sender) =>
-      UserOperationV07(
+  UserOperationV07 fixtureUserOpV07(EthereumAddress sender) => UserOperationV07(
         sender: sender,
         nonce: BigInt.zero,
         callData: '0x',
@@ -158,7 +156,8 @@ void main() {
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
-      expect(owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+      expect(
+          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
       account = createNexusSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -208,7 +207,8 @@ void main() {
 
     group('stub signature', () {
       test('matches permissionless.js validator-wrapped dummy', () {
-        expect(account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+        expect(
+            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
       });
 
       test('includes validator address for gas estimation', () {
@@ -240,7 +240,8 @@ void main() {
     });
 
     group('signUserOperation', () {
-      test('returns bare 65-byte ECDSA signature (no validator prefix)', () async {
+      test('returns bare 65-byte ECDSA signature (no validator prefix)',
+          () async {
         final signature =
             await account.signUserOperation(fixtureUserOpV07(mockAddress));
         expect(signature, startsWith('0x'));
@@ -266,14 +267,16 @@ void main() {
     });
 
     group('ERC-1271 signing', () {
-      test('signMessage matches permissionless.js (validator ++ sig)', () async {
+      test('signMessage matches permissionless.js (validator ++ sig)',
+          () async {
         final signature = await account.signMessage('hello');
         expect(signature.toLowerCase(), equals(jsSignMessage));
         // 20-byte validator + 65-byte ECDSA = 85 bytes
         expect((signature.length - 2) ~/ 2, equals(85));
       });
 
-      test('signTypedData matches permissionless.js (validator ++ sig)', () async {
+      test('signTypedData matches permissionless.js (validator ++ sig)',
+          () async {
         final signature = await account.signTypedData(sampleTypedData);
         expect(signature.toLowerCase(), equals(jsSignTypedData));
         expect((signature.length - 2) ~/ 2, equals(85));

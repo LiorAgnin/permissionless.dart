@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 /// - sender: 0x1234...7890
 /// - message: "hello"
 void main() {
-
   // Hardhat account #0 — do not use in production
   const testPrivateKey =
       '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -47,8 +46,7 @@ void main() {
     message: {'contents': 'Hello'},
   );
 
-  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) =>
-      UserOperationV06(
+  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) => UserOperationV06(
         sender: sender,
         nonce: BigInt.zero,
         initCode: '0x',
@@ -138,9 +136,7 @@ void main() {
       '4a1fb653acc8e3752a3901b320950712aecfec9ca122dd7676c9fb9c888e6911'
       '1b00000000000000000000000000000000000000000000000000000000000000';
 
-  const jsCounterfactualAddress =
-      '0x0788816536defa6a14779711c0b08b7f0edfe68b';
-
+  const jsCounterfactualAddress = '0x0788816536defa6a14779711c0b08b7f0edfe68b';
 
   group('BiconomyAddresses', () {
     test('factory matches permissionless.js', () {
@@ -167,7 +163,8 @@ void main() {
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
-      expect(owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+      expect(
+          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
       // ignore: deprecated_member_use_from_same_package
       account = createBiconomySmartAccount(
         owner: owner,
@@ -201,7 +198,8 @@ void main() {
 
       test('returns pre-set address when provided', () async {
         final address = await account.getAddress();
-        expect(address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+        expect(
+            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
       });
     });
 
@@ -224,7 +222,8 @@ void main() {
 
     group('stub signature', () {
       test('matches permissionless.js module-wrapped dummy', () {
-        expect(account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+        expect(
+            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
       });
     });
 

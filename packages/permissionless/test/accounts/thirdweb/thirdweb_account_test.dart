@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 /// - sender: 0x1234...7890
 /// - message: "hello"
 void main() {
-
   // Hardhat account #0 — do not use in production
   const testPrivateKey =
       '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
@@ -51,8 +50,7 @@ void main() {
     message: {'contents': 'Hello'},
   );
 
-  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) =>
-      UserOperationV06(
+  UserOperationV06 fixtureUserOpV06(EthereumAddress sender) => UserOperationV06(
         sender: sender,
         nonce: BigInt.zero,
         initCode: '0x',
@@ -65,8 +63,7 @@ void main() {
         paymasterAndData: '0x',
       );
 
-  UserOperationV07 fixtureUserOpV07(EthereumAddress sender) =>
-      UserOperationV07(
+  UserOperationV07 fixtureUserOpV07(EthereumAddress sender) => UserOperationV07(
         sender: sender,
         nonce: BigInt.zero,
         callData: '0x',
@@ -155,7 +152,6 @@ void main() {
       '72cf5d3982d8eff0352a34b3e45047e35de19bd966f88f94af88c3ea617eee11'
       '1b';
 
-
   group('ThirdwebAddresses', () {
     test('factory v0.7 matches permissionless.js', () {
       expect(
@@ -178,7 +174,8 @@ void main() {
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
-      expect(owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+      expect(
+          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
       account = createThirdwebSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -194,7 +191,8 @@ void main() {
 
       test('getAddress returns configured address', () async {
         final address = await account.getAddress();
-        expect(address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+        expect(
+            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
       });
 
       test('throws without address or publicClient', () {
@@ -207,7 +205,8 @@ void main() {
     });
 
     group('factoryData / initCode / salt', () {
-      test('default (empty) salt factoryData matches permissionless.js', () async {
+      test('default (empty) salt factoryData matches permissionless.js',
+          () async {
         final factoryData = await account.getFactoryData();
         expect(factoryData, isNotNull);
         expect(
@@ -225,9 +224,11 @@ void main() {
           address: mockAddress,
         );
         final factoryData = await salted.getFactoryData();
-        expect(factoryData!.factoryData.toLowerCase(), equals(jsFactoryDataTestSalt));
+        expect(factoryData!.factoryData.toLowerCase(),
+            equals(jsFactoryDataTestSalt));
         // UTF-8 of "test-salt"
-        expect(factoryData.factoryData.toLowerCase(), contains('746573742d73616c74'));
+        expect(factoryData.factoryData.toLowerCase(),
+            contains('746573742d73616c74'));
       });
 
       test('initCode embeds factoryData', () async {
@@ -253,7 +254,8 @@ void main() {
 
     group('stub signature', () {
       test('matches permissionless.js dummy signature', () {
-        expect(account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+        expect(
+            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
       });
     });
 
@@ -339,7 +341,8 @@ void main() {
     });
 
     group('ERC-1271 signing', () {
-      test('signMessage matches permissionless.js AccountMessage wrapper', () async {
+      test('signMessage matches permissionless.js AccountMessage wrapper',
+          () async {
         final signature = await account.signMessage('hello');
         expect(signature.toLowerCase(), equals(jsSignMessage));
       });
