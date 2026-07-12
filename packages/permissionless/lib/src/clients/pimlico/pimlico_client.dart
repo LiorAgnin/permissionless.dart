@@ -270,8 +270,7 @@ class PimlicoClient extends BundlerClient {
     }
 
     // max cost in wei including paymaster postOp gas
-    final maxCostInWei =
-        userOperationMaxCost + quote.postOpGas * maxFeePerGas;
+    final maxCostInWei = userOperationMaxCost + quote.postOpGas * maxFeePerGas;
 
     // cost in token denomination (wei-scale exchange rate)
     final costInToken =
@@ -370,5 +369,3 @@ PimlicoClient createPimlicoClient({
       ),
       entryPoint: entryPoint,
     );
-
-

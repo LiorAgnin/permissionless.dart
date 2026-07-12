@@ -32,10 +32,12 @@ void main() {
 
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
-      expect(owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+      expect(
+          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
     });
 
-    test('default (empty) salt factoryData matches permissionless.js', () async {
+    test('default (empty) salt factoryData matches permissionless.js',
+        () async {
       final account = createThirdwebSmartAccount(
         owner: owner,
         chainId: BigInt.one,

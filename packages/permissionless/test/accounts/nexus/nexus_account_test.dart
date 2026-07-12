@@ -81,7 +81,8 @@ void main() {
 
       test('getAddress returns configured address', () async {
         final address = await account.getAddress();
-        expect(address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+        expect(
+            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
       });
     });
 

@@ -488,8 +488,8 @@ void main() {
           final tokensObj = params[0] as Map<String, dynamic>;
           final tokens = tokensObj['tokens'] as List<dynamic>;
           final token = tokens.first as String;
-          result = quotesForToken?.call(token) ??
-              tokenQuotesResult(token: token);
+          result =
+              quotesForToken?.call(token) ?? tokenQuotesResult(token: token);
         } else {
           throw StateError('Unexpected RPC method: $method');
         }
@@ -552,8 +552,7 @@ void main() {
       // exchangeRateNativeToUsd 15e6 => costInUsd = 425e12 * 15e6 / 1e18
       final expectedPrefund = getRequiredPrefund(userOp);
       final postOpGas = BigInt.from(75000);
-      final maxCostInWei =
-          expectedPrefund + postOpGas * userOp.maxFeePerGas;
+      final maxCostInWei = expectedPrefund + postOpGas * userOp.maxFeePerGas;
       final expectedToken =
           (maxCostInWei * BigInt.from(10).pow(18)) ~/ BigInt.from(10).pow(18);
       final expectedUsd =
