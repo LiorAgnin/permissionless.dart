@@ -458,6 +458,94 @@ void main() {
       expect(results[1], equals('result_method2'));
       expect(results[2], equals('result_method3'));
     });
+
+    test('throws BundlerRpcError when error is a string (non-standard RPC)',
+        () async {
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'id': body['id'],
+            'error': 'rate limited',
+          }),
+          200,
+        );
+      });
+
+      final rpcClient = JsonRpcClient(
+        url: Uri.parse('http://localhost:3000'),
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => rpcClient.call('eth_call', [
+          {'data': '0x'},
+          'latest',
+        ]),
+        throwsA(
+          isA<BundlerRpcError>()
+              .having((e) => e.message, 'message', 'rate limited')
+              .having((e) => e.code, 'code', -32000),
+        ),
+      );
+    });
+
+    test('parses standard object error with string code', () async {
+      final mockClient = MockClient((request) async {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'jsonrpc': '2.0',
+            'id': body['id'],
+            'error': {
+              'code': '-32602',
+              'message': 'Invalid params',
+              'data': 'extra',
+            },
+          }),
+          200,
+        );
+      });
+
+      final rpcClient = JsonRpcClient(
+        url: Uri.parse('http://localhost:3000'),
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => rpcClient.call('eth_call'),
+        throwsA(
+          isA<BundlerRpcError>()
+              .having((e) => e.code, 'code', -32602)
+              .having((e) => e.message, 'message', 'Invalid params')
+              .having((e) => e.data, 'data', 'extra'),
+        ),
+      );
+    });
+
+    test('throws BundlerRpcError when response body is not a JSON object',
+        () async {
+      final mockClient = MockClient(
+        (request) async => http.Response(jsonEncode('oops'), 200),
+      );
+
+      final rpcClient = JsonRpcClient(
+        url: Uri.parse('http://localhost:3000'),
+        httpClient: mockClient,
+      );
+
+      expect(
+        () => rpcClient.call('eth_chainId'),
+        throwsA(
+          isA<BundlerRpcError>().having(
+            (e) => e.code,
+            'code',
+            -32700,
+          ),
+        ),
+      );
+    });
   });
 
   group('UserOperationGasEstimate', () {

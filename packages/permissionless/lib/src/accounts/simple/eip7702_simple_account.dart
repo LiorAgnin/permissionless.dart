@@ -478,18 +478,18 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
       ]);
     }
 
-    // initCode should match what's in the userOp being sent
-    // - If factory is set: concat(factory, factoryData)
-    // - If factory is null (account already deployed): '0x'
-    String initCode;
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    } else {
-      initCode = '0x';
-    }
+    // initCode packing must match EntryPoint / viem getInitCode:
+    // - factory null → '0x'
+    // - factory == 0x7702 marker → concat(delegation, factoryData)
+    //   where delegation is the authorization contract (account logic)
+    // - otherwise → concat(factory, factoryData)
+    final initCode = packUserOperationInitCode(
+      factory: userOp.factory,
+      factoryData: userOp.factoryData,
+      delegationAddress: isEip7702FactoryMarker(userOp.factory)
+          ? accountLogicAddress
+          : null,
+    );
 
     // Per viem: domain name is 'ERC4337' (no hyphen)
     // Per viem: uses raw bytes fields, not hashed versions

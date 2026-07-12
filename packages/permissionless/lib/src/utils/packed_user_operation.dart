@@ -1,4 +1,5 @@
 import '../types/address.dart';
+import '../types/eip7702.dart';
 import '../types/hex.dart';
 import '../types/user_operation.dart';
 
@@ -115,20 +116,23 @@ PackedUserOperation getPackedUserOperation(UserOperationV07 userOperation) =>
 ///
 /// Format: factory address (20 bytes) + factoryData
 ///
+/// For EIP-7702, pass [delegationAddress] (authorization contract) so the
+/// initCode matches EntryPoint hashing (viem `getInitCode` parity).
+///
 /// Example:
 /// ```dart
 /// final initCode = getInitCode(userOp);
 /// // Returns '0x5fbdb2315678afecb367f032d93f642f64180aa3abcdef...'
 /// ```
-String getInitCode(UserOperationV07 userOperation) {
-  if (userOperation.factory == null) {
-    return '0x';
-  }
-  return Hex.concat([
-    userOperation.factory!.hex,
-    userOperation.factoryData ?? '0x',
-  ]);
-}
+String getInitCode(
+  UserOperationV07 userOperation, {
+  EthereumAddress? delegationAddress,
+}) =>
+    packUserOperationInitCode(
+      factory: userOperation.factory,
+      factoryData: userOperation.factoryData,
+      delegationAddress: delegationAddress,
+    );
 
 /// Creates the packed accountGasLimits from gas limits.
 ///

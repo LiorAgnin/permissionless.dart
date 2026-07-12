@@ -51,8 +51,8 @@ enum TestChain {
   sepolia(
     chainId: 11155111,
     name: 'Sepolia',
-    // Using 1rpc.io public RPC (more reliable)
-    rpcUrl: 'https://1rpc.io/sepolia',
+    // publicnode: free and stable for full suites; 1rpc/0xrpc rate-limit heavily
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
     pimlicoPath: 'sepolia',
   ),
 

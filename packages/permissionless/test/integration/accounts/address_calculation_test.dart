@@ -172,77 +172,83 @@ void main() {
         test(
           'address is deterministic across multiple instantiations',
           () async {
-            final owner = PrivateKeyOwner(TestConfig.hardhatTestKey);
-            final client = createPublicClient(
-              url: chain.rpcUrl,
-              timeout: TestTimeouts.shortNetwork,
-            );
-
-            try {
-              final account1 = createSimpleSmartAccount(
-                owner: owner,
-                chainId: chain.chainIdBigInt,
-                salt: BigInt.from(67890),
-                publicClient: client,
+            // Simple accounts resolve address via eth_call (getSenderAddress);
+            // free public RPCs can return transient/non-standard errors.
+            await withRetry(() async {
+              final owner = PrivateKeyOwner(TestConfig.hardhatTestKey);
+              final client = createPublicClient(
+                url: chain.rpcUrl,
+                timeout: TestTimeouts.shortNetwork,
               );
 
-              final account2 = createSimpleSmartAccount(
-                owner: owner,
-                chainId: chain.chainIdBigInt,
-                salt: BigInt.from(67890),
-                publicClient: client,
-              );
+              try {
+                final account1 = createSimpleSmartAccount(
+                  owner: owner,
+                  chainId: chain.chainIdBigInt,
+                  salt: BigInt.from(67890),
+                  publicClient: client,
+                );
 
-              final address1 = await account1.getAddress();
-              final address2 = await account2.getAddress();
+                final account2 = createSimpleSmartAccount(
+                  owner: owner,
+                  chainId: chain.chainIdBigInt,
+                  salt: BigInt.from(67890),
+                  publicClient: client,
+                );
 
-              expect(
-                address1.hex.toLowerCase(),
-                equals(address2.hex.toLowerCase()),
-              );
-            } finally {
-              client.close();
-            }
+                final address1 = await account1.getAddress();
+                final address2 = await account2.getAddress();
+
+                expect(
+                  address1.hex.toLowerCase(),
+                  equals(address2.hex.toLowerCase()),
+                );
+              } finally {
+                client.close();
+              }
+            });
           },
-          timeout: const Timeout(TestTimeouts.shortNetwork),
+          timeout: const Timeout(TestTimeouts.mediumNetwork),
         );
 
         test(
           'different salt produces different address',
           () async {
-            final owner = PrivateKeyOwner(TestConfig.hardhatTestKey);
-            final client = createPublicClient(
-              url: chain.rpcUrl,
-              timeout: TestTimeouts.shortNetwork,
-            );
-
-            try {
-              final account1 = createSimpleSmartAccount(
-                owner: owner,
-                chainId: chain.chainIdBigInt,
-                salt: BigInt.from(33333),
-                publicClient: client,
+            await withRetry(() async {
+              final owner = PrivateKeyOwner(TestConfig.hardhatTestKey);
+              final client = createPublicClient(
+                url: chain.rpcUrl,
+                timeout: TestTimeouts.shortNetwork,
               );
 
-              final account2 = createSimpleSmartAccount(
-                owner: owner,
-                chainId: chain.chainIdBigInt,
-                salt: BigInt.from(44444),
-                publicClient: client,
-              );
+              try {
+                final account1 = createSimpleSmartAccount(
+                  owner: owner,
+                  chainId: chain.chainIdBigInt,
+                  salt: BigInt.from(33333),
+                  publicClient: client,
+                );
 
-              final address1 = await account1.getAddress();
-              final address2 = await account2.getAddress();
+                final account2 = createSimpleSmartAccount(
+                  owner: owner,
+                  chainId: chain.chainIdBigInt,
+                  salt: BigInt.from(44444),
+                  publicClient: client,
+                );
 
-              expect(
-                address1.hex.toLowerCase(),
-                isNot(equals(address2.hex.toLowerCase())),
-              );
-            } finally {
-              client.close();
-            }
+                final address1 = await account1.getAddress();
+                final address2 = await account2.getAddress();
+
+                expect(
+                  address1.hex.toLowerCase(),
+                  isNot(equals(address2.hex.toLowerCase())),
+                );
+              } finally {
+                client.close();
+              }
+            });
           },
-          timeout: const Timeout(TestTimeouts.shortNetwork),
+          timeout: const Timeout(TestTimeouts.mediumNetwork),
         );
 
         test(

@@ -6,6 +6,50 @@ import 'package:web3dart/web3dart.dart';
 import 'address.dart';
 import 'hex.dart';
 
+/// Short EIP-7702 factory marker used by bundlers / viem (`factory: "0x7702"`).
+const String eip7702FactoryMarkerShort = '0x7702';
+
+/// Full 20-byte EIP-7702 factory marker address.
+final EthereumAddress eip7702FactoryMarkerAddress = EthereumAddress.fromHex(
+  '0x7702000000000000000000000000000000000000',
+);
+
+/// Returns true if [factory] is the EIP-7702 marker (`0x7702` or padded form).
+bool isEip7702FactoryMarker(EthereumAddress? factory) {
+  if (factory == null) return false;
+  final hex = factory.hex.toLowerCase();
+  return hex == eip7702FactoryMarkerAddress.hex.toLowerCase() ||
+      hex == eip7702FactoryMarkerShort;
+}
+
+/// Packs UserOperation initCode with EIP-7702 marker parity (viem `getInitCode`).
+///
+/// When [factory] is the EIP-7702 marker:
+/// - with [delegationAddress] (auth contract): `concat(delegation, factoryData)`
+/// - without: the padded marker alone (`0x7702…0000`)
+///
+/// Otherwise: `concat(factory, factoryData)` or `0x` if no factory.
+String packUserOperationInitCode({
+  EthereumAddress? factory,
+  String? factoryData,
+  EthereumAddress? delegationAddress,
+}) {
+  if (factory == null) return '0x';
+  if (isEip7702FactoryMarker(factory)) {
+    if (delegationAddress == null) {
+      return eip7702FactoryMarkerAddress.hex;
+    }
+    return Hex.concat([
+      delegationAddress.hex,
+      factoryData ?? '0x',
+    ]);
+  }
+  return Hex.concat([
+    factory.hex,
+    factoryData ?? '0x',
+  ]);
+}
+
 /// EIP-7702 Authorization for EOA code delegation.
 ///
 /// An authorization allows an EOA to delegate its code to a smart contract

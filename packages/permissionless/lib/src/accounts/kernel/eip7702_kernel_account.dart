@@ -406,15 +406,15 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
   /// Packs a UserOperation for hashing (v0.7 format).
   String _packUserOp(UserOperationV07 userOp) {
-    // Pack initCode
-    final initCode = userOp.factory != null
-        ? Hex.concat([
-            userOp.factory!.hex,
-            Hex.strip0x(userOp.factoryData ?? '0x'),
-          ])
-        : '0x';
+    // Pack initCode (EIP-7702 marker → use account logic as delegation)
+    final initCode = packUserOperationInitCode(
+      factory: userOp.factory,
+      factoryData: userOp.factoryData,
+      delegationAddress: isEip7702FactoryMarker(userOp.factory)
+          ? accountLogicAddress
+          : null,
+    );
     final initCodeHash = crypto.keccak256(Hex.decode(initCode));
-
     // Pack callData
     final callDataHash = crypto.keccak256(Hex.decode(userOp.callData));
 

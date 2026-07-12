@@ -49,8 +49,11 @@ class TestTimeouts {
   /// Long timeout for complex operations (2 minutes).
   static const Duration longNetwork = Duration(seconds: 120);
 
-  /// E2E flow timeout (3 minutes).
+  /// E2E wait-for-receipt timeout (3 minutes).
   static const Duration e2eFlow = Duration(minutes: 3);
+
+  /// Full E2E test timeout: receipt wait + AA25 submit retries + network slack.
+  static const Duration e2eTest = Duration(minutes: 6);
 }
 
 /// Custom matcher for BigInt greater than comparison.

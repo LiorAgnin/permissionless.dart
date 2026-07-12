@@ -137,27 +137,30 @@ void main() {
               equals(TestConfig.fundedAccountAddress!.toLowerCase()),
             );
 
-            // 2. Get gas prices
-            final gasPrices = await bundler!.getUserOperationGasPrice();
-
-            // 3. Send a minimal transaction (0 ETH to self)
-            final hash = await smartAccountClient!.sendUserOperation(
-              calls: [
-                Call(
-                  to: address,
-                  value: BigInt.zero,
-                  data: '0x',
-                ),
-              ],
-              maxFeePerGas: gasPrices.fast.maxFeePerGas,
-              maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+            // Retry only the submit on AA25 (pending UserOp with same nonce
+            // still in the mempool from a previous suite run).
+            final hash = await withRetry(
+              () async {
+                final gasPrices = await bundler!.getUserOperationGasPrice();
+                return smartAccountClient!.sendUserOperation(
+                  calls: [
+                    Call(
+                      to: address,
+                      value: BigInt.zero,
+                      data: '0x',
+                    ),
+                  ],
+                  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+                  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+                );
+              },
+              maxAttempts: 4,
+              delay: const Duration(seconds: 8),
             );
 
-            // 4. Verify hash format
             expect(hash, startsWith('0x'));
             expect(hash.length, equals(66)); // 0x + 64 hex chars
 
-            // 5. Wait for receipt
             final receipt = await smartAccountClient!.waitForReceipt(
               hash,
               timeout: TestTimeouts.e2eFlow,
@@ -166,7 +169,7 @@ void main() {
             expect(receipt.success, isTrue);
             expect(receipt.receipt?.transactionHash, startsWith('0x'));
           },
-          timeout: const Timeout(TestTimeouts.e2eFlow),
+          timeout: const Timeout(TestTimeouts.e2eTest),
         );
 
         test(
@@ -202,26 +205,33 @@ void main() {
             }
 
             final address = await smartAccountClient!.getAddress();
-            final gasPrices = await bundler!.getUserOperationGasPrice();
 
-            // Send batch of 2 calls
-            final hash = await smartAccountClient!.sendUserOperation(
-              calls: [
-                Call(
-                  to: address,
-                  value: BigInt.zero,
-                  data: '0x',
-                ),
-                Call(
-                  to: EthereumAddress.fromHex(
-                    '0x0000000000000000000000000000000000000001',
-                  ),
-                  value: BigInt.zero,
-                  data: '0x',
-                ),
-              ],
-              maxFeePerGas: gasPrices.fast.maxFeePerGas,
-              maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+            final hash = await withRetry(
+              () async {
+                final gasPrices = await bundler!.getUserOperationGasPrice();
+
+                // Send batch of 2 calls
+                return smartAccountClient!.sendUserOperation(
+                  calls: [
+                    Call(
+                      to: address,
+                      value: BigInt.zero,
+                      data: '0x',
+                    ),
+                    Call(
+                      to: EthereumAddress.fromHex(
+                        '0x0000000000000000000000000000000000000001',
+                      ),
+                      value: BigInt.zero,
+                      data: '0x',
+                    ),
+                  ],
+                  maxFeePerGas: gasPrices.fast.maxFeePerGas,
+                  maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
+                );
+              },
+              maxAttempts: 4,
+              delay: const Duration(seconds: 8),
             );
 
             expect(hash, startsWith('0x'));
@@ -233,7 +243,7 @@ void main() {
 
             expect(receipt.success, isTrue);
           },
-          timeout: const Timeout(TestTimeouts.e2eFlow),
+          timeout: const Timeout(TestTimeouts.e2eTest),
         );
       });
     }

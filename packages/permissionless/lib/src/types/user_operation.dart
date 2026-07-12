@@ -1,4 +1,5 @@
 import 'address.dart';
+import 'eip7702.dart';
 import 'hex.dart';
 
 /// EntryPoint contract version for ERC-4337.
@@ -391,7 +392,14 @@ class UserOperationV07 implements UserOperation {
     };
 
     if (factory != null) {
-      result['factory'] = factory!.hex;
+      // Bundlers / viem use the short EIP-7702 marker `0x7702`, not the
+      // left-padded 20-byte form. Emitting the short form avoids schema
+      // validation errors on some endpoints.
+      if (isEip7702FactoryMarker(factory)) {
+        result['factory'] = eip7702FactoryMarkerShort;
+      } else {
+        result['factory'] = factory!.hex;
+      }
     }
     if (factoryData != null) {
       result['factoryData'] = factoryData;

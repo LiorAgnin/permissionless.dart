@@ -134,30 +134,45 @@ class SmartAccountClient {
 
   /// Creates an EIP-7702 authorization if needed.
   ///
-  /// Returns null if authorization is not needed (non-EIP-7702 account,
-  /// no public client, or delegation already active).
+  /// Returns null if authorization is not needed (non-EIP-7702 account, or
+  /// the EOA is already delegated to this account's logic contract).
+  ///
+  /// If the EOA has code delegated to a *different* implementation (e.g. ran
+  /// Simple7702 then Kernel7702 with the same key), a new authorization is
+  /// created so the bundler can re-delegate.
   Future<Eip7702Authorization?> _createAuthorizationIfNeeded() async {
     if (account is! Eip7702SmartAccount) {
       return null;
     }
 
-    final address = await account.getAddress();
-    final isDeployed = await publicClient.isDeployed(address);
-    if (isDeployed) {
-      return null;
+    final eip7702 = account as Eip7702SmartAccount;
+    final address = await eip7702.getAddress();
+    final code = (await publicClient.getCode(address)).toLowerCase();
+
+    // Active EIP-7702 delegation: 0xef0100 || address (20 bytes)
+    if (code.length >= 48 && code.startsWith('0xef0100')) {
+      final delegated = '0x${code.substring(8, 48)}';
+      final expected = eip7702.accountLogicAddress.hex.toLowerCase();
+      if (delegated == expected) {
+        return null; // already delegated to the right implementation
+      }
+      // Wrong implementation — re-delegate below
+    } else if (code != '0x' && code.isNotEmpty) {
+      // Has non-7702 code; still try authorization (bundler may reject)
+    } else {
+      // No code — need first-time authorization
     }
 
-    // Get EOA nonce for authorization
     final eoaNonce = await publicClient.getTransactionCount(address);
-    return (account as Eip7702SmartAccount).getAuthorization(nonce: eoaNonce);
+    return eip7702.getAuthorization(nonce: eoaNonce);
   }
 
   /// EIP-7702 factory marker address.
   ///
   /// Used to signal to the bundler that this UserOperation requires
-  /// EIP-7702 authorization handling.
-  static final _eip7702FactoryMarker =
-      EthereumAddress.fromHex('0x7702000000000000000000000000000000000000');
+  /// EIP-7702 authorization handling. Matches viem's `factory: "0x7702"`
+  /// (stored as the padded 20-byte form; serialized short in RPC JSON).
+  static final _eip7702FactoryMarker = eip7702FactoryMarkerAddress;
 
   /// Prepares a UserOperation without signing.
   ///
@@ -294,15 +309,21 @@ class SmartAccountClient {
           nonceKey: account.nonceKey,
         );
 
-    // Resolve factory: honor overrides, else derive when undeployed
+    // Resolve factory: honor overrides, else derive
     var resolvedFactory = factory;
     var resolvedFactoryData = factoryData;
-    if (resolvedFactory == null && resolvedFactoryData == null && !isDeployed) {
+    if (resolvedFactory == null && resolvedFactoryData == null) {
       if (needsAuth) {
-        // EIP-7702: Use marker factory address to signal authorization needed
-        resolvedFactory = _eip7702FactoryMarker;
-        resolvedFactoryData = '0x';
-      } else {
+        // EIP-7702 first-time (no code yet): set factory marker so the bundler
+        // treats this as an EIP-7702 UserOp. Re-delegation (EOA already has
+        // 0xef0100… code to a *different* implementation) must omit factory —
+        // Pimlico rejects factory when the sender is already constructed, and
+        // auth alone is enough to re-point the delegation.
+        if (!isDeployed) {
+          resolvedFactory = _eip7702FactoryMarker;
+          resolvedFactoryData = '0x';
+        }
+      } else if (!isDeployed) {
         final data = await account.getFactoryData();
         if (data != null) {
           resolvedFactory = data.factory;

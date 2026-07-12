@@ -69,18 +69,18 @@ class JsonRpcClient {
       );
     }
 
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
-
-    if (json.containsKey('error')) {
-      final error = json['error'] as Map<String, dynamic>;
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) {
       throw BundlerRpcError(
-        code: error['code'] as int,
-        message: error['message'] as String,
-        data: error['data'],
+        code: -32700,
+        message: 'Invalid JSON-RPC response: expected object',
+        data: response.body,
       );
     }
 
-    return json['result'];
+    _throwIfRpcError(decoded);
+
+    return decoded['result'];
   }
 
   /// Sends multiple JSON-RPC requests in a batch.
@@ -129,14 +129,7 @@ class JsonRpcClient {
       final responseMap = json as Map<String, dynamic>;
       final id = responseMap['id'] as int;
 
-      if (responseMap.containsKey('error')) {
-        final error = responseMap['error'] as Map<String, dynamic>;
-        throw BundlerRpcError(
-          code: error['code'] as int,
-          message: error['message'] as String,
-          data: error['data'],
-        );
-      }
+      _throwIfRpcError(responseMap);
 
       results[id] = responseMap['result'];
     }
@@ -149,6 +142,41 @@ class JsonRpcClient {
 
   /// Closes the underlying HTTP client.
   void close() => _httpClient.close();
+}
+
+/// Throws [BundlerRpcError] when a JSON-RPC response contains an `error` field.
+///
+/// Handles both standard object errors (`{code, message, data}`) and
+/// non-standard providers that return a bare string (or other) error value.
+void _throwIfRpcError(Map<String, dynamic> json) {
+  if (!json.containsKey('error') || json['error'] == null) {
+    return;
+  }
+
+  final error = json['error'];
+  if (error is Map) {
+    throw BundlerRpcError(
+      code: _parseRpcErrorCode(error['code']),
+      message: error['message']?.toString() ?? 'Unknown RPC error',
+      data: error['data'],
+    );
+  }
+
+  // Non-standard: error is a string or other scalar.
+  throw BundlerRpcError(
+    code: -32000,
+    message: error.toString(),
+  );
+}
+
+/// Parses a JSON-RPC error code that may be int, num, or numeric string.
+int _parseRpcErrorCode(dynamic code) {
+  if (code is int) return code;
+  if (code is num) return code.toInt();
+  if (code is String) {
+    return int.tryParse(code) ?? -32000;
+  }
+  return -32000;
 }
 
 /// A single RPC request for batch operations.
