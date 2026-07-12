@@ -486,9 +486,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
     final initCode = packUserOperationInitCode(
       factory: userOp.factory,
       factoryData: userOp.factoryData,
-      delegationAddress: isEip7702FactoryMarker(userOp.factory)
-          ? accountLogicAddress
-          : null,
+      delegationAddress:
+          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
     );
 
     // Per viem: domain name is 'ERC4337' (no hyphen)

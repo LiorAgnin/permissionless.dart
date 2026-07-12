@@ -233,7 +233,8 @@ void main() {
         // factory address appears in ABI-encoded constructor args (no 0x)
         expect(
           data.toLowerCase(),
-          contains('000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+          contains(
+              '000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
         );
       });
     });

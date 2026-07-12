@@ -100,9 +100,8 @@ class CallsStatus {
   /// - Legacy string statuses: `"CONFIRMED"` → success/200, `"PENDING"` → pending/100
   /// - Numeric strings (e.g. `"100"`)
   factory CallsStatus.fromJson(Map<String, dynamic> json) {
-    final raw = json.containsKey('statusCode')
-        ? json['statusCode']
-        : json['status'];
+    final raw =
+        json.containsKey('statusCode') ? json['statusCode'] : json['status'];
     final parsed = parseCallsStatusCode(raw);
 
     return CallsStatus(

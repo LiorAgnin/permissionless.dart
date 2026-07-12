@@ -410,9 +410,8 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     final initCode = packUserOperationInitCode(
       factory: userOp.factory,
       factoryData: userOp.factoryData,
-      delegationAddress: isEip7702FactoryMarker(userOp.factory)
-          ? accountLogicAddress
-          : null,
+      delegationAddress:
+          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
     );
     final initCodeHash = crypto.keccak256(Hex.decode(initCode));
     // Pack callData

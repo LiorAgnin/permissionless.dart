@@ -429,7 +429,7 @@ extension Erc7579Actions on SmartAccountClient {
 
     final factoryArgs = await account.getFactoryData();
     if (factoryArgs == null) {
-      Error.throwWithStackTrace(firstError!, StackTrace.current);
+      Error.throwWithStackTrace(firstError, StackTrace.current);
     }
 
     final result = await publicClient.call(
