@@ -158,8 +158,7 @@ void main() {
           signature: '0x',
         );
 
-    test('v0.6 personal-signs v0.6 userOpHash matching viem fixture',
-        () async {
+    test('v0.6 personal-signs v0.6 userOpHash matching viem fixture', () async {
       final account = createThirdwebSmartAccount(
         owner: owner,
         chainId: BigInt.one,

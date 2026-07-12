@@ -268,8 +268,7 @@ void main() {
         expect(callData, startsWith('0xb61d27f6'));
       });
 
-      test('v0.6 uses executeBatch(address[],bytes[]) selector 0x18dfb3c7',
-          () {
+      test('v0.6 uses executeBatch(address[],bytes[]) selector 0x18dfb3c7', () {
         account = createSimpleSmartAccount(
           owner: owner,
           chainId: BigInt.from(1),
