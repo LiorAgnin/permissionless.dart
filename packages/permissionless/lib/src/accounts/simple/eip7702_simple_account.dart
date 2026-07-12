@@ -287,7 +287,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   }
 
   @override
-  List<Call> decodeCalls(String callData) => CallDataDecoder.decodeStandardExecute(
+  List<Call> decodeCalls(String callData) =>
+      CallDataDecoder.decodeStandardExecute(
         callData: callData,
         entryPointVersion: EntryPointVersion.v08,
       );

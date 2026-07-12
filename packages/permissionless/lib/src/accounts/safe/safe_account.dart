@@ -794,7 +794,6 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     );
   }
 
-
   @override
   Future<String> sign(String hash) => signMessage(hash);
 

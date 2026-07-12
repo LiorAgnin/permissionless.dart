@@ -135,7 +135,8 @@ void main() {
           result =
               '0x0000000000000000000000000000000000000000000000000000000000000000';
         } else if (method == 'eth_gasPrice') {
-          result = '0x${(gasPrice ?? BigInt.from(1000000000)).toRadixString(16)}';
+          result =
+              '0x${(gasPrice ?? BigInt.from(1000000000)).toRadixString(16)}';
         } else if (method == 'eth_maxPriorityFeePerGas') {
           result =
               '0x${(maxPriorityFeePerGas ?? BigInt.from(100000000)).toRadixString(16)}';

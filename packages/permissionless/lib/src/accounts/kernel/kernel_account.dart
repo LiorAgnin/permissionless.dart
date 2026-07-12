@@ -139,9 +139,8 @@ class KernelSmartAccount implements SmartAccount {
   EthereumAddress? _cachedAddress;
 
   /// Returns the entry point version for this account.
-  EntryPointVersion get entryPointVersion => _config.version.isV2
-      ? EntryPointVersion.v06
-      : EntryPointVersion.v07;
+  EntryPointVersion get entryPointVersion =>
+      _config.version.isV2 ? EntryPointVersion.v06 : EntryPointVersion.v07;
 
   @override
   BigInt get chainId => _config.chainId;
@@ -571,7 +570,8 @@ class KernelSmartAccount implements SmartAccount {
   List<Call> decodeCalls(String callData) {
     if (_config.version.isV2) {
       final selector = Hex.strip0x(callData).substring(0, 8).toLowerCase();
-      if (selector == Hex.strip0x(KernelSelectors.executeBatchV2).toLowerCase()) {
+      if (selector ==
+          Hex.strip0x(KernelSelectors.executeBatchV2).toLowerCase()) {
         return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
       }
       if (selector == Hex.strip0x(KernelSelectors.executeV2).toLowerCase()) {
@@ -585,7 +585,6 @@ class KernelSmartAccount implements SmartAccount {
     }
     return decode7579Calls(callData).calls;
   }
-
 
   @override
   Future<String> sign(String hash) => signMessage(hash);

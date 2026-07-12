@@ -256,7 +256,8 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   }
 
   @override
-  List<Call> decodeCalls(String callData) => CallDataDecoder.decodeStandardExecute(
+  List<Call> decodeCalls(String callData) =>
+      CallDataDecoder.decodeStandardExecute(
         callData: callData,
         entryPointVersion: _config.entryPointVersion,
       );

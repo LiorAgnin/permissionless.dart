@@ -222,8 +222,7 @@ class PublicClient {
     if (data == null || data == '0x' || Hex.strip0x(data).length < 64) {
       throw PublicRpcError(
         code: -1,
-        message:
-            'Failed to get sender address: helper returned no data for '
+        message: 'Failed to get sender address: helper returned no data for '
             'entryPoint ${entryPoint.hex}',
       );
     }

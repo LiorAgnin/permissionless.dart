@@ -419,7 +419,6 @@ class EtherspotSmartAccount implements SmartAccount {
   @override
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
 
-
   @override
   Future<String> sign(String hash) => signMessage(hash);
 

@@ -283,7 +283,8 @@ void main() {
       );
       final a = await ecdsa.getFactoryData();
       final b = await kernel.getFactoryData();
-      expect(a!.factoryData.toLowerCase(), equals(b!.factoryData.toLowerCase()));
+      expect(
+          a!.factoryData.toLowerCase(), equals(b!.factoryData.toLowerCase()));
     });
   });
 }

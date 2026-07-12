@@ -76,7 +76,8 @@ void main() {
         expect(account.threshold, equals(BigInt.from(2)));
       });
 
-      test('defaults threshold to owners.length (permissionless.js parity)', () {
+      test('defaults threshold to owners.length (permissionless.js parity)',
+          () {
         final owner1 = PrivateKeyOwner(testPrivateKey);
         final owner2 = PrivateKeyOwner(
           '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
@@ -861,9 +862,8 @@ void main() {
     group('proxyCreationCode', () {
       /// ABI-encodes a `bytes` eth_call return value.
       String abiEncodeBytes(String hexData) {
-        final payload = hexData.startsWith('0x')
-            ? hexData.substring(2)
-            : hexData;
+        final payload =
+            hexData.startsWith('0x') ? hexData.substring(2) : hexData;
         final length = payload.length ~/ 2;
         final offset =
             '0000000000000000000000000000000000000000000000000000000000000020';
@@ -968,7 +968,8 @@ void main() {
   });
 
   group('getDummySafeWebAuthnSignature parity', () {
-    test('matches permissionless.js authenticatorData and clientDataFields', () {
+    test('matches permissionless.js authenticatorData and clientDataFields',
+        () {
       final sig = getDummySafeWebAuthnSignature().toLowerCase();
       // authenticatorData length prefix (37) + data containing JS rpIdHash prefix
       expect(sig, contains('49960de5880e8c687434170f6476605b'));

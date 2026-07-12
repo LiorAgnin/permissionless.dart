@@ -292,7 +292,6 @@ class BiconomySmartAccount implements SmartAccountV06 {
     }
   }
 
-
   @override
   Future<String> sign(String hash) => signMessage(hash);
 

@@ -331,7 +331,6 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   @override
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
 
-
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
