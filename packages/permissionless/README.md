@@ -30,7 +30,8 @@ Build account abstraction applications in Dart with support for multiple smart a
 - **SmartAccountClient** - High-level account operations
 - **PimlicoClient** - Pimlico-specific bundler extensions
 - **EtherspotClient** - Etherspot (Skandha) bundler extensions
-- **PublicClient** - Standard Ethereum RPC
+- **PasskeyServerClient** - Passkey server `pks_*` RPC methods
+- **PublicClient** - Standard Ethereum RPC (incl. deployless `eth_call` for counterfactual accounts)
 
 ### Utilities
 
@@ -52,7 +53,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  permissionless: ^0.3.0
+  permissionless: ^0.4.0
 ```
 
 Then run:
@@ -60,6 +61,24 @@ Then run:
 ```bash
 dart pub get
 ```
+
+### Upgrading from 0.3.x
+
+Version 0.4.0 fixes every P0/P1 divergence found by the
+[Dart-vs-JS parity audit](https://github.com/LiorAgnin/permissionless.dart/tree/main/docs/parity-audit).
+Two changes affect **counterfactual addresses**:
+
+- **Safe default threshold** is now `owners.length` (was `1`). Multi-owner Safes
+  created without an explicit `threshold` derive a different address. Pass
+  `threshold: BigInt.one` to keep the previous 1-of-n default and address.
+- **Thirdweb salts** are now UTF-8-encoded like permissionless.js (was
+  hex-decoded), so non-default salts derive different (now JS-compatible)
+  addresses.
+
+ERC-1271 `signMessage`/`signTypedData` outputs also changed across accounts —
+previous releases produced signatures that failed on-chain `isValidSignature`;
+they now byte-match permissionless.js. See the
+[CHANGELOG](CHANGELOG.md) for the full list.
 
 ## Quick Start
 
@@ -407,6 +426,46 @@ final nonce = await publicClient.getAccountNonce(
 // Make a contract call
 final result = await publicClient.call(
   Call(to: contractAddress, data: callData),
+);
+
+// Deployless call against an undeployed (counterfactual) account —
+// deploys via the factory inside eth_call, then executes the call
+final result = await publicClient.call(
+  Call(to: accountAddress, data: callData),
+  factory: factoryAddress,
+  factoryData: factoryData,
+);
+```
+
+### PasskeyServerClient
+
+Talk to a passkey server (e.g. Pimlico's) via the `pks_*` RPC methods:
+
+```dart
+final passkeyServer = createPasskeyServerClient(
+  url: 'https://passkeys.example.com',
+);
+
+// Registration ceremony
+final options = await passkeyServer.startRegistration(
+  context: {'userName': 'alice@example.com'},
+);
+// ... create the credential via platform WebAuthn (see permissionless_passkeys) ...
+final verified = await passkeyServer.verifyRegistration(
+  credential: registrationCredential,
+  context: {'userName': 'alice@example.com'},
+);
+
+// Authentication ceremony
+final authOptions = await passkeyServer.startAuthentication();
+final authResult = await passkeyServer.verifyAuthentication(
+  credential: authenticationCredential,
+  uuid: credentialUuid,
+);
+
+// List credentials
+final credentials = await passkeyServer.getCredentials(
+  context: {'userName': 'alice@example.com'},
 );
 ```
 

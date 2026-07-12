@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-07-12
+
+### Changed
+
+- Bumped `permissionless` dependency constraint to `^0.4.0` (was `^0.3.0`).
+  permissionless 0.4.0 fixes the parity-audit P0/P1 bugs, including the
+  WebAuthn-relevant Safe stub signatures and ERC-1271 signing paths — see its
+  [changelog](https://pub.dev/packages/permissionless/changelog) and note its
+  breaking changes (Safe default threshold, counterfactual addresses).
+- Bumped `web3dart` dependency constraint to `^3.0.3` (was `^3.0.2`).
+
 ## [0.1.1] - 2026-04-21
 
 ### Changed

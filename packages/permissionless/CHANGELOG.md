@@ -5,7 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-07-12
+
+Parity release: fixes every P0/P1 divergence found by the
+[Dart-vs-JS parity audit](https://github.com/LiorAgnin/permissionless.dart/tree/main/docs/parity-audit)
+and aligns behavior with permissionless.js across accounts, clients, and actions.
+
+### Breaking changes
+
+- **Safe default threshold** is now `owners.length` (all owners must sign), matching
+  permissionless.js `toSafeSmartAccount`. Previously defaulted to `1`.
+  Multi-owner Safes created without an explicit `threshold` produce a different
+  setup calldata and therefore a **different counterfactual address**.
+  Pass `threshold: BigInt.one` to keep the previous 1-of-n default.
+- **Thirdweb salt is now UTF-8-encoded** (was hex-decoded), matching permissionless.js
+  `toHex(salt)`. Any account created with a non-default `salt` gets different
+  `factoryData` and a **different counterfactual address**. The old decoding was a
+  parity bug — addresses it produced never matched the TypeScript SDK's.
+- **ERC-1271 `signMessage` / `signTypedData` outputs changed across accounts**
+  (Light, Thirdweb, Trust, Etherspot, Biconomy, Kernel, Safe). Previous releases
+  double-prefixed digests (EIP-712 wrapper digest signed via `personal_sign`),
+  skipped validator prefixes (Kernel), or omitted the SafeMessage wrapper and
+  eth_sign V adjustment (Safe) — producing signatures that failed on-chain
+  `isValidSignature`. Signatures now byte-match permissionless.js.
+- **ERC-7579 `revertOnError` execution-mode bit polarity flipped** to match the JS
+  encoding; execution modes built with `revertOnError` now encode the correct
+  `ModeSelector` byte.
+- **ERC-7579 query actions** (`supportsModule`, `supportsExecutionMode`,
+  `isModuleInstalled`, `getAccountId`) no longer swallow errors to `false`/`''`.
+  On call failure they retry with the account's `factory`/`factoryData`
+  (counterfactual path), matching permissionless.js; other errors propagate.
 
 ### Added
 
@@ -25,21 +54,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Safe default threshold** is now `owners.length` (all owners must sign), matching
-  permissionless.js `toSafeSmartAccount`. Previously defaulted to `1`.
-  **Breaking:** multi-owner Safes created without an explicit `threshold` produce a
-  different setup calldata and therefore a **different counterfactual address**.
-  Pass `threshold: BigInt.one` to keep the previous 1-of-n default.
 - **Safe batch `encodeCalls`** routes through **MultiSendCallOnly** (not MultiSend),
   matching permissionless.js safety property (no inner delegatecalls).
 - **Safe stub signatures** byte-match permissionless.js (ECDSA ecrecover-path dummy
   and WebAuthn dummy with realistic authenticatorData / long clientDataFields).
-- **ERC-7579 query actions** (`supportsModule`, `supportsExecutionMode`,
-  `isModuleInstalled`, `getAccountId`) no longer swallow errors to `false`/`''`.
-  On call failure they retry with the account's `factory`/`factoryData`
-  (counterfactual path), matching permissionless.js; other errors propagate.
+- **`writeContract`** now encodes calldata via web3dart's ABI encoder instead of a
+  hand-rolled encoder that mis-encoded dynamic `bytes` and lacked support for
+  strings, arrays, and tuples.
 
 ### Fixed
+
+- **Four wrong hard-coded ERC-7579 selectors** (`utils/erc7579.dart`):
+  `uninstallModule` (`0xa4d6f1d2` → `0xa71763a8`), `isModuleInstalled`
+  (`0x6d61fe70` → `0x112d3a7d`), `supportsModule` (`0x12d79da3` → `0xf2dc691d`),
+  and `accountId` (`0x7b60424a` → `0x9cfd7cff`). Previously, uninstall calldata
+  reverted and queries silently returned `false`/`''`.
+- **Kernel v0.2.4 `execute`/`executeBatch`** now use the Kernel v2 selectors
+  (`0x51945447`/`0x34fcd5be`) with matching parameter encoding; the previous
+  SimpleAccount-style calldata reverted on every v0.2.4 call.
+- **Nexus `signUserOperation`** returns the bare 65-byte signature, matching
+  permissionless.js. Previously the K1 validator address was prepended (85 bytes),
+  causing AA24 signature errors on-chain (Nexus selects the validator via the
+  nonce key).
+- **Pimlico client actions** aligned with the Pimlico API:
+  `validateSponsorshipPolicies` sends `pm_validateSponsorshipPolicies` (was a
+  nonexistent `pimlico_*` method), `estimateErc20PaymasterCost` computes the cost
+  locally from quotes (was calling a nonexistent RPC method), and
+  `sendCompressedUserOperation` sends the correct 3-parameter shape.
+- **Safe v1.5.0 `MULTI_SEND_CALL_ONLY` address** corrected to
+  `0xA83c336B20401Af773B6219BA5027174338D1836`.
+- **Simple account EntryPoint-version encode/sign paths**: v0.6 `executeBatch`
+  emits the v0.6 selector `0x18dfb3c7` (`address[],bytes[]`) instead of the v0.7
+  3-array form, and v0.8 non-7702 batching/signing follow the v0.8 shapes.
+- **EntryPoint v0.6 `signUserOperation`** is now implemented for accounts that
+  accept a v0.6 configuration (previously configured-but-unimplemented: accounts
+  derived v0.6 addresses, then threw or mis-packed at signing).
 
 - **Safe CREATE2 address derivation** fetches `proxyCreationCode()` from the configured
   SafeProxyFactory via `publicClient` when available, with fallback to the verified

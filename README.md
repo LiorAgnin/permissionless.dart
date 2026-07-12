@@ -18,10 +18,10 @@ Add the packages you need to your `pubspec.yaml`:
 ```yaml
 dependencies:
   # Core ERC-4337 functionality
-  permissionless: ^0.3.0
+  permissionless: ^0.4.0
 
   # Optional: WebAuthn/Passkeys support
-  permissionless_passkeys: ^0.1.1
+  permissionless_passkeys: ^0.1.2
 ```
 
 ### Basic Usage
@@ -29,86 +29,91 @@ dependencies:
 ```dart
 import 'package:permissionless/permissionless.dart';
 
-// Create a bundler client
-final bundlerClient = BundlerClient(
-  chain: Chain.sepolia,
-  bundlerUrl: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+// Create an owner and a smart account
+final owner = PrivateKeyOwner('0x...');
+final account = createSafeSmartAccount(
+  owners: [owner],
+  version: SafeVersion.v1_4_1,
+  entryPointVersion: EntryPointVersion.v07,
+  chainId: BigInt.from(11155111), // Sepolia
 );
 
-// Create a simple smart account
-final account = SimpleSmartAccount(
-  SimpleSmartAccountConfig(
-    owner: privateKeyToAccount(privateKey),
-    chainId: Chain.sepolia.id,
-    publicClient: publicClient,
-  ),
+// Create clients
+final publicClient = createPublicClient(url: 'https://rpc.example.com');
+final bundler = createPimlicoClient(
+  url: 'https://api.pimlico.io/v2/sepolia/rpc?apikey=YOUR_KEY',
+  entryPoint: EntryPointAddresses.v07,
 );
 
 // Send a user operation
-final hash = await bundlerClient.sendUserOperation(
+final client = SmartAccountClient(
   account: account,
+  bundler: bundler,
+  publicClient: publicClient,
+);
+final hash = await client.sendUserOperation(
   calls: [
     Call(
       to: recipientAddress,
       value: BigInt.from(1000000000000000), // 0.001 ETH
+      data: '0x',
     ),
   ],
+  maxFeePerGas: BigInt.from(20000000000),
+  maxPriorityFeePerGas: BigInt.from(1000000000),
 );
 ```
 
 ### With Passkeys
 
 ```dart
+import 'package:permissionless/permissionless.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 
-// Register a passkey
-final signer = PassKeySigner(options: PassKeysOptions(
-  namespace: 'myapp.com',
-  name: 'My App',
-  sharedWebauthnSigner: SafeWebAuthnSigners.sharedSigner,
-));
-final passkey = await signer.register('user@example.com', 'User Name');
-final credential = WebAuthnCredential.fromPassKeyPair(passkey);
+// Register a passkey (triggers biometric prompt)
+final credential = await createPasskeyCredential(
+  rpId: 'myapp.com',
+  rpName: 'My Application',
+  userName: 'user@example.com',
+);
 
-// Create a WebAuthn-authenticated smart account
-final account = WebAuthnSafeSmartAccount(
-  WebAuthnSafeSmartAccountConfig(
-    owner: WebAuthnOwner(credential: credential, rpId: 'myapp.com'),
-    credential: credential,
-    chainId: Chain.sepolia.id,
-    publicClient: publicClient,
-  ),
+// Create a WebAuthn account and use it as a smart account owner
+final webAuthnAccount = createWebAuthnAccount(
+  credential: credential,
+  rpId: 'myapp.com',
+);
+final account = createKernelSmartAccount(
+  owner: webAuthnAccount, // WebAuthnAccount IS an AccountOwner
+  chainId: BigInt.from(11155111),
+  version: KernelVersion.v0_3_1,
 );
 ```
 
 ## Development
 
-This project uses [Melos](https://melos.invertase.dev/) 6.x for monorepo management. I use Melos 6.x rather than 7.x due to [known conflicts](https://pub.dev/packages/multi_step_widgets/versions/0.3.0+1/changelog) between Melos 7's pub workspaces and path dependencies.
+This project uses [Melos](https://melos.invertase.dev/) 7.x with Dart pub workspaces for monorepo management (the Melos configuration lives in the root `pubspec.yaml`).
 
 ### Setup
 
 ```bash
-# Install dependencies (Melos is a dev dependency)
+# Install dependencies (resolves the whole pub workspace; Melos is a dev dependency)
 dart pub get
-
-# Bootstrap the workspace (links local packages via pubspec_overrides.yaml)
-dart run melos bootstrap
 ```
 
 ### Common Commands
 
 ```bash
 # Run tests across all packages
-dart run melos test
+dart run melos run test
 
 # Run static analysis
-dart run melos analyze
+dart run melos run analyze
 
 # Format code
-dart run melos format
+dart run melos run format
 
 # Clean build artifacts
-dart run melos clean
+dart run melos run clean
 ```
 
 ### Installing Melos Globally (Optional)
@@ -136,20 +141,22 @@ permissionless-dart/
 │       ├── lib/
 │       ├── test/
 │       └── example/
-├── melos.yaml                    # Monorepo configuration
+├── pubspec.yaml                  # Pub workspace + Melos configuration
 └── README.md
 ```
 
 ## Supported Account Types
 
 ### Core Package (`permissionless`)
-- **SimpleSmartAccount** - Minimal ERC-4337 account
-- **SafeSmartAccount** - Safe (Gnosis Safe) smart account
-- **KernelSmartAccount** - ZeroDev Kernel smart account
+- **Safe** (Gnosis) - battle-tested multi-sig account
+- **Kernel** (ZeroDev) - modular account, ERC-7579 in v0.3.x
+- **Nexus** (Biconomy) - ERC-7579 modular account
+- **Light** (Alchemy) - gas-efficient single-owner account
+- **Simple** (eth-infinitism) - minimal reference implementation
+- **Thirdweb**, **Trust (Barz)**, **Etherspot**, **Biconomy (deprecated)**
 
 ### Passkeys Package (`permissionless_passkeys`)
-- **WebAuthnSafeSmartAccount** - Safe with WebAuthn shared signer
-- **WebAuthnKernelSmartAccount** - Kernel with WebAuthn validator (v0.3.x)
+- **WebAuthnAccount** - passkey credential as an `AccountOwner` for Kernel (WebAuthn validator) and Safe (shared WebAuthn signer) accounts
 
 ## Supported Chains
 
