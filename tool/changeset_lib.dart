@@ -49,11 +49,11 @@ class PackageChange {
   });
 
   factory PackageChange.fromJson(Map<String, dynamic> json) => PackageChange(
-        title: json['title'] as String,
-        bump: json['bump'] as String,
-        note: json['note'] as String,
-        changesetPath: json['changesetPath'] as String,
-      );
+    title: json['title'] as String,
+    bump: json['bump'] as String,
+    note: json['note'] as String,
+    changesetPath: json['changesetPath'] as String,
+  );
 
   final String title;
   final String bump; // patch|minor|major
@@ -61,11 +61,11 @@ class PackageChange {
   final String changesetPath;
 
   Map<String, dynamic> toJson() => {
-        'title': title,
-        'bump': bump,
-        'note': note,
-        'changesetPath': changesetPath,
-      };
+    'title': title,
+    'bump': bump,
+    'note': note,
+    'changesetPath': changesetPath,
+  };
 }
 
 // Release info for one package.
@@ -80,15 +80,15 @@ class PackageRelease {
   });
 
   factory PackageRelease.fromJson(Map<String, dynamic> json) => PackageRelease(
-        name: json['name'] as String,
-        path: json['path'] as String,
-        fromVersion: json['fromVersion'] as String,
-        toVersion: json['toVersion'] as String,
-        bump: json['bump'] as String,
-        changes: (json['changes'] as List<dynamic>)
-            .map((e) => PackageChange.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    name: json['name'] as String,
+    path: json['path'] as String,
+    fromVersion: json['fromVersion'] as String,
+    toVersion: json['toVersion'] as String,
+    bump: json['bump'] as String,
+    changes: (json['changes'] as List<dynamic>)
+        .map((e) => PackageChange.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final String name;
   final String path;
@@ -98,13 +98,13 @@ class PackageRelease {
   final List<PackageChange> changes;
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'path': path,
-        'fromVersion': fromVersion,
-        'toVersion': toVersion,
-        'bump': bump,
-        'changes': changes.map((c) => c.toJson()).toList(),
-      };
+    'name': name,
+    'path': path,
+    'fromVersion': fromVersion,
+    'toVersion': toVersion,
+    'bump': bump,
+    'changes': changes.map((c) => c.toJson()).toList(),
+  };
 }
 
 // Top-level release meta for all packages in this release.
@@ -116,22 +116,22 @@ class ReleaseMeta {
   });
 
   factory ReleaseMeta.fromJson(Map<String, dynamic> json) => ReleaseMeta(
-        created: json['created'] as String,
-        date: json['date'] as String,
-        packages: (json['packages'] as List<dynamic>)
-            .map((e) => PackageRelease.fromJson(e as Map<String, dynamic>))
-            .toList(),
-      );
+    created: json['created'] as String,
+    date: json['date'] as String,
+    packages: (json['packages'] as List<dynamic>)
+        .map((e) => PackageRelease.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
 
   final String created; // ISO timestamp
   final String date; // YYYY-MM-DD
   final List<PackageRelease> packages;
 
   Map<String, dynamic> toJson() => {
-        'created': created,
-        'date': date,
-        'packages': packages.map((p) => p.toJson()).toList(),
-      };
+    'created': created,
+    'date': date,
+    'packages': packages.map((p) => p.toJson()).toList(),
+  };
 }
 
 // Discover packages under ./packages/*/pubspec.yaml
@@ -148,11 +148,7 @@ List<PackageInfo> discoverPackages() {
 
     final name = _readPubspecName(pubspec) ?? _basename(entity.path);
     packages.add(
-      PackageInfo(
-        name: name,
-        path: entity.path,
-        pubspecPath: pubspec.path,
-      ),
+      PackageInfo(name: name, path: entity.path, pubspecPath: pubspec.path),
     );
   }
 

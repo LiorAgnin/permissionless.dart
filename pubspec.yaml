@@ -2,7 +2,7 @@ name: permissionless_dart_workspace
 publish_to: none
 
 environment:
-  sdk: ">=3.5.0 <4.0.0"
+  sdk: ^3.9.0
 
 workspace:
   # packages
@@ -13,7 +13,7 @@ workspace:
   - packages/permissionless_passkeys/example
 
 dev_dependencies:
-  melos: ^7.8.2
+  melos: ^8.2.0
 
 melos:
   name: permissionless_dart

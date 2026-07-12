@@ -91,7 +91,7 @@ final account = createKernelSmartAccount(
 
 ## Development
 
-This project uses [Melos](https://melos.invertase.dev/) 7.x with Dart pub workspaces for monorepo management (the Melos configuration lives in the root `pubspec.yaml`).
+This project uses [Melos](https://melos.invertase.dev/) 8.x with Dart pub workspaces for monorepo management (the Melos configuration lives in the root `pubspec.yaml`).
 
 ### Setup
 

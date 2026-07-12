@@ -58,8 +58,10 @@ Future<void> _run() async {
     throw Exception('title cannot be empty');
   }
 
-  stdout.writeln('\nEnter a longer description (markdown allowed). '
-      'End input with a single "." on its own line:');
+  stdout.writeln(
+    '\nEnter a longer description (markdown allowed). '
+    'End input with a single "." on its own line:',
+  );
   final note = _promptMultiline();
 
   final now = DateTime.now();
@@ -85,8 +87,9 @@ Future<void> _run() async {
 List<int> _promptPackageSelection(int packageCount) {
   stdout
     ..writeln(
-        '\nSelect affected packages by number (space or comma-separated). '
-        'Example: 1 3 4')
+      '\nSelect affected packages by number (space or comma-separated). '
+      'Example: 1 3 4',
+    )
     ..write('Selection: ');
   final line = stdin.readLineSync() ?? '';
   final tokens = line.split(RegExp(r'[,\s]+')).where((t) => t.isNotEmpty);
