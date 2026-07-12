@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permissionless/permissionless.dart';
@@ -179,20 +181,19 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
         _status = TransactionStatus.pending;
       });
 
-      // Wait for receipt
-      final receipt = await client.waitForReceipt(
-        userOpHash,
-        timeout: const Duration(seconds: 120),
-      );
-
-      if (receipt != null) {
+      // Wait for receipt (throws TimeoutException if not confirmed in time)
+      try {
+        final receipt = await client.waitForReceipt(
+          userOpHash,
+          timeout: const Duration(seconds: 120),
+        );
         setState(() {
           _txHash = receipt.receipt?.transactionHash ?? _userOpHash;
           _status = receipt.success
               ? TransactionStatus.success
               : TransactionStatus.failed;
         });
-      } else {
+      } on TimeoutException {
         setState(() {
           _status = TransactionStatus.timeout;
           _errorMessage = 'Transaction timed out waiting for confirmation';
