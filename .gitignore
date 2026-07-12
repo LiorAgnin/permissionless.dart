@@ -5,6 +5,7 @@ build/
 pubspec_overrides.yaml
 
 .a5c
+.scratch
 
 # IDE
 .idea/
