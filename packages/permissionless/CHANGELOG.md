@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-07-14
+
+EIP-7702 + paymaster release: a paymaster-sponsored **first** 7702 operation no
+longer fails AA34. Contributed by [@KabaDH](https://github.com/KabaDH) in
+[#50](https://github.com/LiorAgnin/permissionless.dart/pull/50); verified live
+on Sepolia against Pimlico (first-time delegation installed and gas paid in the
+ERC-20 token by an EOA holding zero ETH).
+
+### Fixed
+
+- **`eip7702Auth` is now forwarded to paymaster RPCs.** `PaymasterClient.getPaymasterStubData`
+  and `getPaymasterData` accept an optional `authorization` and serialize it as
+  `eip7702Auth` inside `params[0]`, matching viem's `formatUserOperationRequest`.
+  `prepareUserOperationWithAuth` passes the authorization to both calls, so the
+  paymaster simulates against the delegated account instead of an empty EOA.
+- **`prepareUserOperationForErc20Paymaster` no longer discards the signed
+  authorization** — it is returned as `result.authorization` for submission via
+  `sendPreparedUserOperationWithAuth`.
+- **Paymaster gas limits survive the final `pm_getPaymasterData` call.** The
+  helper now mutates only `callData` on the prepared operation instead of
+  rebuilding it field by field, mirroring permissionless.js's spread-merge.
+- **Removed a redundant (paid) `pm_getPaymasterData` call** during preparation:
+  the flow is now 1× stub + 1× estimate + a single real data call, matching
+  permissionless.js.
+
+### Added
+
+- `skipFinalPaymasterData` on `prepareUserOperationWithAuth` (default `false`)
+  to stop after the stub for flows that fetch real paymaster data themselves.
+- `example/erc20_paymaster_example.dart` — gasless ERC-20 transfer where gas is
+  paid in the token itself, including automatic first-time 7702 delegation.
+- Per-version example runners and configs for Kernel, Light, Safe, Simple, and
+  Thirdweb accounts
+  ([#45](https://github.com/LiorAgnin/permissionless.dart/pull/45)).
+
+### Changed
+
+- Bumped `web3dart` to 3.0.3
+  ([#36](https://github.com/LiorAgnin/permissionless.dart/pull/36)).
+
 ## [0.4.0] - 2026-07-12
 
 Parity release: fixes every P0/P1 divergence found by the
