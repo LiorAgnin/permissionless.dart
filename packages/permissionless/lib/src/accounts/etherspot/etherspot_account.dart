@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -12,6 +10,7 @@ import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -428,7 +427,12 @@ class EtherspotSmartAccount implements SmartAccount {
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
     // Hash the user operation
-    final opHash = _hashUserOperation(userOp);
+    final opHash = getUserOperationHash(
+      userOperation: userOp,
+      entryPointAddress: entryPoint,
+      entryPointVersion: EntryPointVersion.v07,
+      chainId: chainId,
+    );
 
     // Sign with owner (uses personal message signing)
     // Etherspot signUserOperation returns just the signature without validator prefix
@@ -464,90 +468,6 @@ class EtherspotSmartAccount implements SmartAccount {
     final validatorHex = Hex.strip0x(ecdsaValidator.hex).toLowerCase();
     final sigHex = Hex.strip0x(signature);
     return '0x$validatorHex$sigHex';
-  }
-
-  String _hashUserOperation(UserOperationV07 userOp) {
-    // Pack user operation fields according to ERC-4337 v0.7
-    final packedData = _packUserOpV7(userOp);
-    final opHash = keccak256(Hex.decode(packedData));
-
-    // Hash with entry point and chain ID
-    final finalHashInput = Hex.concat([
-      Hex.fromBytes(opHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-    final finalHash = keccak256(Hex.decode(finalHashInput));
-
-    return Hex.fromBytes(finalHash);
-  }
-
-  String _packUserOpV7(UserOperationV07 userOp) {
-    // Pack according to EntryPoint v0.7 format
-    final initCodeHash = keccak256(Hex.decode(_getInitCodeFromUserOp(userOp)));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final accountGasLimits = _packAccountGasLimits(
-      userOp.verificationGasLimit,
-      userOp.callGasLimit,
-    );
-    final gasFees = _packGasFees(
-      userOp.maxPriorityFeePerGas,
-      userOp.maxFeePerGas,
-    );
-    final paymasterAndDataHash = keccak256(
-      Hex.decode(_getPaymasterAndData(userOp)),
-    );
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      accountGasLimits,
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      gasFees,
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  String _getInitCodeFromUserOp(UserOperationV07 userOp) {
-    if (userOp.factory == null || userOp.factoryData == null) {
-      return '0x';
-    }
-    return Hex.concat([userOp.factory!.hex, userOp.factoryData!]);
-  }
-
-  String _getPaymasterAndData(UserOperationV07 userOp) {
-    if (userOp.paymaster == null) {
-      return '0x';
-    }
-    return Hex.concat([
-      userOp.paymaster!.hex,
-      Hex.fromBigInt(
-        userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-        byteLength: 16,
-      ),
-      Hex.fromBigInt(
-        userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-        byteLength: 16,
-      ),
-      Hex.strip0x(userOp.paymasterData ?? '0x'),
-    ]);
-  }
-
-  String _packAccountGasLimits(
-    BigInt verificationGasLimit,
-    BigInt callGasLimit,
-  ) {
-    final vgl = verificationGasLimit.toRadixString(16).padLeft(32, '0');
-    final cgl = callGasLimit.toRadixString(16).padLeft(32, '0');
-    return '0x$vgl$cgl';
-  }
-
-  String _packGasFees(BigInt maxPriorityFeePerGas, BigInt maxFeePerGas) {
-    final mpf = maxPriorityFeePerGas.toRadixString(16).padLeft(32, '0');
-    final mf = maxFeePerGas.toRadixString(16).padLeft(32, '0');
-    return '0x$mpf$mf';
   }
 }
 

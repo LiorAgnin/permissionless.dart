@@ -14,6 +14,7 @@ import '../../types/user_operation.dart';
 import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart' as uop_hash;
 import 'constants.dart';
 
 /// Owner abstraction for EIP-7702 Simple accounts.
@@ -448,88 +449,15 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   ///
   /// This is the v0.8 format for UserOperation signing.
   /// Matches viem's getUserOperationTypedData implementation.
-  TypedData _getUserOperationTypedData(UserOperationV07 userOp) {
-    // Pack gas limits: verificationGasLimit (16 bytes) + callGasLimit (16 bytes)
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    // Pack gas fees: maxPriorityFeePerGas (16 bytes) + maxFeePerGas (16 bytes)
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    // Pack paymaster fields into paymasterAndData
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-
-    // initCode packing must match EntryPoint / viem getInitCode:
-    // - factory null → '0x'
-    // - factory == 0x7702 marker → concat(delegation, factoryData)
-    //   where delegation is the authorization contract (account logic)
-    // - otherwise → concat(factory, factoryData)
-    final initCode = packUserOperationInitCode(
-      factory: userOp.factory,
-      factoryData: userOp.factoryData,
-      delegationAddress:
-          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
-    );
-
-    // Per viem: domain name is 'ERC4337' (no hyphen)
-    // Per viem: uses raw bytes fields, not hashed versions
-    return TypedData(
-      domain: TypedDataDomain(
-        name: 'ERC4337',
-        version: '1',
+  TypedData _getUserOperationTypedData(UserOperationV07 userOp) =>
+      uop_hash.getUserOperationTypedData(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
-        verifyingContract: entryPoint,
-      ),
-      types: {
-        'EIP712Domain': [
-          const TypedDataField(name: 'name', type: 'string'),
-          const TypedDataField(name: 'version', type: 'string'),
-          const TypedDataField(name: 'chainId', type: 'uint256'),
-          const TypedDataField(name: 'verifyingContract', type: 'address'),
-        ],
-        'PackedUserOperation': [
-          const TypedDataField(name: 'sender', type: 'address'),
-          const TypedDataField(name: 'nonce', type: 'uint256'),
-          const TypedDataField(name: 'initCode', type: 'bytes'),
-          const TypedDataField(name: 'callData', type: 'bytes'),
-          const TypedDataField(name: 'accountGasLimits', type: 'bytes32'),
-          const TypedDataField(name: 'preVerificationGas', type: 'uint256'),
-          const TypedDataField(name: 'gasFees', type: 'bytes32'),
-          const TypedDataField(name: 'paymasterAndData', type: 'bytes'),
-        ],
-      },
-      primaryType: 'PackedUserOperation',
-      message: {
-        'sender': userOp.sender.hex,
-        'nonce': userOp.nonce.toString(),
-        'initCode': initCode,
-        'callData': userOp.callData,
-        'accountGasLimits': accountGasLimits,
-        'preVerificationGas': userOp.preVerificationGas.toString(),
-        'gasFees': gasFees,
-        'paymasterAndData': paymasterAndData,
-      },
-    );
-  }
+        delegationAddress:
+            isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
+      );
 }
 
 /// Creates an EIP-7702 Simple smart account.

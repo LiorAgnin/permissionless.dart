@@ -14,6 +14,7 @@ import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/rip7212.dart';
+import '../../utils/user_operation_hash.dart';
 import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
 import '../webauthn_owner.dart';
@@ -664,7 +665,7 @@ class KernelSmartAccount implements SmartAccount {
 
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = await _computeUserOpHash(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v07);
 
     if (_isWebAuthn) {
       // WebAuthn signing with P256 and special encoding
@@ -698,7 +699,7 @@ class KernelSmartAccount implements SmartAccount {
   /// This method computes the correct hash for EntryPoint v0.6 format
   /// and returns the signature with ROOT_MODE prefix.
   Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    final userOpHash = _computeUserOpHashV06(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v06);
     // EIP-191 personal_sign over the raw userOpHash (matches JS).
     final signature = await _config.owner.signPersonalMessage(userOpHash);
 
@@ -709,39 +710,18 @@ class KernelSmartAccount implements SmartAccount {
     ]);
   }
 
-  /// Computes the userOpHash for v0.6 UserOperation.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a v0.6 UserOperation for hashing.
-  String _packUserOpV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// The userOpHash this account signs, delegating the per-version packing
+  /// rules to the shared utility.
+  String _userOperationHash(
+    UserOperation userOp,
+    EntryPointVersion version,
+  ) =>
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: version,
+        chainId: chainId,
+      );
 
   /// Signs a personal message (EIP-191) with Kernel EIP-712 wrapping.
   ///
@@ -860,75 +840,6 @@ class KernelSmartAccount implements SmartAccount {
             byteLength: 1),
         _validatorAddress.hex,
       ]);
-
-  Future<String> _computeUserOpHash(UserOperationV07 userOp) async {
-    // Pack the UserOperation according to ERC-4337
-    final packedUserOp = _packUserOp(userOp);
-    final userOpHashInner = keccak256(Hex.decode(packedUserOp));
-
-    // Final hash: keccak256(userOpHash, entryPoint, chainId)
-    final finalPreImage = Hex.concat([
-      Hex.fromBytes(userOpHashInner),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(finalPreImage)));
-  }
-
-  String _packUserOp(UserOperationV07 userOp) {
-    // Pack initCode
-    final initCode = userOp.factory != null
-        ? Hex.concat([
-            userOp.factory!.hex,
-            Hex.strip0x(userOp.factoryData ?? '0x'),
-          ])
-        : '0x';
-    final initCodeHash = keccak256(Hex.decode(initCode));
-
-    // Pack callData
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    // Pack accountGasLimits (v0.7 packing)
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    // Pack gasFees
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    // Pack paymasterAndData
-    final paymasterAndData = userOp.paymaster != null
-        ? Hex.concat([
-            userOp.paymaster!.hex,
-            Hex.fromBigInt(
-              userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-              byteLength: 16,
-            ),
-            Hex.fromBigInt(
-              userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-              byteLength: 16,
-            ),
-            Hex.strip0x(userOp.paymasterData ?? '0x'),
-          ])
-        : '0x';
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
 }
 
 /// Creates a Kernel smart account.
