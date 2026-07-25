@@ -444,6 +444,7 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
           getUserOperationTypedData(
             userOperation: userOp,
             entryPointAddress: entryPoint,
+            entryPointVersion: _config.entryPointVersion,
             chainId: _config.chainId,
           ),
         );

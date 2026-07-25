@@ -58,7 +58,7 @@ String getUserOperationHash({
   switch (entryPointVersion) {
     case EntryPointVersion.v06:
       return _wrapWithEntryPoint(
-        _packUserOperationV06(_asV06(userOperation, entryPointVersion)),
+        _packUserOperationV06(_checkedV06(userOperation, entryPointVersion)),
         entryPointAddress,
         chainId,
       );
@@ -79,6 +79,7 @@ String getUserOperationHash({
         getUserOperationTypedData(
           userOperation: _checkedV07(userOperation, entryPointVersion),
           entryPointAddress: entryPointAddress,
+          entryPointVersion: entryPointVersion,
           chainId: chainId,
           delegationAddress: delegationAddress,
         ),
@@ -99,11 +100,16 @@ String getUserOperationHash({
 ///
 /// - `initCode` becomes `delegate ‖ factoryData` for EIP-7702 operations, so
 ///   the digest commits to the code the account will actually run.
-/// - `paymasterAndData` drops any paymaster signature and its length,
-///   retaining only the magic marker — see [getHashedPaymasterAndData].
+/// - For [EntryPointVersion.v09] only, `paymasterAndData` drops any paymaster
+///   signature and its length, retaining the magic marker — see
+///   [getHashedPaymasterAndData]. v0.8 has no such rule and hashes the field
+///   verbatim, so [entryPointVersion] must be accurate: passing v0.9 for a v0.8
+///   operation whose `paymasterData` happens to end in the magic bytes would
+///   strip them from the digest.
 TypedData getUserOperationTypedData({
   required UserOperationV07 userOperation,
   required EthereumAddress entryPointAddress,
+  required EntryPointVersion entryPointVersion,
   required BigInt chainId,
   EthereumAddress? delegationAddress,
 }) =>
@@ -142,10 +148,27 @@ TypedData getUserOperationTypedData({
         'accountGasLimits': getAccountGasLimits(userOperation),
         'preVerificationGas': userOperation.preVerificationGas.toString(),
         'gasFees': getGasFees(userOperation),
-        'paymasterAndData':
-            getHashedPaymasterAndData(getPaymasterAndData(userOperation)),
+        'paymasterAndData': _hashedPaymasterAndData(
+          userOperation,
+          entryPointVersion,
+        ),
       },
     );
+
+/// The `paymasterAndData` bytes that go into the digest.
+///
+/// Only EntryPoint v0.9 strips a paymaster signature suffix. Earlier versions
+/// have no such rule and must hash the field exactly as packed, or a
+/// `paymasterData` that merely resembles a suffix would change their hash.
+String _hashedPaymasterAndData(
+  UserOperationV07 userOperation,
+  EntryPointVersion entryPointVersion,
+) {
+  final packed = getPaymasterAndData(userOperation);
+  return entryPointVersion == EntryPointVersion.v09
+      ? getHashedPaymasterAndData(packed)
+      : packed;
+}
 
 // ============================================================================
 // Internals
@@ -190,8 +213,8 @@ String _packUserOperationV07(
   EthereumAddress? delegationAddress,
 }) {
   final initCode = getInitCode(userOp, delegationAddress: delegationAddress);
-  final paymasterAndData =
-      getHashedPaymasterAndData(getPaymasterAndData(userOp));
+  // v0.7 has no paymaster signature suffix; hash the field exactly as packed.
+  final paymasterAndData = getPaymasterAndData(userOp);
 
   return Hex.concat([
     AbiEncoder.encodeAddress(userOp.sender),
@@ -205,7 +228,8 @@ String _packUserOperationV07(
   ]);
 }
 
-UserOperationV06 _asV06(UserOperation userOp, EntryPointVersion version) {
+/// Narrows to [UserOperationV06].
+UserOperationV06 _checkedV06(UserOperation userOp, EntryPointVersion version) {
   if (userOp is! UserOperationV06) {
     throw ArgumentError.value(
       userOp.runtimeType.toString(),

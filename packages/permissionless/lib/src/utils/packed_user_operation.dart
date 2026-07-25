@@ -553,9 +553,13 @@ class UnpackedPaymasterAndData {
 
 /// Unpacks paymasterAndData into its components.
 ///
-/// Any EntryPoint v0.9 signature suffix is split out into
-/// [UnpackedPaymasterAndData.paymasterSignature] rather than being left on the
-/// end of `paymasterData`.
+/// Set [parsePaymasterSignature] for EntryPoint v0.9 blobs to split a trailing
+/// signature suffix into [UnpackedPaymasterAndData.paymasterSignature] instead
+/// of leaving it on the end of `paymasterData`.
+///
+/// It defaults to off because suffix detection is purely byte-based: a
+/// pre-v0.9 `paymasterData` that happens to end in the magic bytes would
+/// otherwise be silently mis-split.
 ///
 /// Example:
 /// ```dart
@@ -564,7 +568,10 @@ class UnpackedPaymasterAndData {
 ///   print('Paymaster: ${unpacked.paymaster!.hex}');
 /// }
 /// ```
-UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
+UnpackedPaymasterAndData unpackPaymasterAndData(
+  String paymasterAndData, {
+  bool parsePaymasterSignature = false,
+}) {
   if (paymasterAndData == '0x' || paymasterAndData.isEmpty) {
     return const UnpackedPaymasterAndData();
   }
@@ -576,7 +583,9 @@ UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
     return const UnpackedPaymasterAndData();
   }
 
-  final signatureLength = getPaymasterSignatureLength(paymasterAndData);
+  final signatureLength = parsePaymasterSignature
+      ? getPaymasterSignatureLength(paymasterAndData)
+      : 0;
   final dataEnd = signatureLength == 0
       ? hex.length
       : hex.length - (signatureLength + paymasterSignatureSuffixLength) * 2;
@@ -602,11 +611,17 @@ UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
 /// final unpacked = unpackUserOperation(packed);
 /// // unpacked is equivalent to the original userOp
 /// ```
-UserOperationV07 unpackUserOperation(PackedUserOperation packed) {
+UserOperationV07 unpackUserOperation(
+  PackedUserOperation packed, {
+  bool parsePaymasterSignature = false,
+}) {
   final initCode = unpackInitCode(packed.initCode);
   final gasLimits = unpackAccountGasLimits(packed.accountGasLimits);
   final fees = unpackGasFees(packed.gasFees);
-  final paymaster = unpackPaymasterAndData(packed.paymasterAndData);
+  final paymaster = unpackPaymasterAndData(
+    packed.paymasterAndData,
+    parsePaymasterSignature: parsePaymasterSignature,
+  );
 
   return UserOperationV07(
     sender: packed.sender,

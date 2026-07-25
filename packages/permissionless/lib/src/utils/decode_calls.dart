@@ -180,7 +180,11 @@ class CallDataDecoder {
   }) {
     final selector = _selector(callData);
 
-    if (entryPointVersion == EntryPointVersion.v08) {
+    // v0.9 keeps the v0.8 SimpleAccount execution interface.
+    final usesTupleArrayBatch = entryPointVersion == EntryPointVersion.v08 ||
+        entryPointVersion == EntryPointVersion.v09;
+
+    if (usesTupleArrayBatch) {
       if (selector == SimpleBatchSelectors.executeBatchV08) {
         return decodeExecuteBatchTupleArray(callData);
       }
@@ -202,7 +206,7 @@ class CallDataDecoder {
 
     // Fallback: try batch forms then single (JS try/catch style)
     try {
-      if (entryPointVersion == EntryPointVersion.v08) {
+      if (usesTupleArrayBatch) {
         return decodeExecuteBatchTupleArray(callData);
       }
       if (entryPointVersion == EntryPointVersion.v06) {

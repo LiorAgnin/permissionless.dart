@@ -341,6 +341,39 @@ void main() {
           throwsA(isA<ArgumentError>()),
         );
       });
+
+      test('v0.9 reuses the v0.8 batch encoding, and decodes it back', () {
+        // v0.9 did not change the SimpleAccount execution interface, so the
+        // encoder and the decoder must agree on that. They are selected by
+        // separate switches, which is exactly how they can drift apart.
+        final v08 = createSimpleSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v08,
+          address: mockAddress,
+        );
+        final v09 = createSimpleSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v09,
+          address: mockAddress,
+          customFactoryAddress: mockAddress,
+        );
+
+        final encoded = v09.encodeCalls(batchCalls);
+        expect(encoded, equals(v08.encodeCalls(batchCalls)));
+
+        final decoded = v09.decodeCalls(encoded);
+        expect(decoded.length, equals(batchCalls.length));
+        for (var i = 0; i < batchCalls.length; i++) {
+          expect(decoded[i].to, equals(batchCalls[i].to));
+          expect(decoded[i].value, equals(batchCalls[i].value));
+          expect(
+            decoded[i].data.toLowerCase(),
+            equals(batchCalls[i].data.toLowerCase()),
+          );
+        }
+      });
     });
 
     group('getStubSignature', () {

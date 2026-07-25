@@ -371,11 +371,113 @@ void main() {
     });
   });
 
+  group('the suffix rule is confined to v0.9', () {
+    // paymasterData ending in the magic bytes is a v0.9-only signal. Applying
+    // it to an earlier version would silently change hashes those EntryPoints
+    // have always computed verbatim.
+    final lookalike = lookalikes.firstWhere(
+      (l) => l['name'] == 'magicWithZeroDeclaredLength',
+    );
+
+    UserOperationV07 opWithLookalikeData() => UserOperationV07(
+          sender: EthereumAddress.fromHex(cases.first['sender'] as String),
+          nonce: BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+          paymaster: EthereumAddress.fromHex(lookalike['paymaster'] as String),
+          paymasterVerificationGasLimit: BigInt.from(60000),
+          paymasterPostOpGasLimit: BigInt.from(70000),
+          // Ends with a well-formed-looking suffix, but is only data:
+          // 0xdeadbeef, then `d00d` + uint16(2) + the magic.
+          paymasterData: '0xdeadbeefd00d000222e325a297439656',
+        );
+
+    test('v0.7 hashes paymasterAndData verbatim', () {
+      // Recomputed the pre-v0.9 way: keccak over the packed blob, untouched.
+      final userOp = opWithLookalikeData();
+      final packed = getPaymasterAndData(userOp);
+
+      // The blob does look like it carries a suffix...
+      expect(getPaymasterSignatureLength(packed), greaterThan(0));
+      // ...but v0.7 must not act on that.
+      expect(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: EntryPointAddresses.v07,
+          entryPointVersion: EntryPointVersion.v07,
+          chainId: BigInt.one,
+        ),
+        isNot(
+          equals(
+            getUserOperationHash(
+              userOperation: userOp,
+              entryPointAddress: EntryPointAddresses.v07,
+              entryPointVersion: EntryPointVersion.v09,
+              chainId: BigInt.one,
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('v0.8 hashes paymasterAndData verbatim', () {
+      final userOp = opWithLookalikeData();
+      final typedData = getUserOperationTypedData(
+        userOperation: userOp,
+        entryPointAddress: EntryPointAddresses.v08,
+        entryPointVersion: EntryPointVersion.v08,
+        chainId: BigInt.one,
+      );
+      expect(
+        (typedData.message['paymasterAndData']! as String).toLowerCase(),
+        equals(getPaymasterAndData(userOp).toLowerCase()),
+      );
+    });
+
+    test('v0.9 strips the suffix from the digest', () {
+      final userOp = opWithLookalikeData();
+      final typedData = getUserOperationTypedData(
+        userOperation: userOp,
+        entryPointAddress: EntryPointAddresses.v09,
+        entryPointVersion: EntryPointVersion.v09,
+        chainId: BigInt.one,
+      );
+      expect(
+        (typedData.message['paymasterAndData']! as String).toLowerCase(),
+        endsWith(Hex.strip0x(paymasterSignatureMagic)),
+      );
+      expect(
+        (typedData.message['paymasterAndData']! as String).toLowerCase(),
+        isNot(equals(getPaymasterAndData(userOp).toLowerCase())),
+      );
+    });
+
+    test('unpacking leaves a lookalike intact unless asked to split it', () {
+      final packed = getPaymasterAndData(opWithLookalikeData());
+
+      final defaultUnpack = unpackPaymasterAndData(packed);
+      expect(defaultUnpack.paymasterSignature, isNull);
+      expect(
+        defaultUnpack.paymasterData!.toLowerCase(),
+        equals('0xdeadbeefd00d000222e325a297439656'),
+      );
+
+      final v09Unpack =
+          unpackPaymasterAndData(packed, parsePaymasterSignature: true);
+      expect(v09Unpack.paymasterSignature, isNotNull);
+    });
+  });
+
   group('typed data', () {
     test('exposes the ERC4337 domain for v0.8 / v0.9 signing flows', () {
       final typedData = getUserOperationTypedData(
         userOperation: _userOpFromCase(caseNamed('base')),
         entryPointAddress: entryPointV09,
+        entryPointVersion: EntryPointVersion.v09,
         chainId: chainId,
       );
 
@@ -391,6 +493,7 @@ void main() {
       final typedData = getUserOperationTypedData(
         userOperation: _userOpFromCase(c),
         entryPointAddress: entryPointV09,
+        entryPointVersion: EntryPointVersion.v09,
         chainId: chainId,
       );
 
@@ -536,6 +639,7 @@ void main() {
       final c = caseNamed('paymasterSig65');
       final unpacked = unpackPaymasterAndData(
         c['expectedPaymasterAndData'] as String,
+        parsePaymasterSignature: true,
       );
 
       expect(
@@ -560,6 +664,7 @@ void main() {
     test('reports no signature when there is no suffix', () {
       final unpacked = unpackPaymasterAndData(
         caseNamed('paymaster')['expectedPaymasterAndData'] as String,
+        parsePaymasterSignature: true,
       );
       expect(unpacked.paymasterSignature, isNull);
     });
@@ -567,7 +672,10 @@ void main() {
     test('round-trips every fixture case through pack and unpack', () {
       for (final c in cases.where((c) => c['paymaster'] != null)) {
         final userOp = _userOpFromCase(c);
-        final unpacked = unpackPaymasterAndData(getPaymasterAndData(userOp));
+        final unpacked = unpackPaymasterAndData(
+          getPaymasterAndData(userOp),
+          parsePaymasterSignature: true,
+        );
 
         final name = c['name'] as String;
         expect(unpacked.paymaster, equals(userOp.paymaster), reason: name);

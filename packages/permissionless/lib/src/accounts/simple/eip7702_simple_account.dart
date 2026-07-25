@@ -453,6 +453,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
       uop_hash.getUserOperationTypedData(
         userOperation: userOp,
         entryPointAddress: entryPoint,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
         delegationAddress:
             isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
