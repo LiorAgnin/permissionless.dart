@@ -1,5 +1,3 @@
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -10,6 +8,7 @@ import '../../types/user_operation.dart';
 import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -251,7 +250,10 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
     return switch (_config.entryPointVersion) {
       EntryPointVersion.v06 => _encodeExecuteBatchV06(calls),
       EntryPointVersion.v07 => _encodeExecuteBatchV07(calls),
-      EntryPointVersion.v08 => _encodeExecuteBatchV08(calls),
+      // v0.9 keeps the v0.8 SimpleAccount execution interface.
+      EntryPointVersion.v08 ||
+      EntryPointVersion.v09 =>
+        _encodeExecuteBatchV08(calls),
     };
   }
 
@@ -421,10 +423,10 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
       // This format passes simulation without requiring actual signature verification
       '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
 
-  /// Signs a UserOperation for EntryPoint v0.7 or v0.8.
+  /// Signs a UserOperation for EntryPoint v0.7, v0.8, or v0.9.
   ///
   /// - v0.7: EIP-191 personal-sign of the packed userOpHash
-  /// - v0.8: EIP-712 typed data over PackedUserOperation (same as 7702 path)
+  /// - v0.8 / v0.9: EIP-712 typed data over PackedUserOperation
   /// - v0.6: throws — use [signUserOperationV06] instead
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
@@ -435,13 +437,26 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
           'Use signUserOperationV06 instead.',
         );
       case EntryPointVersion.v07:
-        final userOpHash = _computeUserOpHashV07(userOp);
-        return _config.owner.signPersonalMessage(userOpHash);
+        return _config.owner.signPersonalMessage(_userOperationHash(userOp));
       case EntryPointVersion.v08:
-        final typedData = _getUserOperationTypedData(userOp);
-        return _config.owner.signTypedData(typedData);
+      case EntryPointVersion.v09:
+        return _config.owner.signTypedData(
+          getUserOperationTypedData(
+            userOperation: userOp,
+            entryPointAddress: entryPoint,
+            chainId: _config.chainId,
+          ),
+        );
     }
   }
+
+  /// The userOpHash this account signs, for its configured EntryPoint version.
+  String _userOperationHash(UserOperation userOp) => getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: _config.entryPointVersion,
+        chainId: _config.chainId,
+      );
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
@@ -455,8 +470,7 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
         'This account is configured for ${_config.entryPointVersion.name}.',
       );
     }
-    final userOpHash = _computeUserOpHashV06(userOp);
-    return _config.owner.signPersonalMessage(userOpHash);
+    return _config.owner.signPersonalMessage(_userOperationHash(userOp));
   }
 
   /// Signs a personal message (EIP-191).
@@ -474,185 +488,6 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   @override
   Future<String> signTypedData(TypedData typedData) async =>
       _config.owner.signTypedData(typedData);
-
-  /// Computes the userOpHash for EntryPoint v0.7 signing.
-  String _computeUserOpHashV07(UserOperationV07 userOp) {
-    final packed = _packUserOpForHashV07(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.7 hashing.
-  String _packUserOpForHashV07(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  /// Computes the userOpHash for EntryPoint v0.6 signing.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpForHashV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.6 hashing.
-  String _packUserOpForHashV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  /// Creates the EIP-712 typed data for a v0.8 UserOperation.
-  ///
-  /// Matches viem's `getUserOperationTypedData` and the 7702 Simple path.
-  TypedData _getUserOperationTypedData(UserOperationV07 userOp) {
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-
-    String initCode;
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    } else {
-      initCode = '0x';
-    }
-
-    return TypedData(
-      domain: TypedDataDomain(
-        name: 'ERC4337',
-        version: '1',
-        chainId: _config.chainId,
-        verifyingContract: entryPoint,
-      ),
-      types: {
-        'EIP712Domain': [
-          const TypedDataField(name: 'name', type: 'string'),
-          const TypedDataField(name: 'version', type: 'string'),
-          const TypedDataField(name: 'chainId', type: 'uint256'),
-          const TypedDataField(name: 'verifyingContract', type: 'address'),
-        ],
-        'PackedUserOperation': [
-          const TypedDataField(name: 'sender', type: 'address'),
-          const TypedDataField(name: 'nonce', type: 'uint256'),
-          const TypedDataField(name: 'initCode', type: 'bytes'),
-          const TypedDataField(name: 'callData', type: 'bytes'),
-          const TypedDataField(name: 'accountGasLimits', type: 'bytes32'),
-          const TypedDataField(name: 'preVerificationGas', type: 'uint256'),
-          const TypedDataField(name: 'gasFees', type: 'bytes32'),
-          const TypedDataField(name: 'paymasterAndData', type: 'bytes'),
-        ],
-      },
-      primaryType: 'PackedUserOperation',
-      message: {
-        'sender': userOp.sender.hex,
-        'nonce': userOp.nonce.toString(),
-        'initCode': initCode,
-        'callData': userOp.callData,
-        'accountGasLimits': accountGasLimits,
-        'preVerificationGas': userOp.preVerificationGas.toString(),
-        'gasFees': gasFees,
-        'paymasterAndData': paymasterAndData,
-      },
-    );
-  }
 }
 
 /// Creates a Simple smart account.

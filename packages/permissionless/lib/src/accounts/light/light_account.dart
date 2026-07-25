@@ -1,5 +1,3 @@
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -10,6 +8,7 @@ import '../../types/user_operation.dart';
 import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -330,7 +329,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV07(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v07);
     final signature = await _config.owner.signPersonalMessage(userOpHash);
 
     // v2.0.0 prepends signature type
@@ -360,7 +359,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV06(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v06);
     // v1.1.0 (EP v0.6) has no signature-type prefix.
     return _config.owner.signPersonalMessage(userOpHash);
   }
@@ -441,102 +440,18 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
     return _config.owner.signTypedData(typedData);
   }
 
-  String _computeUserOpHashV07(UserOperationV07 userOp) {
-    final packed = _packUserOpForHashV07(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  String _packUserOpForHashV07(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  /// Computes the userOpHash for EntryPoint v0.6 signing.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpForHashV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.6 hashing.
-  String _packUserOpForHashV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// The userOpHash this account signs, delegating the per-version packing
+  /// rules to the shared utility.
+  String _userOperationHash(
+    UserOperation userOp,
+    EntryPointVersion version,
+  ) =>
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: version,
+        chainId: _config.chainId,
+      );
 }
 
 /// Creates an Alchemy Light smart account.

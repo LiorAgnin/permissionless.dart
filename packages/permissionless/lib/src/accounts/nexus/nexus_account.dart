@@ -12,6 +12,7 @@ import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -282,7 +283,7 @@ class NexusSmartAccount implements SmartAccount {
   /// [signMessage] / [signTypedData] packing.
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = _computeUserOpHash(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v07);
 
     // K1 validator uses EIP-191 personal sign of userOpHash (bare, 65 bytes)
     return _config.owner.signPersonalMessage(userOpHash);
@@ -363,70 +364,18 @@ class NexusSmartAccount implements SmartAccount {
     );
   }
 
-  /// Computes the userOpHash for signing.
-  String _computeUserOpHash(UserOperationV07 userOp) {
-    final packed = _packUserOpForHash(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for hashing.
-  String _packUserOpForHash(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// The userOpHash this account signs, delegating the per-version packing
+  /// rules to the shared utility.
+  String _userOperationHash(
+    UserOperation userOp,
+    EntryPointVersion version,
+  ) =>
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: version,
+        chainId: _config.chainId,
+      );
 }
 
 /// Creates a Nexus smart account.

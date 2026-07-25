@@ -97,11 +97,15 @@ class PackedUserOperation {
 /// final userOp = UserOperationV07(...);
 /// final packed = getPackedUserOperation(userOp);
 /// ```
-PackedUserOperation getPackedUserOperation(UserOperationV07 userOperation) =>
+PackedUserOperation getPackedUserOperation(
+  UserOperationV07 userOperation, {
+  EthereumAddress? delegationAddress,
+}) =>
     PackedUserOperation(
       sender: userOperation.sender,
       nonce: userOperation.nonce,
-      initCode: getInitCode(userOperation),
+      initCode:
+          getInitCode(userOperation, delegationAddress: delegationAddress),
       callData: userOperation.callData,
       accountGasLimits: getAccountGasLimits(userOperation),
       preVerificationGas: userOperation.preVerificationGas,
@@ -168,6 +172,12 @@ String getGasFees(UserOperationV07 userOperation) => Hex.concat([
 /// Format: paymaster (20 bytes) + paymasterVerificationGasLimit (16 bytes)
 ///         + paymasterPostOpGasLimit (16 bytes) + paymasterData
 ///
+/// For EntryPoint v0.9, a non-null [UserOperationV07.paymasterSignature] is
+/// appended as `signature ‖ uint16(length) ‖ [paymasterSignatureMagic]`.
+///
+/// Throws [ArgumentError] if `paymasterSignature` is set but empty — see
+/// [encodePaymasterSignatureSuffix].
+///
 /// Example:
 /// ```dart
 /// final pmData = getPaymasterAndData(userOp);
@@ -189,6 +199,199 @@ String getPaymasterAndData(UserOperationV07 userOperation) {
       16,
     ),
     userOperation.paymasterData ?? '0x',
+    if (userOperation.paymasterSignature != null)
+      encodePaymasterSignatureSuffix(userOperation.paymasterSignature!),
+  ]);
+}
+
+// ============================================================================
+// Paymaster signature suffix (EntryPoint v0.9)
+// ============================================================================
+
+/// Magic bytes marking a paymaster signature suffix: `keccak("PaymasterSignature")[:8]`.
+///
+/// Mirrors `UserOperationLib.PAYMASTER_SIG_MAGIC`.
+const String paymasterSignatureMagic = '0x22e325a297439656';
+
+/// Byte length of [paymasterSignatureMagic].
+const int paymasterSignatureMagicLength = 8;
+
+/// Byte length of the trailing `uint16(length) ‖ magic` framing.
+const int paymasterSignatureSuffixLength = paymasterSignatureMagicLength + 2;
+
+/// Byte offset at which paymaster-specific data begins in `paymasterAndData`.
+///
+/// Mirrors `UserOperationLib.PAYMASTER_DATA_OFFSET`
+/// (paymaster 20 + verificationGasLimit 16 + postOpGasLimit 16).
+const int paymasterDataOffset = 52;
+
+/// Shortest `paymasterAndData` that could contain a signature suffix.
+const int minPaymasterAndDataWithSuffixLength =
+    paymasterDataOffset + paymasterSignatureSuffixLength;
+
+/// A correctly shaped placeholder paymaster signature (65 bytes, ECDSA-like).
+///
+/// Use this when signing a v0.9 operation before the paymaster has responded.
+/// The userOpHash depends on *whether* a paymaster signature is present but not
+/// on its contents or length, so replacing this with the real signature leaves
+/// the hash — and therefore the user's signature — valid. Being the realistic
+/// 65 bytes also keeps calldata-based gas estimation accurate.
+const String paymasterSignatureStub =
+    '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+
+/// Encodes a paymaster signature as the suffix appended to `paymasterAndData`.
+///
+/// Format: `signature ‖ uint16(byteLength) ‖ [paymasterSignatureMagic]`.
+/// Mirrors `UserOperationLib.encodePaymasterSignature`.
+///
+/// Throws [ArgumentError] if [paymasterSignature] is empty. The contract
+/// returns no suffix for a zero-length signature, so an empty value cannot
+/// express "a suffix is present" — pass `null` for the no-signature case
+/// instead of `'0x'`.
+///
+/// Throws [ArgumentError] if the signature exceeds 65535 bytes, which the
+/// `uint16` length field cannot describe.
+String encodePaymasterSignatureSuffix(String paymasterSignature) {
+  final length = Hex.byteLength(paymasterSignature);
+  if (length == 0) {
+    throw ArgumentError.value(
+      paymasterSignature,
+      'paymasterSignature',
+      'must not be empty: EntryPoint v0.9 treats a zero-length signature as '
+          'no signature at all, which produces a different userOpHash. Pass '
+          'null for "no paymaster signature", or paymasterSignatureStub when '
+          'the real signature is not known yet',
+    );
+  }
+  if (length > 0xffff) {
+    throw ArgumentError.value(
+      length,
+      'paymasterSignature',
+      'exceeds the uint16 length field (max 65535 bytes)',
+    );
+  }
+  return Hex.concat([
+    paymasterSignature,
+    Hex.padLeft(Hex.fromBigInt(BigInt.from(length)), 2),
+    paymasterSignatureMagic,
+  ]);
+}
+
+/// Returns the byte length of the paymaster signature in [paymasterAndData],
+/// or 0 if there is none.
+///
+/// Mirrors `UserOperationLib.getPaymasterSignatureLength`: a suffix is only
+/// recognised when the blob is long enough, ends with
+/// [paymasterSignatureMagic], and declares a non-zero length.
+///
+/// Throws [ArgumentError] when the declared length would extend back past the
+/// start of the paymaster data — the contract reverts with
+/// `InvalidPaymasterSignatureLength` here.
+int getPaymasterSignatureLength(String paymasterAndData) {
+  final byteLength = Hex.byteLength(paymasterAndData);
+  if (byteLength < minPaymasterAndDataWithSuffixLength) {
+    return 0;
+  }
+
+  final magic = Hex.slice(
+    paymasterAndData,
+    byteLength - paymasterSignatureMagicLength,
+    byteLength,
+  );
+  if (magic.toLowerCase() != paymasterSignatureMagic) {
+    return 0;
+  }
+
+  final declared = Hex.toBigInt(
+    Hex.slice(
+      paymasterAndData,
+      byteLength - paymasterSignatureSuffixLength,
+      byteLength - paymasterSignatureMagicLength,
+    ),
+  ).toInt();
+
+  if (declared > byteLength - minPaymasterAndDataWithSuffixLength) {
+    throw ArgumentError.value(
+      declared,
+      'paymasterAndData',
+      'declared paymaster signature length extends before the paymaster data '
+          '(blob is $byteLength bytes)',
+    );
+  }
+  return declared;
+}
+
+/// Extracts the paymaster signature from [paymasterAndData].
+///
+/// Returns `'0x'` when no suffix is present.
+String getPaymasterSignature(String paymasterAndData) {
+  final length = getPaymasterSignatureLength(paymasterAndData);
+  if (length == 0) {
+    return '0x';
+  }
+  final end = Hex.byteLength(paymasterAndData) - paymasterSignatureSuffixLength;
+  return Hex.slice(paymasterAndData, end - length, end);
+}
+
+/// Returns the paymaster-specific data covered by the user's signature.
+///
+/// This is [paymasterAndData] with the 52-byte static header and any signature
+/// suffix removed. Mirrors `UserOperationLib.getSignedPaymasterData`.
+String getSignedPaymasterData(String paymasterAndData) {
+  final byteLength = Hex.byteLength(paymasterAndData);
+  final signatureLength = getPaymasterSignatureLength(paymasterAndData);
+  final end = signatureLength == 0
+      ? byteLength
+      : byteLength - (signatureLength + paymasterSignatureSuffixLength);
+  return Hex.slice(paymasterAndData, paymasterDataOffset, end);
+}
+
+/// Returns the exact bytes the EntryPoint hashes in place of
+/// [paymasterAndData].
+///
+/// When a signature suffix is present, the signature and its length are
+/// dropped but the magic is retained: `prefix ‖ magic`. Otherwise the input is
+/// returned unchanged. Mirrors `paymasterDataKeccak` in the EntryPoint's
+/// `Helpers.sol`.
+///
+/// This is what makes the userOpHash independent of the paymaster's signature,
+/// so the two signatures can be produced in parallel.
+String getHashedPaymasterAndData(String paymasterAndData) {
+  final signatureLength = getPaymasterSignatureLength(paymasterAndData);
+  if (signatureLength == 0) {
+    return paymasterAndData;
+  }
+  final prefixEnd = Hex.byteLength(paymasterAndData) -
+      (signatureLength + paymasterSignatureSuffixLength);
+  return Hex.concat([
+    Hex.slice(paymasterAndData, 0, prefixEnd),
+    paymasterSignatureMagic,
+  ]);
+}
+
+/// Appends a paymaster signature to an already-packed [paymasterAndData].
+///
+/// This is the final step of the v0.9 sponsorship flow: build and sign the
+/// operation with [paymasterSignatureStub] (or any placeholder), then splice in
+/// the real signature once the paymaster returns it. The userOpHash is
+/// unaffected, so the user's signature stays valid.
+///
+/// Throws [ArgumentError] if [paymasterAndData] already carries a suffix —
+/// stacking a second one would make the first unrecoverable.
+String splicePaymasterSignature(
+  String paymasterAndData,
+  String paymasterSignature,
+) {
+  if (getPaymasterSignatureLength(paymasterAndData) != 0) {
+    throw ArgumentError.value(
+      paymasterAndData,
+      'paymasterAndData',
+      'already carries a paymaster signature suffix',
+    );
+  }
+  return Hex.concat([
+    paymasterAndData,
+    encodePaymasterSignatureSuffix(paymasterSignature),
   ]);
 }
 
@@ -325,6 +528,7 @@ class UnpackedPaymasterAndData {
     this.paymasterVerificationGasLimit,
     this.paymasterPostOpGasLimit,
     this.paymasterData,
+    this.paymasterSignature,
   });
 
   /// The paymaster address, or null if no paymaster.
@@ -337,10 +541,21 @@ class UnpackedPaymasterAndData {
   final BigInt? paymasterPostOpGasLimit;
 
   /// The paymaster data, or null if no paymaster.
+  ///
+  /// Excludes any EntryPoint v0.9 signature suffix, which is reported
+  /// separately as [paymasterSignature].
   final String? paymasterData;
+
+  /// The EntryPoint v0.9 paymaster signature, or null if the blob carries no
+  /// signature suffix.
+  final String? paymasterSignature;
 }
 
 /// Unpacks paymasterAndData into its components.
+///
+/// Any EntryPoint v0.9 signature suffix is split out into
+/// [UnpackedPaymasterAndData.paymasterSignature] rather than being left on the
+/// end of `paymasterData`.
 ///
 /// Example:
 /// ```dart
@@ -361,12 +576,19 @@ UnpackedPaymasterAndData unpackPaymasterAndData(String paymasterAndData) {
     return const UnpackedPaymasterAndData();
   }
 
+  final signatureLength = getPaymasterSignatureLength(paymasterAndData);
+  final dataEnd = signatureLength == 0
+      ? hex.length
+      : hex.length - (signatureLength + paymasterSignatureSuffixLength) * 2;
+
   return UnpackedPaymasterAndData(
     paymaster: EthereumAddress.fromHex('0x${hex.substring(0, 40)}'),
     paymasterVerificationGasLimit:
         BigInt.parse(hex.substring(40, 72), radix: 16),
     paymasterPostOpGasLimit: BigInt.parse(hex.substring(72, 104), radix: 16),
-    paymasterData: hex.length > 104 ? '0x${hex.substring(104)}' : '0x',
+    paymasterData: dataEnd > 104 ? '0x${hex.substring(104, dataEnd)}' : '0x',
+    paymasterSignature:
+        signatureLength == 0 ? null : getPaymasterSignature(paymasterAndData),
   );
 }
 
@@ -401,6 +623,7 @@ UserOperationV07 unpackUserOperation(PackedUserOperation packed) {
     paymasterVerificationGasLimit: paymaster.paymasterVerificationGasLimit,
     paymasterPostOpGasLimit: paymaster.paymasterPostOpGasLimit,
     paymasterData: paymaster.paymasterData,
+    paymasterSignature: paymaster.paymasterSignature,
     signature: packed.signature,
   );
 }

@@ -1,0 +1,13 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = []
+solc = "0.8.28"
+
+# `aa` is a gitignored symlink to the workspace `account-abstraction` checkout,
+# created by generate.sh. The EntryPoint v0.9 contracts are the oracle for these
+# vectors and are deliberately not vendored into this repo.
+remappings = ["@aa/=aa/contracts/"]
+
+# generate.sh writes the committed fixture consumed by `dart test`.
+fs_permissions = [{ access = "read-write", path = "../../packages/permissionless/test/fixtures" }]
