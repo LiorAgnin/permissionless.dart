@@ -43,6 +43,9 @@ BigInt kernelExampleIndex(KernelVersion version) => switch (version) {
       KernelVersion.v0_3_1 => BigInt.from(301),
       KernelVersion.v0_3_2 => BigInt.from(302),
       KernelVersion.v0_3_3 => BigInt.from(303),
+      // v4 accounts have their own factories (createKernelImmutableECDSA)
+      // and are not exercised by this v2/v3 runner.
+      KernelVersion.v0_4_0 => BigInt.from(400),
     };
 
 /// Parse a version string like `0.3.1` or `0.3.0-beta` into [KernelVersion].
