@@ -114,6 +114,110 @@ void main() {
     );
   });
 
+  group('Kernel v4 UUPS factory cross-check', () {
+    // The v3 drop-in ECDSA validator — only its address feeds the salt for
+    // getAddress, so the module need not be deployed for these checks.
+    final rootValidator =
+        EthereumAddress.fromHex('0x845ADb2C711129d4f3966735eD98a9F09fC4cE57');
+
+    test(
+      'local address equals factory.getAddress',
+      () async {
+        final client = createPublicClient(url: rpcUrl!);
+        try {
+          final addresses = KernelV4Addresses.predicted;
+          if (!await client.isDeployed(addresses.factory)) {
+            markTestSkipped(
+              'Skipping: KernelFactory not deployed at '
+              '${addresses.factory.hex} on this chain',
+            );
+            return;
+          }
+
+          final account = createKernelUUPS(
+            owner: owner,
+            chainId: await client.getChainId(),
+            rootValidator: rootValidator,
+            index: index,
+          );
+
+          // getAddress takes the same arguments as deploy; swap the
+          // selector on the encoded deploy calldata.
+          final deployCalldata = encodeKernelV4DeployCalldata(
+            packages: [
+              KernelV4Install(
+                moduleType: BigInt.one,
+                module: rootValidator,
+                moduleData: owner.address.hex,
+              ),
+            ],
+            nonce: index,
+          );
+          final callData = Hex.concat([
+            KernelV4Selectors.getAddress,
+            Hex.strip0x(deployCalldata).substring(8),
+          ]);
+          final result = await client.call(
+            Call(to: addresses.factory, data: callData),
+          );
+          final onChain = EthereumAddress.fromHex(Hex.slice(result, 12));
+
+          expect(await account.getAddress(), equals(onChain));
+        } finally {
+          client.close();
+        }
+      },
+      skip: rpcUrl == null || rpcUrl.isEmpty ? skipNoRpc : false,
+    );
+
+    test(
+      'local address equals EntryPoint getSenderAddress',
+      () async {
+        final client = createPublicClient(url: rpcUrl!);
+        try {
+          final addresses = KernelV4Addresses.predicted;
+          if (!await client.isDeployed(addresses.factory) ||
+              !await client.isDeployed(EntryPointAddresses.v09)) {
+            markTestSkipped(
+              'Skipping: Kernel v4 factory or EntryPoint v0.9 not deployed '
+              'on this chain',
+            );
+            return;
+          }
+          // The simulated deploy installs the root validator, and the Kernel
+          // requires the module to have code (ModuleInstallFailed otherwise).
+          if (!await client.isDeployed(rootValidator)) {
+            markTestSkipped(
+              'Skipping: root validator ${rootValidator.hex} not deployed '
+              'on this chain (required by the simulated initialize)',
+            );
+            return;
+          }
+
+          // Direct-factory init code: getSenderAddress simulates deployment,
+          // which needs no Staker approval.
+          final account = createKernelUUPS(
+            owner: owner,
+            chainId: await client.getChainId(),
+            rootValidator: rootValidator,
+            index: index,
+            useStaker: false,
+          );
+
+          final sender = await client.getSenderAddress(
+            initCode: await account.getInitCode(),
+            entryPoint: EntryPointAddresses.v09,
+          );
+
+          expect(await account.getAddress(), equals(sender));
+        } finally {
+          client.close();
+        }
+      },
+      skip: rpcUrl == null || rpcUrl.isEmpty ? skipNoRpc : false,
+    );
+  });
+
   group('Kernel v4 bundler gas estimation', () {
     test(
       'estimation succeeds with the stub signature',

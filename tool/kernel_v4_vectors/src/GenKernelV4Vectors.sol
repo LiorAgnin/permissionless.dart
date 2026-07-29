@@ -6,6 +6,7 @@ import {KernelUUPS} from "@kernel/KernelUUPS.sol";
 import {KernelImmutableECDSA} from "@kernel/KernelImmutableECDSA.sol";
 import {KernelFactory} from "@kernel/KernelFactory.sol";
 import {Install} from "@kernel/types/Structs.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 import {UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
@@ -55,6 +56,32 @@ contract HashOracle {
             )
         );
         return keccak256(abi.encodePacked(hex"1901", domainSeparator, op.hash(bytes32(0))));
+    }
+}
+
+/// Minimal root ECDSA validator, restated from the pinned repo's own test
+/// mock (`kernel/test/mock/ECDSAValidator.sol`, not importable across the
+/// checkout symlink): `onInstall` stores the 20-byte owner, `validateUserOp`
+/// recovers the raw digest — the same semantics ticket 11 established for the
+/// v3 drop-in validator. The Kernel install path only low-level-calls
+/// `onInstall`, and root validation only calls `validateUserOp`, so no other
+/// module surface is needed.
+contract RootEcdsaValidator {
+    mapping(address => address) public owners;
+
+    function onInstall(bytes calldata data) external payable {
+        owners[msg.sender] = address(bytes20(data[0:20]));
+    }
+
+    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash)
+        external
+        payable
+        returns (uint256)
+    {
+        if (owners[msg.sender] == ECDSA.tryRecoverCalldata(userOpHash, userOp.signature)) {
+            return 0;
+        }
+        return 1;
     }
 }
 
@@ -119,6 +146,11 @@ contract GenKernelV4Vectors {
     address internal localImmutableEcdsa;
     string internal buf;
 
+    // Scratch for the UUPS root case (split across two frames for stack room).
+    address internal uupsValidator;
+    address internal uupsSender;
+    address internal uupsCanonicalSender;
+
     function run() external {
         hashOracle = new HashOracle();
         localUups = address(new KernelUUPS(IEntryPoint(ENTRY_POINT)));
@@ -151,9 +183,14 @@ contract GenKernelV4Vectors {
         _addressCase("oneValidatorPackage", SIGNER, _validatorPackage(), 0, false);
         buf = string.concat(buf, ",\n");
         _addressCase("twoPackages", SIGNER, _twoPackages(), 42, false);
+        buf = string.concat(buf, ",\n");
+        _addressCase("rootValidatorNonce1", SIGNER, _validatorPackage(), 1, false);
+        buf = string.concat(buf, ",\n");
+        _addressCase("rootValidatorOtherOwner", OTHER_SIGNER, _validatorPackageFor(OTHER_SIGNER), 0, false);
         buf = string.concat(buf, "\n  ]");
 
         _rootUserOpCase();
+        _uupsRootUserOpCase();
         _executeCases();
 
         buf = string.concat(buf, "\n}\n");
@@ -170,11 +207,15 @@ contract GenKernelV4Vectors {
 
     /// A realistic root-validator install package (type 1, owner-packed data).
     function _validatorPackage() internal pure returns (Install[] memory pkgs) {
+        return _validatorPackageFor(SIGNER);
+    }
+
+    function _validatorPackageFor(address owner) internal pure returns (Install[] memory pkgs) {
         pkgs = new Install[](1);
         pkgs[0] = Install({
             moduleType: 1,
             module: ECDSA_VALIDATOR,
-            moduleData: abi.encodePacked(SIGNER),
+            moduleData: abi.encodePacked(owner),
             internalData: hex""
         });
     }
@@ -276,7 +317,17 @@ contract GenKernelV4Vectors {
         buf = string.concat(buf, ', "localUupsAddress": "', vm.toString(localUupsAddress), '"');
         buf = string.concat(buf, ', "deployEcdsaCalldata": "', vm.toString(deployCalldata), '"');
         buf = string.concat(buf, ', "deployWithFactoryCalldata": "', vm.toString(stakerCalldata), '"');
+        _appendUupsDeployCalldata(packages, nonce);
         buf = string.concat(buf, "}");
+    }
+
+    /// Emits the UUPS `deploy` / staker-wrapped calldata fields for a case
+    /// (split out of `_addressCase` to stay within the stack limit).
+    function _appendUupsDeployCalldata(Install[] memory packages, uint256 nonce) internal {
+        bytes memory deployCalldata = abi.encodeCall(KernelFactory.deploy, (packages, nonce));
+        bytes memory stakerCalldata = abi.encodeCall(IStaker.deployWithFactory, (CANON_FACTORY, deployCalldata));
+        buf = string.concat(buf, ', "deployUupsCalldata": "', vm.toString(deployCalldata), '"');
+        buf = string.concat(buf, ', "deployUupsWithFactoryCalldata": "', vm.toString(stakerCalldata), '"');
     }
 
     // ------------------------------------------------------------------
@@ -333,6 +384,84 @@ contract GenKernelV4Vectors {
 
         buf = string.concat(buf, ',\n  "rootUserOp": {');
         buf = string.concat(buf, '"sender": "', vm.toString(op.sender), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "nonce": "', vm.toString(op.nonce), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(op.callData), '"');
+        buf = string.concat(buf, ', "callGasLimit": 100000');
+        buf = string.concat(buf, ', "verificationGasLimit": 200000');
+        buf = string.concat(buf, ', "preVerificationGas": 50000');
+        buf = string.concat(buf, ', "maxFeePerGas": ', vm.toString(uint256(2 gwei)));
+        buf = string.concat(buf, ', "maxPriorityFeePerGas": ', vm.toString(uint256(1 gwei)));
+        buf = string.concat(buf, ', "userOpHash": "', vm.toString(opHash), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(op.signature), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(validationData));
+        buf = string.concat(buf, ', "wrongSignerValidationData": ', vm.toString(wrongSignerValidationData));
+        buf = string.concat(buf, ', "stubSignatureValidationData": ', vm.toString(stubValidationData));
+        buf = string.concat(buf, "}");
+    }
+
+    /// UUPS variant of the root case: the root validator is packages[0] of
+    /// `factory.deploy` (a [RootEcdsaValidator] with raw-digest recovery), and
+    /// root-type UserOperations still carry the raw 65-byte signature.
+    function _uupsRootUserOpCase() internal {
+        RootEcdsaValidator validator = new RootEcdsaValidator();
+        Install[] memory pkgs = new Install[](1);
+        pkgs[0] =
+            Install({moduleType: 1, module: address(validator), moduleData: abi.encodePacked(SIGNER), internalData: hex""});
+
+        uupsValidator = address(validator);
+        uupsSender = address(factory.deploy(pkgs, 0));
+        require(uupsSender == factory.getAddress(pkgs, 0), "deploy landed off factory.getAddress");
+        require(uupsSender.code.length > 0, "deploy produced no code");
+        uupsCanonicalSender = LibClone.predictDeterministicAddressERC1967(CANON_UUPS, _salt(pkgs, 0), CANON_FACTORY);
+
+        _uupsRootUserOpValidateAndEmit();
+    }
+
+    function _uupsRootUserOpValidateAndEmit() internal {
+        address account = uupsSender;
+        Target target = new Target();
+        bytes memory execData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(Target.setX, (42)));
+        bytes memory callData = abi.encodeCall(Kernel.execute, (bytes32(0), execData));
+
+        PackedUserOperation memory op = PackedUserOperation({
+            sender: account,
+            nonce: 0, // vMode 0x00 (standard), vType 0x00 (root), vId 0, key 0, seq 0
+            initCode: hex"",
+            callData: callData,
+            accountGasLimits: bytes32((uint256(200000) << 128) | uint256(100000)),
+            preVerificationGas: 50000,
+            gasFees: bytes32((uint256(1 gwei) << 128) | uint256(2 gwei)),
+            paymasterAndData: hex"",
+            signature: hex""
+        });
+
+        bytes32 opHash = _userOpHash(op);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SIGNER_KEY, opHash);
+        bytes memory goodSignature = abi.encodePacked(r, s, v);
+
+        op.signature = goodSignature;
+        vm.prank(ENTRY_POINT);
+        uint256 validationData = Kernel(payable(account)).validateUserOp(op, opHash, 0);
+        require(validationData == 0, "UUPS root ECDSA signature was not accepted");
+
+        (v, r, s) = vm.sign(WRONG_KEY, opHash);
+        op.signature = abi.encodePacked(r, s, v);
+        vm.prank(ENTRY_POINT);
+        uint256 wrongSignerValidationData = Kernel(payable(account)).validateUserOp(op, opHash, 0);
+        require(wrongSignerValidationData == 1, "UUPS wrong-signer signature unexpectedly accepted");
+
+        op.signature = STUB_SIGNATURE;
+        vm.prank(ENTRY_POINT);
+        uint256 stubValidationData = Kernel(payable(account)).validateUserOp(op, opHash, 0);
+        require(stubValidationData == 1, "UUPS stub signature must fail cleanly, not revert");
+
+        op.signature = goodSignature;
+
+        buf = string.concat(buf, ',\n  "uupsRootUserOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(op.sender), '"');
+        buf = string.concat(buf, ', "canonicalSender": "', vm.toString(uupsCanonicalSender), '"');
+        buf = string.concat(buf, ', "rootValidator": "', vm.toString(uupsValidator), '"');
         buf = string.concat(buf, ', "signer": "', vm.toString(SIGNER), '"');
         buf = string.concat(buf, ', "nonce": "', vm.toString(op.nonce), '"');
         buf = string.concat(buf, ', "callData": "', vm.toString(op.callData), '"');
