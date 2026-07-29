@@ -144,6 +144,27 @@ void main() {
       expect(Hex.byteLength(account.getStubSignature()), equals(65));
     });
 
+    test('non-root validation and replayable mode route the nonce key', () {
+      // The routing logic is shared with KernelImmutableECDSA, where the
+      // fixture-backed cases live; this pins the UUPS wiring.
+      final routed = createKernelUUPS(
+        owner: owner,
+        chainId: chainId,
+        rootValidator: _ecdsaValidator,
+        validation: KernelV4Validation.validator(_ecdsaValidator),
+        replayableUserOps: true,
+        nonceKey: BigInt.from(0x1234),
+      );
+      final decoded = decodeKernelV4Nonce(routed.nonceKey << 64);
+      expect(
+        decoded.vMode,
+        equals(KernelV4ValidationMode.replayableUserOpHash),
+      );
+      expect(decoded.vType, equals(KernelV4ValidationType.validator));
+      expect(decoded.vId, equals(_ecdsaValidator.hex.toLowerCase()));
+      expect(decoded.nonceKey, equals(BigInt.from(0x1234)));
+    });
+
     test('message and typed-data signing are not implemented yet', () {
       expect(() => account.signMessage('hello'), throwsUnsupportedError);
       expect(() => account.sign('0x${'11' * 32}'), throwsUnsupportedError);
