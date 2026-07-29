@@ -6,6 +6,7 @@ import {KernelUUPS} from "@kernel/KernelUUPS.sol";
 import {KernelImmutableECDSA} from "@kernel/KernelImmutableECDSA.sol";
 import {KernelFactory} from "@kernel/KernelFactory.sol";
 import {Install} from "@kernel/types/Structs.sol";
+import {ValidationId} from "@kernel/types/Types.sol";
 import {
     INSTALL_PACKAGES_STRUCT_HASH,
     INSTALL_STRUCT_HASH,
@@ -173,6 +174,40 @@ contract EcdsaSigner {
     }
 }
 
+/// Minimal executor module for the module-management vectors. Kernel's
+/// executor install ignores the `onInstall` result, but the callbacks are
+/// still low-level-called, so they exist here for realism.
+contract MockExecutor {
+    function onInstall(bytes calldata) external payable {}
+    function onUninstall(bytes calldata) external payable {}
+}
+
+/// Minimal fallback handler: a no-arg view the account does not define, so a
+/// successful `ping()` against the *account* proves the selector install
+/// dispatched through Kernel's fallback (which appends `msg.sender`,
+/// ERC-2771-style — extra calldata a no-arg function ignores).
+contract MockFallbackHandler {
+    function onInstall(bytes calldata) external payable {}
+    function onUninstall(bytes calldata) external payable {}
+
+    function ping() external pure returns (uint256) {
+        return 424242;
+    }
+}
+
+/// Minimal hook module (install marks it enabled; pre/post are the IHook
+/// surface Kernel calls when the hook is bound to a validation).
+contract MockHook {
+    function onInstall(bytes calldata) external payable {}
+    function onUninstall(bytes calldata) external payable {}
+
+    function preCheck(address, uint256, bytes calldata) external payable returns (bytes memory) {
+        return hex"";
+    }
+
+    function postCheck(bytes calldata) external payable {}
+}
+
 /// A trivial side-effect target for the execute round-trip cases.
 contract Target {
     uint256 public x;
@@ -232,6 +267,9 @@ contract GenKernelV4Vectors {
     /// the 20-byte vId field of the nonce).
     bytes4 internal constant PERMISSION_ID = 0xdeadbeef;
 
+    /// The PermissionId of the module-management batch-install permission.
+    bytes4 internal constant PERMISSION_ID_2 = 0xcafebabe;
+
     KernelFactory internal factory;
     HashOracle internal hashOracle;
     ChainAgnosticOracle internal chainAgnosticOracle;
@@ -275,6 +313,22 @@ contract GenKernelV4Vectors {
     bytes internal enableReplayBlob;
     uint256 internal enableReplayValidationData;
     uint256 internal enableReplayWrongDomainVD;
+    // Scratch for the module-management cases (ticket 06).
+    address internal mmSender;
+    address internal mmHook;
+    address internal mmValidator;
+    address internal mmValidatorEmpty;
+    address internal mmValidatorHooked;
+    address internal mmExecutor;
+    address internal mmFallbackHandler;
+    address internal mmPolicy;
+    address internal mmSigner;
+    address internal mmSignedValidator;
+    address internal mmRotValidatorA;
+    address internal mmRotValidatorB;
+    address internal mmRotSender;
+    address internal mmPermRootSender;
+
     address internal uupsEnableSender;
     address internal uupsEnableRootValidator;
     bytes32 internal uupsEnableDigest;
@@ -342,6 +396,9 @@ contract GenKernelV4Vectors {
         _enableUserOpCase();
         _enableReplayableUserOpCase();
         _uupsEnableUserOpCase();
+
+        // Ticket-06 vectors: module install / uninstall + setRoot.
+        _moduleManagementCases();
 
         buf = string.concat(buf, "\n}\n");
         vm.writeFile(OUT_PATH, buf);
@@ -1370,6 +1427,428 @@ contract GenKernelV4Vectors {
         buf = string.concat(buf, ', "signature": "', vm.toString(uupsEnableBlob), '"');
         buf = string.concat(buf, ', "validationData": ', vm.toString(uupsEnableValidationData));
         buf = string.concat(buf, "}");
+    }
+
+    // ------------------------------------------------------------------
+    // Module management (ticket 06)
+    // ------------------------------------------------------------------
+
+    /// Module install / uninstall / setRoot vectors. Every calldata byte
+    /// string emitted here was executed against a real factory-deployed
+    /// account (pranked from the EntryPoint, matching the self-call userOp
+    /// path) with the resulting state asserted — so the fixture proves both
+    /// the ABI shape and that Kernel accepts the internalData layouts.
+    function _moduleManagementCases() internal {
+        mmSender = address(factory.deployECDSA(SIGNER, _noPackages(), 300));
+        mmHook = address(new MockHook());
+        mmValidator = address(new RootEcdsaValidator());
+        mmValidatorEmpty = address(new RootEcdsaValidator());
+        mmValidatorHooked = address(new RootEcdsaValidator());
+        mmExecutor = address(new MockExecutor());
+        mmFallbackHandler = address(new MockFallbackHandler());
+        mmPolicy = address(new ProofPolicy());
+        mmSigner = address(new EcdsaSigner());
+        mmSignedValidator = address(new RootEcdsaValidator());
+
+        buf = string.concat(buf, ',\n  "moduleManagement": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmSender), '"');
+        buf = string.concat(buf, ', "hookModule": "', vm.toString(mmHook), '"');
+        buf = string.concat(buf, ', "fallbackSelector": "', vm.toString(abi.encodePacked(MockFallbackHandler.ping.selector)), '"');
+        buf = string.concat(buf, ', "executeSelector": "', vm.toString(abi.encodePacked(Kernel.execute.selector)), '"');
+        buf = string.concat(buf, ', "permissionId": "', vm.toString(abi.encodePacked(PERMISSION_ID_2)), '"');
+
+        _mmInstallCases();
+        _mmBatchInstallCase();
+        _mmUninstallCases();
+        _mmSetRootRotateCase();
+        _mmSetRootVIdAndGrantAccessCases();
+        _mmSetRootPermissionCleanupCase();
+        _mmSignedInstallCase();
+        buf = string.concat(buf, "}");
+    }
+
+    /// Executes `installModule(moduleType, module, abi.encode(moduleData,
+    /// internalData))` on [mmSender] from the EntryPoint and asserts the
+    /// module reports installed.
+    function _mmInstall(
+        string memory name,
+        uint256 moduleType,
+        address module,
+        bytes memory moduleData,
+        bytes memory internalData,
+        bytes memory context
+    ) internal {
+        bytes memory callData =
+            abi.encodeWithSignature("installModule(uint256,address,bytes)", moduleType, module, abi.encode(moduleData, internalData));
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmSender.call(callData);
+        require(ok, string.concat("install failed: ", name));
+        require(
+            Kernel(payable(mmSender)).isModuleInstalled(moduleType, module, context),
+            string.concat("not installed after install: ", name)
+        );
+        _mmEmitCase(name, moduleType, module, moduleData, internalData, callData);
+    }
+
+    /// Executes `uninstallModule(moduleType, module, abi.encode(moduleData,
+    /// internalData))` on [mmSender] from the EntryPoint and asserts the
+    /// module reports uninstalled.
+    function _mmUninstall(
+        string memory name,
+        uint256 moduleType,
+        address module,
+        bytes memory moduleData,
+        bytes memory internalData,
+        bytes memory context
+    ) internal {
+        bytes memory callData =
+            abi.encodeCall(Kernel.uninstallModule, (moduleType, module, abi.encode(moduleData, internalData)));
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmSender.call(callData);
+        require(ok, string.concat("uninstall failed: ", name));
+        require(
+            !Kernel(payable(mmSender)).isModuleInstalled(moduleType, module, context),
+            string.concat("still installed after uninstall: ", name)
+        );
+        _mmEmitCase(name, moduleType, module, moduleData, internalData, callData);
+    }
+
+    function _mmEmitCase(
+        string memory name,
+        uint256 moduleType,
+        address module,
+        bytes memory moduleData,
+        bytes memory internalData,
+        bytes memory callData
+    ) internal {
+        buf = string.concat(buf, '{"name": "', name, '"');
+        buf = string.concat(buf, ', "moduleType": ', vm.toString(moduleType));
+        buf = string.concat(buf, ', "module": "', vm.toString(module), '"');
+        buf = string.concat(buf, ', "moduleData": "', vm.toString(moduleData), '"');
+        buf = string.concat(buf, ', "internalData": "', vm.toString(internalData), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+    }
+
+    /// One install per module type (plus the internalData hook-sentinel
+    /// variants for validators). The hook is installed first so the
+    /// real-hook validator binding can reference an enabled hook.
+    function _mmInstallCases() internal {
+        buf = string.concat(buf, ', "installs": [\n    ');
+        // Hook (type 4): internalData ignored; empty requires onInstall ok.
+        _mmInstall("hook", 4, mmHook, hex"", hex"", hex"");
+        buf = string.concat(buf, ",\n    ");
+        // Validator with the installed-no-hook sentinel (address(1)) and an
+        // allow-listed `execute` selector.
+        _mmInstall(
+            "validatorSentinelHook",
+            1,
+            mmValidator,
+            abi.encodePacked(OTHER_SIGNER),
+            abi.encodePacked(address(1), Kernel.execute.selector),
+            hex""
+        );
+        buf = string.concat(buf, ",\n    ");
+        // Validator with empty internalData: installed-no-hook, deny-all
+        // selectors (the contract's documented default).
+        _mmInstall("validatorEmptyInternalData", 1, mmValidatorEmpty, abi.encodePacked(OTHER_SIGNER), hex"", hex"");
+        buf = string.concat(buf, ",\n    ");
+        // Validator bound to the real hook module installed above.
+        _mmInstall(
+            "validatorRealHook",
+            1,
+            mmValidatorHooked,
+            abi.encodePacked(OTHER_SIGNER),
+            abi.encodePacked(mmHook, Kernel.execute.selector),
+            hex""
+        );
+        buf = string.concat(buf, ",\n    ");
+        // Executor (type 2): internalData = 20-byte hook; address(0) means
+        // no hook (stored as the address(1) sentinel).
+        _mmInstall("executor", 2, mmExecutor, hex"", abi.encodePacked(address(0)), hex"");
+        buf = string.concat(buf, ",\n    ");
+        // Fallback (type 3): [4B selector | 1B callType | 20B hook];
+        // hook address(1) = callable by anyone, no hook. callType 0x00 CALL.
+        _mmInstall(
+            "fallbackHandler",
+            3,
+            mmFallbackHandler,
+            hex"",
+            abi.encodePacked(MockFallbackHandler.ping.selector, bytes1(0x00), address(1)),
+            abi.encodePacked(MockFallbackHandler.ping.selector)
+        );
+        buf = string.concat(buf, "]");
+
+        // The installed selector really dispatches: calling `ping()` on the
+        // *account* (from an arbitrary caller — hook sentinel address(1))
+        // reaches the handler through Kernel's fallback.
+        (bool ok, bytes memory ret) = mmSender.call(abi.encodeCall(MockFallbackHandler.ping, ()));
+        require(ok && abi.decode(ret, (uint256)) == 424242, "fallback selector dispatch failed");
+    }
+
+    /// Policy (type 5) + signer (type 6) installed atomically via the batch
+    /// `installModule(Install[])` entrypoint — the batch runs Kernel's
+    /// permission-completeness check (all policies for a PermissionId, then
+    /// its signer, in one batch), so this is the path an SDK must use for
+    /// permission installs.
+    function _mmBatchInstallCase() internal {
+        Install[] memory pkgs = new Install[](2);
+        pkgs[0] = Install({
+            moduleType: 5,
+            module: mmPolicy,
+            moduleData: hex"",
+            internalData: abi.encodePacked(PERMISSION_ID_2)
+        });
+        pkgs[1] = Install({
+            moduleType: 6,
+            module: mmSigner,
+            moduleData: abi.encodePacked(OTHER_SIGNER),
+            internalData: abi.encodePacked(PERMISSION_ID_2, address(0), Kernel.execute.selector)
+        });
+        bytes memory callData = abi.encodeWithSignature("installModule((uint256,address,bytes,bytes)[])", pkgs);
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmSender.call(callData);
+        require(ok, "batch permission install failed");
+        require(
+            Kernel(payable(mmSender)).isModuleInstalled(5, mmPolicy, abi.encodePacked(PERMISSION_ID_2)),
+            "policy not installed after batch"
+        );
+        require(
+            Kernel(payable(mmSender)).isModuleInstalled(6, mmSigner, abi.encodePacked(PERMISSION_ID_2)),
+            "signer not installed after batch"
+        );
+
+        buf = string.concat(buf, ', "batchInstall": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmSender), '"');
+        _emitPackages(pkgs);
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+    }
+
+    /// Uninstalls in the contract-required order, with the ordering negative
+    /// (signer before its policies must revert) proven on-chain first.
+    function _mmUninstallCases() internal {
+        // Negative: the signer cannot be uninstalled while its permission
+        // still has policies (InvalidPermissionUninstallOrder).
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmSender.call(
+            abi.encodeCall(Kernel.uninstallModule, (6, mmSigner, abi.encode(hex"", abi.encodePacked(PERMISSION_ID_2))))
+        );
+        require(!ok, "signer uninstall before policies unexpectedly succeeded");
+        buf = string.concat(buf, ', "signerBeforePoliciesReverts": true');
+
+        buf = string.concat(buf, ', "uninstalls": [\n    ');
+        // Policies come off LIFO; internalData carries the PermissionId.
+        _mmUninstall("policy", 5, mmPolicy, hex"", abi.encodePacked(PERMISSION_ID_2), abi.encodePacked(PERMISSION_ID_2));
+        buf = string.concat(buf, ",\n    ");
+        // Signer after all policies are removed; this also uninstalls the
+        // permission's validation.
+        _mmUninstall("signer", 6, mmSigner, hex"", abi.encodePacked(PERMISSION_ID_2), abi.encodePacked(PERMISSION_ID_2));
+        buf = string.concat(buf, ",\n    ");
+        // Fallback: internalData carries the selector being unbound.
+        _mmUninstall(
+            "fallbackHandler",
+            3,
+            mmFallbackHandler,
+            hex"",
+            abi.encodePacked(MockFallbackHandler.ping.selector),
+            abi.encodePacked(MockFallbackHandler.ping.selector)
+        );
+        buf = string.concat(buf, ",\n    ");
+        // The hooked validator before its hook, then the hook itself.
+        _mmUninstall("validatorRealHook", 1, mmValidatorHooked, hex"", hex"", hex"");
+        buf = string.concat(buf, ",\n    ");
+        _mmUninstall("hook", 4, mmHook, hex"", hex"", hex"");
+        buf = string.concat(buf, ",\n    ");
+        _mmUninstall("validatorSentinelHook", 1, mmValidator, hex"", hex"", hex"");
+        buf = string.concat(buf, ",\n    ");
+        _mmUninstall("executor", 2, mmExecutor, hex"", hex"", hex"");
+        buf = string.concat(buf, "]");
+
+        // The unbound selector no longer dispatches.
+        (ok,) = mmSender.call(abi.encodeCall(MockFallbackHandler.ping, ()));
+        require(!ok, "fallback selector still dispatches after uninstall");
+    }
+
+    /// `setRoot(Install[], removeCurrent, uninstallData)` — validator-root
+    /// rotation with old-root cleanup: pkg[0] becomes the new root, the old
+    /// validator root's `onUninstall` gets `uninstallData` raw.
+    function _mmSetRootRotateCase() internal {
+        mmRotValidatorA = address(new RootEcdsaValidator());
+        mmRotValidatorB = address(new RootEcdsaValidator());
+        Install[] memory rootPkgs = new Install[](1);
+        rootPkgs[0] =
+            Install({moduleType: 1, module: mmRotValidatorA, moduleData: abi.encodePacked(SIGNER), internalData: hex""});
+        mmRotSender = address(factory.deploy(rootPkgs, 301));
+
+        Install[] memory newPkgs = new Install[](1);
+        newPkgs[0] = Install({
+            moduleType: 1,
+            module: mmRotValidatorB,
+            moduleData: abi.encodePacked(OTHER_SIGNER),
+            internalData: abi.encodePacked(address(0), Kernel.execute.selector)
+        });
+        bytes memory callData =
+            abi.encodeWithSignature("setRoot((uint256,address,bytes,bytes)[],bool,bytes)", newPkgs, true, hex"");
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmRotSender.call(callData);
+        require(ok, "setRoot rotate failed");
+        bytes21 newRoot = ValidationId.unwrap(Kernel(payable(mmRotSender)).root());
+        require(newRoot == bytes21(abi.encodePacked(bytes1(0x01), mmRotValidatorB)), "rotated root mismatch");
+        require(
+            !Kernel(payable(mmRotSender)).isModuleInstalled(1, mmRotValidatorA, hex""),
+            "old validator root not removed"
+        );
+
+        buf = string.concat(buf, ', "setRootRotate": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmRotSender), '"');
+        buf = string.concat(buf, ', "oldRootValidator": "', vm.toString(mmRotValidatorA), '"');
+        buf = string.concat(buf, ', "removeCurrent": true');
+        buf = string.concat(buf, ', "uninstallData": "0x"');
+        _emitPackages(newPkgs);
+        buf = string.concat(buf, ', "newRoot": "', vm.toString(abi.encodePacked(newRoot)), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+    }
+
+    /// `setRoot(ValidationId)` — repoint the root to an already-installed
+    /// validation — and `grantAccess(vId, selectors)` — re-grant selector
+    /// access the rotation invalidated for the old root.
+    function _mmSetRootVIdAndGrantAccessCases() internal {
+        // Reinstall validator A (uninstalled by the rotation above) so it is
+        // a valid setRoot(vId) target.
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmRotSender.call(
+            abi.encodeWithSignature(
+                "installModule(uint256,address,bytes)", 1, mmRotValidatorA, abi.encode(abi.encodePacked(SIGNER), hex"")
+            )
+        );
+        require(ok, "validator A reinstall failed");
+
+        ValidationId vId = ValidationId.wrap(bytes21(abi.encodePacked(bytes1(0x01), mmRotValidatorA)));
+        bytes memory callData = abi.encodeWithSignature("setRoot(bytes21)", ValidationId.unwrap(vId));
+        vm.prank(ENTRY_POINT);
+        (ok,) = mmRotSender.call(callData);
+        require(ok, "setRoot(vId) failed");
+        require(
+            ValidationId.unwrap(Kernel(payable(mmRotSender)).root()) == ValidationId.unwrap(vId),
+            "setRoot(vId) root mismatch"
+        );
+
+        buf = string.concat(buf, ', "setRootVId": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmRotSender), '"');
+        buf = string.concat(buf, ', "vId": "', vm.toString(abi.encodePacked(ValidationId.unwrap(vId))), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+
+        // Rotating away bumped validator B's selector-grant nonce; re-grant
+        // `execute` for its vId.
+        ValidationId bVId = ValidationId.wrap(bytes21(abi.encodePacked(bytes1(0x01), mmRotValidatorB)));
+        bytes memory grantCallData =
+            abi.encodeCall(Kernel.grantAccess, (bVId, abi.encodePacked(Kernel.execute.selector)));
+        vm.prank(ENTRY_POINT);
+        (ok,) = mmRotSender.call(grantCallData);
+        require(ok, "grantAccess failed");
+
+        buf = string.concat(buf, ', "grantAccess": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmRotSender), '"');
+        buf = string.concat(buf, ', "vId": "', vm.toString(abi.encodePacked(ValidationId.unwrap(bVId))), '"');
+        buf = string.concat(buf, ', "selectors": "', vm.toString(abi.encodePacked(Kernel.execute.selector)), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(grantCallData), '"}');
+    }
+
+    /// Rotation away from a *permission* root: `uninstallData` must be the
+    /// `PermissionUninstallData` encoding — `abi.encode(bytes[])` with
+    /// policies.length + 1 elements (per-policy onUninstall data in install
+    /// order, the signer's last; Kernel removes policies LIFO).
+    function _mmSetRootPermissionCleanupCase() internal {
+        address policy = address(new ProofPolicy());
+        address permSigner = address(new EcdsaSigner());
+        Install[] memory rootPkgs = new Install[](2);
+        rootPkgs[0] =
+            Install({moduleType: 5, module: policy, moduleData: hex"", internalData: abi.encodePacked(PERMISSION_ID_2)});
+        rootPkgs[1] = Install({
+            moduleType: 6,
+            module: permSigner,
+            moduleData: abi.encodePacked(SIGNER),
+            internalData: abi.encodePacked(PERMISSION_ID_2, address(0), Kernel.execute.selector)
+        });
+        mmPermRootSender = address(factory.deploy(rootPkgs, 302));
+        require(
+            ValidationId.unwrap(Kernel(payable(mmPermRootSender)).root())
+                == bytes21(abi.encodePacked(bytes1(0x02), PERMISSION_ID_2)),
+            "permission root not set at deploy"
+        );
+
+        address newValidator = address(new RootEcdsaValidator());
+        Install[] memory newPkgs = new Install[](1);
+        newPkgs[0] = Install({
+            moduleType: 1,
+            module: newValidator,
+            moduleData: abi.encodePacked(SIGNER),
+            internalData: hex""
+        });
+        bytes[] memory perModule = new bytes[](2);
+        perModule[0] = hex"";
+        perModule[1] = hex"";
+        bytes memory uninstallData = abi.encode(perModule);
+        bytes memory callData =
+            abi.encodeWithSignature("setRoot((uint256,address,bytes,bytes)[],bool,bytes)", newPkgs, true, uninstallData);
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = mmPermRootSender.call(callData);
+        require(ok, "setRoot permission cleanup failed");
+        require(
+            ValidationId.unwrap(Kernel(payable(mmPermRootSender)).root())
+                == bytes21(abi.encodePacked(bytes1(0x01), newValidator)),
+            "root not rotated off the permission"
+        );
+        require(
+            !Kernel(payable(mmPermRootSender)).isModuleInstalled(5, policy, abi.encodePacked(PERMISSION_ID_2)),
+            "old root policy not removed"
+        );
+        require(
+            !Kernel(payable(mmPermRootSender)).isModuleInstalled(6, permSigner, abi.encodePacked(PERMISSION_ID_2)),
+            "old root signer not removed"
+        );
+
+        buf = string.concat(buf, ', "setRootPermissionCleanup": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmPermRootSender), '"');
+        buf = string.concat(buf, ', "oldRootPermissionId": "', vm.toString(abi.encodePacked(PERMISSION_ID_2)), '"');
+        buf = string.concat(buf, ', "removeCurrent": true');
+        buf = string.concat(buf, ', "perModuleUninstallData": ["0x", "0x"]');
+        buf = string.concat(buf, ', "uninstallData": "', vm.toString(uninstallData), '"');
+        _emitPackages(newPkgs);
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+    }
+
+    /// The standalone root-signed install: `installModule(replayable, nonce,
+    /// packages, signature)` is callable by *anyone* — no EntryPoint — with
+    /// the root signing the same InstallPackages digest as enable mode.
+    function _mmSignedInstallCase() internal {
+        Install[] memory pkgs = new Install[](1);
+        pkgs[0] = Install({
+            moduleType: 1,
+            module: mmSignedValidator,
+            moduleData: abi.encodePacked(OTHER_SIGNER),
+            internalData: hex""
+        });
+        bytes32 digest = _installDigest(mmSender, 0, pkgs, false);
+        bytes memory signature = _sign(SIGNER_KEY, digest);
+        bytes memory callData = abi.encodeWithSignature(
+            "installModule(bool,uint256,(uint256,address,bytes,bytes)[],bytes)", false, uint256(0), pkgs, signature
+        );
+        // Deliberately no prank: any caller may submit a root-signed install.
+        (bool ok,) = mmSender.call(callData);
+        require(ok, "signed install failed");
+        require(
+            Kernel(payable(mmSender)).isModuleInstalled(1, mmSignedValidator, hex""),
+            "signed install did not install"
+        );
+
+        buf = string.concat(buf, ', "signedInstall": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(mmSender), '"');
+        buf = string.concat(buf, ', "replayable": false');
+        buf = string.concat(buf, ', "installNonce": "0"');
+        _emitPackages(pkgs);
+        buf = string.concat(buf, ', "installDigest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
     }
 
     // ------------------------------------------------------------------

@@ -11,5 +11,6 @@ export 'kernel_v4_create2.dart';
 export 'kernel_v4_enable.dart';
 export 'kernel_v4_hash.dart';
 export 'kernel_v4_install.dart';
+export 'kernel_v4_modules.dart';
 export 'kernel_v4_nonce.dart';
 export 'kernel_v4_validation.dart';
