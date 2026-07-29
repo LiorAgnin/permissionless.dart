@@ -523,6 +523,85 @@ void main() {
     });
   });
 
+  group('enable-mode UserOperations (nonce mode 0x08)', () {
+    final e = vectors['enableUserOp'] as Map<String, dynamic>;
+    final validator = EthereumAddress.fromHex(e['validator'] as String);
+
+    // The fixture's two-key setup: the module's owner (Hardhat #1) is the
+    // account owner — it signs the operations — while the immutable root
+    // signer (Hardhat #0) only authorizes the install. The address is
+    // supplied, as it derives from the root signer, not the module owner.
+    KernelImmutableECDSA enableAccount({bool replayable = false}) =>
+        createKernelImmutableECDSA(
+          owner: PrivateKeyOwner(_otherPrivateKey),
+          chainId: chainId,
+          validation: KernelV4Validation.validator(validator),
+          enableMode: KernelV4EnableMode(
+            packages: kernelV4PackagesFromCase(e),
+            replayableEnableSignature: replayable,
+            rootOwner: owner,
+          ),
+          address: EthereumAddress.fromHex(e['sender'] as String),
+        );
+
+    test('the nonce key carries the enable flag and routes to the module',
+        () {
+      final account = enableAccount();
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(e['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(decoded.vMode, equals(KernelV4ValidationMode.enable));
+      expect(decoded.vType, equals(KernelV4ValidationType.validator));
+      expect(decoded.vId, equals((e['validator'] as String).toLowerCase()));
+    });
+
+    test(
+        'signs the EnableModeSignature blob — the bytes the contract '
+        'accepted', () async {
+      final signature =
+          await enableAccount().signUserOperation(kernelV4UserOpFromCase(e));
+      expect(signature, equals(e['signature']));
+    });
+
+    test('the stub is the all-stub blob the contract failed cleanly on', () {
+      expect(enableAccount().getStubSignature(), equals(e['stubSignature']));
+    });
+
+    test(
+        'the replayable-enable flag signs the sans-chainId digest — the '
+        'bytes the contract accepted under mode 0x0C', () async {
+      final r = vectors['enableReplayableUserOp'] as Map<String, dynamic>;
+      final account = createKernelImmutableECDSA(
+        owner: PrivateKeyOwner(_otherPrivateKey),
+        chainId: chainId,
+        validation: KernelV4Validation.validator(validator),
+        enableMode: KernelV4EnableMode(
+          packages: kernelV4PackagesFromCase(r),
+          replayableEnableSignature: true,
+          rootOwner: owner,
+        ),
+        address: EthereumAddress.fromHex(r['sender'] as String),
+      );
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(r['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(
+        decoded.vMode,
+        equals(
+          KernelV4ValidationMode.enable |
+              KernelV4ValidationMode.replayableEnable,
+        ),
+      );
+      final signature =
+          await account.signUserOperation(kernelV4UserOpFromCase(r));
+      expect(signature, equals(r['signature']));
+    });
+  });
+
   group('smart-account client prepare/sign/send (mocked RPC)', () {
     test('flows through the client without hand-built payloads', () async {
       final bundlerRequests = <Map<String, dynamic>>[];

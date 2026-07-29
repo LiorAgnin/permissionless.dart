@@ -468,6 +468,55 @@ void main() {
     });
   });
 
+  group('enable-mode UserOperations (nonce mode 0x08)', () {
+    final e = vectors['uupsEnableUserOp'] as Map<String, dynamic>;
+
+    // The fixture's single-key flow: the root owner also owns the module
+    // being enabled, so one key signs both the install authorization and
+    // the operation — no rootOwner override needed.
+    KernelUUPS enableAccount() => createKernelUUPS(
+          owner: owner,
+          chainId: chainId,
+          rootValidator: EthereumAddress.fromHex(e['rootValidator'] as String),
+          index: BigInt.from(206),
+          validation: KernelV4Validation.validator(
+            EthereumAddress.fromHex(e['validator'] as String),
+          ),
+          enableMode: KernelV4EnableMode(
+            packages: kernelV4PackagesFromCase(e),
+          ),
+          customAddresses: localAddresses(),
+        );
+
+    test('the offline address reproduces the deployed sender', () async {
+      final address = await enableAccount().getAddress();
+      expect(
+        address.hex.toLowerCase(),
+        equals((e['sender'] as String).toLowerCase()),
+      );
+    });
+
+    test('the nonce key carries the enable flag and routes to the module',
+        () {
+      final account = enableAccount();
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(e['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(decoded.vMode, equals(KernelV4ValidationMode.enable));
+      expect(decoded.vType, equals(KernelV4ValidationType.validator));
+    });
+
+    test(
+        'signs the EnableModeSignature blob — the bytes the contract '
+        'accepted', () async {
+      final signature =
+          await enableAccount().signUserOperation(kernelV4UserOpFromCase(e));
+      expect(signature, equals(e['signature']));
+    });
+  });
+
   group('smart-account client prepare/sign/send (mocked RPC)', () {
     test('flows through the client without hand-built payloads', () async {
       final bundlerRequests = <Map<String, dynamic>>[];

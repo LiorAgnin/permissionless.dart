@@ -44,6 +44,17 @@ developer machines unless the vectors need regenerating.
   one over the standard hash. The fixture hash is cross-checked between a
   restated oracle and the pinned `Lib4337` against etched EntryPoint v0.9
   bytecode.
+- **Enable-mode userOps** — with nonce mode `0x08` a deployed account installs
+  a validator module atomically with the op: the root (immutable fallback, or
+  the root validator module in the UUPS case) signs the `InstallPackages`
+  EIP-712 digest over the account's `"Kernel"/"0.4.0"` domain, the module
+  owner signs the userOpHash, and `userOp.signature` is the ABI-encoded
+  `EnableModeSignature` tuple. Negative cases each run on their own account
+  (enable installs state even when the signature is invalid): a non-root
+  enable signer, the sans-chainId digest under mode `0x08`, the chain-bound
+  digest under mode `0x0C`, an install-nonce replay (reverts), and the
+  all-stub estimation blob failing cleanly. The replayable-enable variant
+  (`0x0C`) accepts the sans-chainId digest.
 
 ## Regenerating
 

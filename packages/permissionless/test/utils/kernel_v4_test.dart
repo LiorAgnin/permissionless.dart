@@ -467,4 +467,167 @@ void main() {
       );
     });
   });
+
+  group('Kernel v4 install typehashes', () {
+    test('match the pinned contract constants', () {
+      // INSTALL_PACKAGES_STRUCT_HASH / INSTALL_STRUCT_HASH,
+      // kernel/src/types/Constants.sol (tag v4.0).
+      expect(
+        kernelV4InstallPackagesTypeHash,
+        equals(
+          '0x633d6810f7f4053622dad4c187707d9c3cd7f57b8b68943473d3437060aefc6d',
+        ),
+      );
+      expect(
+        kernelV4InstallTypeHash,
+        equals(
+          '0x50c63c739a5f8d2e99954b3d4c7008fcdcef795a1b755ab9287372b01d6ac239',
+        ),
+      );
+    });
+  });
+
+  group('getKernelV4InstallPackagesDigest', () {
+    final chainId = BigInt.from(vectors['chainId'] as int);
+    final cases = {
+      'enableUserOp': vectors['enableUserOp'] as Map<String, dynamic>,
+      'enableReplayableUserOp':
+          vectors['enableReplayableUserOp'] as Map<String, dynamic>,
+    };
+
+    for (final entry in cases.entries) {
+      final c = entry.value;
+      test('chain-specific digest matches the contract for ${entry.key}', () {
+        expect(
+          getKernelV4InstallPackagesDigest(
+            accountAddress: EthereumAddress.fromHex(c['sender'] as String),
+            installNonce: BigInt.parse(c['installNonce'] as String),
+            packages: kernelV4PackagesFromCase(c),
+            chainId: chainId,
+          ),
+          equals(c['chainSpecificInstallDigest']),
+        );
+      });
+
+      test('sans-chainId digest matches the contract for ${entry.key}', () {
+        expect(
+          getKernelV4InstallPackagesDigest(
+            accountAddress: EthereumAddress.fromHex(c['sender'] as String),
+            installNonce: BigInt.parse(c['installNonce'] as String),
+            packages: kernelV4PackagesFromCase(c),
+            replayable: true,
+          ),
+          equals(c['sansChainIdInstallDigest']),
+        );
+      });
+    }
+
+    test('the UUPS account digest matches the contract', () {
+      final c = vectors['uupsEnableUserOp'] as Map<String, dynamic>;
+      expect(
+        getKernelV4InstallPackagesDigest(
+          accountAddress: EthereumAddress.fromHex(c['sender'] as String),
+          installNonce: BigInt.parse(c['installNonce'] as String),
+          packages: kernelV4PackagesFromCase(c),
+          chainId: chainId,
+        ),
+        equals(c['chainSpecificInstallDigest']),
+      );
+    });
+
+    test('the root signature over the digest matches the accepted bytes',
+        () async {
+      // Hardhat account #0 — the fixture's root signer (deterministic
+      // RFC-6979 signing, so the exact bytes reproduce).
+      final root = PrivateKeyOwner(
+        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+      );
+      final c = vectors['enableUserOp'] as Map<String, dynamic>;
+      expect(
+        await root.signRawHash(c['chainSpecificInstallDigest'] as String),
+        equals(c['enableSignature']),
+      );
+
+      final replay = vectors['enableReplayableUserOp'] as Map<String, dynamic>;
+      expect(
+        await root.signRawHash(replay['sansChainIdInstallDigest'] as String),
+        equals(replay['enableSignature']),
+      );
+    });
+
+    test('requires a chainId unless the signature is replayable', () {
+      final c = vectors['enableUserOp'] as Map<String, dynamic>;
+      expect(
+        () => getKernelV4InstallPackagesDigest(
+          accountAddress: EthereumAddress.fromHex(c['sender'] as String),
+          installNonce: BigInt.zero,
+          packages: kernelV4PackagesFromCase(c),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('encodeKernelV4EnableModeSignature', () {
+    for (final name in [
+      'enableUserOp',
+      'enableReplayableUserOp',
+      'uupsEnableUserOp',
+    ]) {
+      test('byte-matches the accepted EnableModeSignature blob for $name', () {
+        final c = vectors[name] as Map<String, dynamic>;
+        expect(
+          encodeKernelV4EnableModeSignature(
+            installNonce: BigInt.parse(c['installNonce'] as String),
+            packages: kernelV4PackagesFromCase(c),
+            enableSignature: c['enableSignature'] as String,
+            userOpSignature: c['innerSignature'] as String,
+          ),
+          equals(c['signature']),
+        );
+      });
+    }
+
+    test('the all-stub blob byte-matches the clean-fail estimation shape', () {
+      final c = vectors['enableUserOp'] as Map<String, dynamic>;
+      expect(
+        encodeKernelV4EnableModeSignature(
+          installNonce: BigInt.parse(c['installNonce'] as String),
+          packages: kernelV4PackagesFromCase(c),
+          enableSignature: kernelDummyEcdsaSignature,
+          userOpSignature: kernelDummyEcdsaSignature,
+        ),
+        equals(c['stubSignature']),
+      );
+    });
+  });
+
+  group('KernelV4EnableMode', () {
+    test('composes the enable nonce mode flags', () {
+      expect(
+        KernelV4ValidationMode.enable | KernelV4ValidationMode.replayableEnable,
+        equals(0x0C),
+      );
+      expect(
+        KernelV4ValidationMode.enable |
+            KernelV4ValidationMode.replayableUserOpHash,
+        equals(0x48),
+      );
+    });
+
+    test('rejects an empty package list', () {
+      expect(
+        () => KernelV4EnableMode(packages: const []),
+        throwsArgumentError,
+      );
+    });
+
+    test('defaults to install nonce zero and a chain-bound signature', () {
+      final c = vectors['enableUserOp'] as Map<String, dynamic>;
+      final enable = KernelV4EnableMode(packages: kernelV4PackagesFromCase(c));
+      expect(enable.installNonce, equals(BigInt.zero));
+      expect(enable.replayableEnableSignature, isFalse);
+      expect(enable.rootOwner, isNull);
+    });
+  });
 }

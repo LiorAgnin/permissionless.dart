@@ -22,6 +22,9 @@ class KernelImmutableECDSAConfig {
   /// - [replayableUserOps]: Set nonce mode `0x40` and sign the
   ///   chain-agnostic digest, so the same signed operation is portable
   ///   across chains
+  /// - [enableMode]: Install modules atomically with the next UserOperation
+  ///   (nonce mode `0x08`); pair with a non-root [validation] to use the
+  ///   module being installed in the same operation
   /// - [additionalPackages]: Extra Install packages for creation-time
   ///   initialize; they feed the CREATE2 salt
   /// - [useStaker]: Route deployment through the staked `Staker` wrapper
@@ -39,6 +42,7 @@ class KernelImmutableECDSAConfig {
     this.nonceKey,
     this.validation = const KernelV4Validation.root(),
     this.replayableUserOps = false,
+    this.enableMode,
     List<KernelV4Install>? additionalPackages,
     this.useStaker = true,
     this.customAddresses,
@@ -90,6 +94,9 @@ class KernelImmutableECDSAConfig {
 
   /// Whether UserOperations carry the replayable mode bit (`0x40`).
   final bool replayableUserOps;
+
+  /// Enable-mode configuration (`null` for plain operations).
+  final KernelV4EnableMode? enableMode;
 
   /// Install packages applied at creation (`initialize`).
   ///
@@ -162,6 +169,9 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
   bool get replayableUserOps => _config.replayableUserOps;
 
   @override
+  KernelV4EnableMode? get enableMode => _config.enableMode;
+
+  @override
   BigInt get chainId => _config.chainId;
 
   @override
@@ -228,6 +238,7 @@ KernelImmutableECDSA createKernelImmutableECDSA({
   BigInt? nonceKey,
   KernelV4Validation validation = const KernelV4Validation.root(),
   bool replayableUserOps = false,
+  KernelV4EnableMode? enableMode,
   List<KernelV4Install>? additionalPackages,
   bool useStaker = true,
   KernelV4Addresses? customAddresses,
@@ -244,6 +255,7 @@ KernelImmutableECDSA createKernelImmutableECDSA({
         nonceKey: nonceKey,
         validation: validation,
         replayableUserOps: replayableUserOps,
+        enableMode: enableMode,
         additionalPackages: additionalPackages,
         useStaker: useStaker,
         customAddresses: customAddresses,
