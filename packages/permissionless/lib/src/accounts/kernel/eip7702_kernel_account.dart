@@ -157,13 +157,9 @@ class Eip7702KernelSmartAccountConfig {
             _requireEip7702Addresses(version).accountImplementation,
         ecdsaValidatorAddress = ecdsaValidatorAddress ??
             _requireEip7702Addresses(version).ecdsaValidator! {
-    if (!version.supportsEip7702) {
-      throw ArgumentError(
-        'Kernel version ${version.value} does not support this EIP-7702 '
-        'path. Use v0.3.3${version.isV4 ? '; Kernel v4 EIP-7702 accounts '
-            'will have their own factory (Kernel7702)' : ''}.',
-      );
-    }
+    // Covers the case where both addresses were supplied explicitly and the
+    // initializer-list helper never ran.
+    _requireEip7702Addresses(version);
     if (nonceKey != null && nonceKey! > BigInt.from(0xffff)) {
       throw ArgumentError(
         'nonce key must be equal or less than 2 bytes(maxUint16) for '

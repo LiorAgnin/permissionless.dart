@@ -1,31 +1,10 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
-/// Vectors generated from the pinned Kernel v4.0 Solidity contracts.
-/// See `tool/kernel_v4_vectors/` to regenerate.
-Map<String, dynamic> _loadVectors() {
-  final file = File('test/fixtures/kernel_v4_vectors.json');
-  return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-}
-
-List<KernelV4Install> _packagesFromCase(Map<String, dynamic> c) =>
-    (c['packages'] as List<dynamic>)
-        .cast<Map<String, dynamic>>()
-        .map(
-          (p) => KernelV4Install(
-            moduleType: BigInt.from(p['moduleType'] as int),
-            module: EthereumAddress.fromHex(p['module'] as String),
-            moduleData: p['moduleData'] as String,
-            internalData: p['internalData'] as String,
-          ),
-        )
-        .toList();
+import '../helpers/kernel_v4_vectors.dart';
 
 void main() {
-  final vectors = _loadVectors();
+  final vectors = loadKernelV4Vectors();
   final addressCases =
       (vectors['addressCases'] as List<dynamic>).cast<Map<String, dynamic>>();
   final canonical = vectors['canonical'] as Map<String, dynamic>;
@@ -66,7 +45,7 @@ void main() {
     for (final c in addressCases) {
       test('matches the factory salt for case ${c['name']}', () {
         final salt = computeKernelV4Salt(
-          packages: _packagesFromCase(c),
+          packages: kernelV4PackagesFromCase(c),
           nonce: BigInt.parse(c['nonce'] as String),
         );
         expect(salt, equals(c['salt']));
@@ -99,7 +78,7 @@ void main() {
       test('matches canonical prediction for case ${c['name']}', () {
         final address = computeKernelV4EcdsaAddress(
           signer: EthereumAddress.fromHex(c['signer'] as String),
-          packages: _packagesFromCase(c),
+          packages: kernelV4PackagesFromCase(c),
           nonce: BigInt.parse(c['nonce'] as String),
           factory: canonicalFactory,
           implementation: canonicalImplementation,
@@ -113,7 +92,7 @@ void main() {
       test('matches factory.getECDSAAddress for case ${c['name']}', () {
         final address = computeKernelV4EcdsaAddress(
           signer: EthereumAddress.fromHex(c['signer'] as String),
-          packages: _packagesFromCase(c),
+          packages: kernelV4PackagesFromCase(c),
           nonce: BigInt.parse(c['nonce'] as String),
           factory: localFactory,
           implementation: localImplementation,
@@ -131,7 +110,7 @@ void main() {
       test('byte-matches abi.encodeCall for case ${c['name']}', () {
         final calldata = encodeKernelV4DeployEcdsaCalldata(
           signer: EthereumAddress.fromHex(c['signer'] as String),
-          packages: _packagesFromCase(c),
+          packages: kernelV4PackagesFromCase(c),
           nonce: BigInt.parse(c['nonce'] as String),
         );
         expect(calldata, equals(c['deployEcdsaCalldata']));
@@ -204,7 +183,8 @@ void main() {
         () => KernelV4Install(
           moduleType: BigInt.zero,
           module: EthereumAddress.fromHex(
-              '0x00000000000000000000000000000000DeaDBeef'),
+            '0x00000000000000000000000000000000DeaDBeef',
+          ),
           moduleData: '0x',
         ),
         throwsArgumentError,

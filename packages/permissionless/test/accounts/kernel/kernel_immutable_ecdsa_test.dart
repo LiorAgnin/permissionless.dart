@@ -1,38 +1,19 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/kernel_v4_vectors.dart';
+
 /// Hardhat account #0 — fixed offline unit-test key, never used on live
 /// networks.
 const String _testPrivateKey =
     '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 
-/// Vectors generated from the pinned Kernel v4.0 Solidity contracts.
-/// See `tool/kernel_v4_vectors/` to regenerate.
-Map<String, dynamic> _loadVectors() {
-  final file = File('test/fixtures/kernel_v4_vectors.json');
-  return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-}
-
-List<KernelV4Install> _packagesFromCase(Map<String, dynamic> c) =>
-    (c['packages'] as List<dynamic>)
-        .cast<Map<String, dynamic>>()
-        .map(
-          (p) => KernelV4Install(
-            moduleType: BigInt.from(p['moduleType'] as int),
-            module: EthereumAddress.fromHex(p['module'] as String),
-            moduleData: p['moduleData'] as String,
-            internalData: p['internalData'] as String,
-          ),
-        )
-        .toList();
-
 void main() {
-  final vectors = _loadVectors();
+  final vectors = loadKernelV4Vectors();
   final addressCases =
       (vectors['addressCases'] as List<dynamic>).cast<Map<String, dynamic>>();
   final chainId = BigInt.from(vectors['chainId'] as int);
@@ -162,13 +143,13 @@ void main() {
       expect(() => account.sign('0x${'11' * 32}'), throwsUnsupportedError);
       expect(
         () => account.signTypedData(
-          TypedData(
-            domain: const TypedDataDomain(name: 'T', version: '1'),
-            types: const {
+          const TypedData(
+            domain: TypedDataDomain(name: 'T', version: '1'),
+            types: {
               'M': [TypedDataField(name: 'v', type: 'string')],
             },
             primaryType: 'M',
-            message: const {'v': 'x'},
+            message: {'v': 'x'},
           ),
         ),
         throwsUnsupportedError,
@@ -214,7 +195,7 @@ void main() {
           owner: owner,
           chainId: chainId,
           index: BigInt.parse(c['nonce'] as String),
-          additionalPackages: _packagesFromCase(c),
+          additionalPackages: kernelV4PackagesFromCase(c),
         );
         final address = await account.getAddress();
         expect(
@@ -308,7 +289,7 @@ void main() {
         owner: owner,
         chainId: chainId,
         index: BigInt.parse(c['nonce'] as String),
-        additionalPackages: _packagesFromCase(c),
+        additionalPackages: kernelV4PackagesFromCase(c),
         useStaker: false,
       );
       final data = await account.getFactoryData();

@@ -12,9 +12,6 @@ import '../account_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
 
-/// Maximum nonce key for Kernel v4 (2 bytes / maxUint16).
-final BigInt _kernelV4MaxUint16 = BigInt.from(0xffff);
-
 /// Configuration for creating a Kernel v4 ImmutableECDSA smart account.
 class KernelImmutableECDSAConfig {
   /// Creates a configuration for a Kernel v4 ImmutableECDSA account.
@@ -66,14 +63,9 @@ class KernelImmutableECDSAConfig {
             'for Kernel v4)',
       );
     }
-    if (nonceKey != null && nonceKey! > _kernelV4MaxUint16) {
-      throw ArgumentError.value(
-        nonceKey,
-        'nonceKey',
-        'nonce key must be equal or less than 2 bytes(maxUint16) for '
-            'Kernel version ${version.value}',
-      );
-    }
+    // Delegates the ≤ 2-byte range check (and its error) to the encoder so
+    // the rule lives in one place.
+    encodeKernelV4NonceKey(nonceKey: nonceKey);
   }
 
   /// The account owner (local ECDSA; immutable fallback signer).
