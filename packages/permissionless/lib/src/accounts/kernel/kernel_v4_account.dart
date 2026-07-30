@@ -127,20 +127,30 @@ abstract class KernelV4AccountBase implements SmartAccount {
     );
   }
 
+  /// The EIP-7702 delegate the EntryPoint substitutes into [userOp]'s
+  /// initCode while hashing, or `null` when the operation carries none.
+  ///
+  /// Factory-deployed accounts never delegate; `Kernel7702` overrides this
+  /// for operations whose factory is the `0x7702` marker.
+  EthereumAddress? delegationFor(UserOperationV07 userOp) => null;
+
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
+    final delegation = delegationFor(userOp);
     // With the replayable mode bit set, Kernel validates the chain-agnostic
     // digest instead of the EntryPoint-supplied hash.
     final userOpHash = replayableUserOps
         ? getKernelV4ChainAgnosticUserOpHash(
             userOperation: userOp,
             entryPointAddress: entryPoint,
+            delegationAddress: delegation,
           )
         : getUserOperationHash(
             userOperation: userOp,
             entryPointAddress: entryPoint,
             entryPointVersion: entryPointVersion,
             chainId: chainId,
+            delegationAddress: delegation,
           );
     // Validation paths recover the signer over the raw digest (no EIP-191
     // personal-message prefix). Routing lives in the nonce, so the raw

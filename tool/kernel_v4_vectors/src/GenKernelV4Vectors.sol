@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {Kernel} from "@kernel/Kernel.sol";
+import {Kernel7702} from "@kernel/Kernel7702.sol";
 import {KernelUUPS} from "@kernel/KernelUUPS.sol";
 import {KernelImmutableECDSA} from "@kernel/KernelImmutableECDSA.sol";
 import {KernelFactory} from "@kernel/KernelFactory.sol";
@@ -257,6 +258,7 @@ contract GenKernelV4Vectors {
     address internal constant CANON_UUPS = 0xC842fE2aC44046AE3cEf033A16c67a9BC287cbD2;
     address internal constant CANON_IMMUTABLE_ECDSA = 0x6F0999265B6E1dFbe875F104548b875a99A65d37;
     address internal constant CANON_FACTORY = 0xA299A4eFee7BBFb2Ea5668b30218C45fff78356c;
+    address internal constant CANON_7702 = 0x36312BA78010247390C6677a59807Fe7878e9B59;
 
     /// Hardhat account #0 — fixed offline unit-test key, never used on live
     /// networks (see the repo test conventions).
@@ -266,6 +268,12 @@ contract GenKernelV4Vectors {
     /// Hardhat account #1 — the wrong-signer negative case.
     uint256 internal constant WRONG_KEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
     address internal constant OTHER_SIGNER = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+
+    /// Hardhat account #2 — the Kernel7702 delegated EOA (its own dedicated
+    /// key, so etching delegation code onto it cannot interfere with the
+    /// factory-account cases that use accounts #0/#1 as plain signers).
+    uint256 internal constant K7702_KEY = 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a;
+    address internal constant K7702_EOA = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
 
     /// The v3-era ECDSA validator, used as a realistic module address in
     /// package vectors (drop-in for basic v4 root flows).
@@ -373,6 +381,10 @@ contract GenKernelV4Vectors {
     bytes internal uupsEnableBlob;
     uint256 internal uupsEnableValidationData;
 
+    // Scratch for the Kernel7702 cases (ticket 09).
+    address internal k7702Impl;
+    address internal k7702InstallValidator;
+
     function run() external {
         hashOracle = new HashOracle();
         localUups = address(new KernelUUPS(IEntryPoint(ENTRY_POINT)));
@@ -437,6 +449,9 @@ contract GenKernelV4Vectors {
 
         // Ticket-08 vectors: ERC-1271 / ERC-7739 signing.
         _erc1271Cases();
+
+        // Ticket-09 vectors: Kernel7702 (EIP-7702 delegation).
+        _kernel7702Cases();
 
         buf = string.concat(buf, "\n}\n");
         vm.writeFile(OUT_PATH, buf);
@@ -2380,6 +2395,164 @@ contract GenKernelV4Vectors {
             buf, ', "wrongDomainResult": "', vm.toString(abi.encodePacked(erc1271EnableWrongDomainResult)), '"'
         );
         buf = string.concat(buf, "}");
+    }
+
+    // ------------------------------------------------------------------
+    // Kernel7702 vectors (ticket 09)
+    // ------------------------------------------------------------------
+
+    /// Kernel7702: the EOA delegates its code to the implementation via
+    /// EIP-7702, so the account address *is* the EOA, `initialize` is a no-op,
+    /// the EOA is the fallback signer, and raw (non-7739) ERC-1271 is allowed.
+    function _kernel7702Cases() internal {
+        k7702Impl = address(new Kernel7702(IEntryPoint(ENTRY_POINT)));
+        // Simulate an active delegation: etch the implementation's runtime
+        // code at the EOA address, so every call runs Kernel7702 code with
+        // `address(this)` = the EOA — the semantics the 7702 delegation
+        // designator provides (the constructor-baked EntryPoint immutable
+        // travels inside the runtime code).
+        vm.etch(K7702_EOA, k7702Impl.code);
+
+        buf = string.concat(buf, ',\n  "kernel7702": {');
+        buf = string.concat(buf, '"eoa": "', vm.toString(K7702_EOA), '"');
+        buf = string.concat(buf, ', "canonicalImplementation": "', vm.toString(CANON_7702), '"');
+        buf = string.concat(buf, ', "localImplementation": "', vm.toString(k7702Impl), '"');
+        _kernel7702UserOpCase();
+        _kernel7702Erc1271Cases();
+        _kernel7702InstallCase();
+        buf = string.concat(buf, "}");
+    }
+
+    /// Root userOp on the delegated EOA: the raw 65-byte `r‖s‖v` over the
+    /// EntryPoint v0.9 userOpHash, signed by the EOA key, is accepted by the
+    /// EOA's own fallback-signer path (nonce 0 = standard mode, ROOT type).
+    function _kernel7702UserOpCase() internal {
+        Target target = new Target();
+        bytes memory execData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(Target.setX, (42)));
+        bytes memory callData = abi.encodeCall(Kernel.execute, (bytes32(0), execData));
+
+        PackedUserOperation memory op = PackedUserOperation({
+            sender: K7702_EOA,
+            nonce: 0, // vMode 0x00 (standard), vType 0x00 (root), vId 0, key 0, seq 0
+            initCode: hex"",
+            callData: callData,
+            accountGasLimits: bytes32((uint256(200000) << 128) | uint256(100000)),
+            preVerificationGas: 50000,
+            gasFees: bytes32((uint256(1 gwei) << 128) | uint256(2 gwei)),
+            paymasterAndData: hex"",
+            signature: hex""
+        });
+
+        bytes32 opHash = _userOpHash(op);
+        bytes memory goodSignature = _sign(K7702_KEY, opHash);
+
+        op.signature = goodSignature;
+        vm.prank(ENTRY_POINT);
+        uint256 validationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(validationData == 0, "Kernel7702 EOA signature was not accepted");
+
+        op.signature = _sign(WRONG_KEY, opHash);
+        vm.prank(ENTRY_POINT);
+        uint256 wrongSignerValidationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(wrongSignerValidationData == 1, "Kernel7702 wrong-signer signature unexpectedly accepted");
+
+        op.signature = STUB_SIGNATURE;
+        vm.prank(ENTRY_POINT);
+        uint256 stubValidationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(stubValidationData == 1, "Kernel7702 stub signature must fail cleanly, not revert");
+
+        op.signature = goodSignature;
+
+        buf = string.concat(buf, ',\n    "userOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(op.sender), '"');
+        buf = string.concat(buf, ', "nonce": "', vm.toString(op.nonce), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(op.callData), '"');
+        buf = string.concat(buf, ', "callGasLimit": 100000');
+        buf = string.concat(buf, ', "verificationGasLimit": 200000');
+        buf = string.concat(buf, ', "preVerificationGas": 50000');
+        buf = string.concat(buf, ', "maxFeePerGas": ', vm.toString(uint256(2 gwei)));
+        buf = string.concat(buf, ', "maxPriorityFeePerGas": ', vm.toString(uint256(1 gwei)));
+        buf = string.concat(buf, ', "userOpHash": "', vm.toString(opHash), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(op.signature), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(validationData));
+        buf = string.concat(buf, ', "wrongSignerValidationData": ', vm.toString(wrongSignerValidationData));
+        buf = string.concat(buf, ', "stubSignatureValidationData": ', vm.toString(stubValidationData));
+        buf = string.concat(buf, "}");
+    }
+
+    /// ERC-1271 on the delegated EOA, both paths ticket 09 requires:
+    ///
+    /// - **raw** (Kernel7702-only, `_erc1271RawAllowed`): a bare 65-byte
+    ///   signature over the app's input hash, no prefix, no ERC-7739 wrap;
+    /// - **nested**: the same `[0x00 vMode | 0x00 vType]`-prefixed PersonalSign
+    ///   flow the factory accounts use, verified here by the fallback signer.
+    function _kernel7702Erc1271Cases() internal {
+        // Reuses the message hash prepared by `_erc1271Cases` (run before us).
+        bytes memory rawSignature = _sign(K7702_KEY, erc1271MessageHash);
+        bytes4 rawResult = _isValid(K7702_EOA, erc1271MessageHash, rawSignature);
+        require(rawResult == bytes4(0x1626ba7e), "Kernel7702 raw 1271 rejected");
+
+        // A wrong-signer raw signature must not verify. After the fallback
+        // recovery fails, the contract reinterprets the 65 bytes as a
+        // prefixed signature, so junk leading bytes may revert
+        // (InvalidValidationType) instead of returning the failure magic —
+        // both are rejections; neither may be the success magic.
+        bool wrongSignerRejected;
+        try Kernel(payable(K7702_EOA)).isValidSignature(erc1271MessageHash, _sign(WRONG_KEY, erc1271MessageHash))
+        returns (bytes4 wrongRawResult) {
+            wrongSignerRejected = wrongRawResult != bytes4(0x1626ba7e);
+        } catch {
+            wrongSignerRejected = true;
+        }
+        require(wrongSignerRejected, "Kernel7702 wrong-signer raw 1271 unexpectedly accepted");
+
+        bytes32 personalDigest = _personalSignDigest(K7702_EOA, erc1271MessageHash);
+        bytes memory nestedSignature =
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(K7702_KEY, personalDigest));
+        bytes4 nestedResult = _isValid(K7702_EOA, erc1271MessageHash, nestedSignature);
+        require(nestedResult == bytes4(0x1626ba7e), "Kernel7702 nested personal-sign 1271 rejected");
+
+        buf = string.concat(buf, ',\n    "erc1271": {');
+        buf = string.concat(buf, '"message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "rawSignature": "', vm.toString(rawSignature), '"');
+        buf = string.concat(buf, ', "rawResult": "', vm.toString(abi.encodePacked(rawResult)), '"');
+        buf = string.concat(buf, ', "wrongSignerRawRejected": ', wrongSignerRejected ? "true" : "false");
+        buf = string.concat(buf, ', "personalSignDigest": "', vm.toString(personalDigest), '"');
+        buf = string.concat(buf, ', "nestedSignature": "', vm.toString(nestedSignature), '"');
+        buf = string.concat(buf, ', "nestedResult": "', vm.toString(abi.encodePacked(nestedResult)), '"');
+        buf = string.concat(buf, "}");
+    }
+
+    /// Module install *after* delegation, reusing the exact
+    /// `installModule(uint256,address,bytes)` calldata shape the ticket-06
+    /// encoders emit — proving the existing install path needs no 7702
+    /// special-casing.
+    function _kernel7702InstallCase() internal {
+        RootEcdsaValidator validator = new RootEcdsaValidator();
+        k7702InstallValidator = address(validator);
+        bytes memory moduleData = abi.encodePacked(OTHER_SIGNER);
+        // Installed-no-hook sentinel (address(1)) + an allow-listed `execute`
+        // selector — the same shape as the moduleManagement vectors.
+        bytes memory internalData = abi.encodePacked(address(1), Kernel.execute.selector);
+
+        bytes memory callData = abi.encodeWithSignature(
+            "installModule(uint256,address,bytes)", uint256(1), k7702InstallValidator, abi.encode(moduleData, internalData)
+        );
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = K7702_EOA.call(callData);
+        require(ok, "Kernel7702 post-delegation install failed");
+        require(
+            Kernel(payable(K7702_EOA)).isModuleInstalled(1, k7702InstallValidator, hex""),
+            "validator not installed after Kernel7702 install"
+        );
+
+        buf = string.concat(buf, ',\n    "install": {');
+        buf = string.concat(buf, '"moduleType": 1');
+        buf = string.concat(buf, ', "module": "', vm.toString(k7702InstallValidator), '"');
+        buf = string.concat(buf, ', "moduleData": "', vm.toString(moduleData), '"');
+        buf = string.concat(buf, ', "internalData": "', vm.toString(internalData), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
     }
 
     // ------------------------------------------------------------------
