@@ -21,7 +21,7 @@ enum KernelVersion {
   v0_2_4('0.2.4'),
 
   /// Kernel v0.3.0-beta - EntryPoint v0.7 default; 4-arg `initialize`.
-  v0_3_0_beta('0.3.0-beta'),
+  v0_3_0Beta('0.3.0-beta'),
 
   /// Kernel v0.3.1 - EntryPoint v0.7, ERC-7579, 5-arg `initialize`.
   v0_3_1('0.3.1'),
@@ -81,7 +81,7 @@ enum KernelVersion {
   /// Whether this version uses the 4-arg `initialize(bytes21,address,bytes,bytes)`.
   ///
   /// 0.3.0-beta only; later v0.3.x use the 5-arg form with `bytes[] initConfig`.
-  bool get usesBetaInitialize => this == v0_3_0_beta;
+  bool get usesBetaInitialize => this == v0_3_0Beta;
 
   /// Default Kernel version for the given EntryPoint version.
   ///
@@ -89,7 +89,7 @@ enum KernelVersion {
   /// - EP v0.6 → `0.2.2`
   /// - EP v0.7 → `0.3.0-beta`
   static KernelVersion defaultForEntryPoint({required bool isEntryPointV06}) =>
-      isEntryPointV06 ? v0_2_2 : v0_3_0_beta;
+      isEntryPointV06 ? v0_2_2 : v0_3_0Beta;
 }
 
 /// Contract addresses for a Kernel deployment.
@@ -180,7 +180,7 @@ class KernelVersionAddresses {
         '0xd9AB5096a832b9ce79914329DAEE236f8Eea0390',
       ),
     ),
-    KernelVersion.v0_3_0_beta: KernelAddresses(
+    KernelVersion.v0_3_0Beta: KernelAddresses(
       accountImplementation: EthereumAddress.fromHex(
         '0x94F097E1ebEB4ecA3AAE54cabb08905B239A7D27',
       ),

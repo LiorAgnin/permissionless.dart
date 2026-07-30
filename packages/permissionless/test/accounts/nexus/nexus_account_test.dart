@@ -157,7 +157,9 @@ void main() {
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
       expect(
-          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+        owner.address.hex.toLowerCase(),
+        equals(ownerAddress.toLowerCase()),
+      );
       account = createNexusSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -176,7 +178,9 @@ void main() {
       test('getAddress returns configured address', () async {
         final address = await account.getAddress();
         expect(
-            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+          address.hex.toLowerCase(),
+          equals(mockAddress.hex.toLowerCase()),
+        );
       });
 
       test('throws without address or publicClient', () {
@@ -184,7 +188,7 @@ void main() {
           owner: owner,
           chainId: BigInt.one,
         );
-        expect(() => bare.getAddress(), throwsA(isA<StateError>()));
+        expect(bare.getAddress, throwsA(isA<StateError>()));
       });
     });
 
@@ -208,7 +212,9 @@ void main() {
     group('stub signature', () {
       test('matches permissionless.js validator-wrapped dummy', () {
         expect(
-            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+          account.getStubSignature().toLowerCase(),
+          equals(jsStubSignature),
+        );
       });
 
       test('includes validator address for gas estimation', () {

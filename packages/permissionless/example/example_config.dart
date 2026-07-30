@@ -20,28 +20,8 @@ class ExampleConfig {
     required this.baseSepoliaRpcUrl,
   });
 
-  /// Owner private key (always 0x-prefixed).
-  final String privateKey;
-
-  /// Pimlico API key.
-  final String pimlicoApiKey;
-
-  /// Ethereum Sepolia JSON-RPC URL.
-  final String sepoliaRpcUrl;
-
-  /// Base Sepolia JSON-RPC URL.
-  final String baseSepoliaRpcUrl;
-
-  static const _hardhatAccount0 =
-      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-
-  static const _defaultSepoliaRpc =
-      'https://ethereum-sepolia-rpc.publicnode.com';
-
-  static const _defaultBaseSepoliaRpc = 'https://sepolia.base.org';
-
   /// Load config from env / `.env`. Throws [StateError] if Pimlico key missing.
-  static ExampleConfig load({bool requirePimlico = true}) {
+  factory ExampleConfig.load({bool requirePimlico = true}) {
     _ensureDotEnvLoaded();
 
     final rawKey = _env('TEST_PRIVATE_KEY') ?? _hardhatAccount0;
@@ -65,6 +45,26 @@ class ExampleConfig {
       baseSepoliaRpcUrl: _env('BASE_SEPOLIA_RPC_URL') ?? _defaultBaseSepoliaRpc,
     );
   }
+
+  /// Owner private key (always 0x-prefixed).
+  final String privateKey;
+
+  /// Pimlico API key.
+  final String pimlicoApiKey;
+
+  /// Ethereum Sepolia JSON-RPC URL.
+  final String sepoliaRpcUrl;
+
+  /// Base Sepolia JSON-RPC URL.
+  final String baseSepoliaRpcUrl;
+
+  static const _hardhatAccount0 =
+      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
+
+  static const _defaultSepoliaRpc =
+      'https://ethereum-sepolia-rpc.publicnode.com';
+
+  static const _defaultBaseSepoliaRpc = 'https://sepolia.base.org';
 
   /// Pimlico bundler/paymaster URL for a network path segment.
   ///

@@ -453,6 +453,10 @@ bool _isInfrastructureRejection(String message) {
   return lower.contains('eip-7702') ||
       lower.contains('eip7702') ||
       lower.contains('authorization') ||
+      // Local bundler without type-4 / auth list support surfaces AA13 when the
+      // 0x7702 factory marker is present (Alto handles this path).
+      lower.contains('aa13') ||
+      lower.contains('initcode failed') ||
       lower.contains('aa23') ||
       lower.contains('aa24') ||
       lower.contains('aa25') ||

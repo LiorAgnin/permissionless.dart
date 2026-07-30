@@ -13,7 +13,7 @@ import 'kernel_runner.dart';
 Future<void> main(List<String> args) async {
   final parsed = parseKernelArgs(args);
   final result = await runKernelVersion(
-    version: KernelVersion.v0_3_0_beta,
+    version: KernelVersion.v0_3_0Beta,
     selfFunded: parsed.selfFunded,
   );
   if (!result.ok) throw StateError(result.toString());
