@@ -6,6 +6,7 @@ import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/kernel_v4/kernel_v4.dart';
+import '../../utils/message_hash.dart';
 import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
@@ -150,15 +151,28 @@ abstract class KernelV4AccountBase implements SmartAccount {
 
     final enable = enableMode;
     if (enable == null) return innerSignature;
+    return _encodeEnableModeBlob(
+      enable: enable,
+      accountAddress: userOp.sender,
+      innerSignature: innerSignature,
+    );
+  }
 
-    // Enable mode: the root authorizes the install by signing the
-    // InstallPackages digest over the account's own EIP-712 domain
-    // (verifyingContract = sender), and the inner signature is validated by
-    // the path the nonce routes to — typically the module being installed.
+  /// Builds the `EnableModeSignature` blob shared by enable-mode
+  /// UserOperations and enable-mode ERC-1271: the root authorizes the
+  /// install by signing the InstallPackages digest over the account's own
+  /// EIP-712 domain (verifyingContract = the account), and [innerSignature]
+  /// is validated by the path the nonce (or 1271 prefix) routes to —
+  /// typically the module being installed.
+  Future<String> _encodeEnableModeBlob({
+    required KernelV4EnableMode enable,
+    required EthereumAddress accountAddress,
+    required String innerSignature,
+  }) async {
     final rootSigner = enable.rootOwner ?? owner;
     final enableSignature = await rootSigner.signRawHash(
       getKernelV4InstallPackagesDigest(
-        accountAddress: userOp.sender,
+        accountAddress: accountAddress,
         installNonce: enable.installNonce,
         packages: enable.packages,
         chainId: chainId,
@@ -173,21 +187,82 @@ abstract class KernelV4AccountBase implements SmartAccount {
     );
   }
 
+  /// Signs [hash] for ERC-1271 verification, wrapped as an ERC-7739
+  /// `PersonalSign` under the account's own domain.
+  ///
+  /// `isValidSignature(hash, …)` embeds its input hash as-is in the
+  /// `PersonalSign` struct, so [hash] must be exactly what the verifying app
+  /// will pass — for a personal message that is `hashMessage(message)`, which
+  /// [signMessage] applies; no further prefixing happens here.
   @override
-  Future<String> sign(String hash) => throw UnsupportedError(
-        'Kernel v4 ERC-1271 signing uses ERC-7739 nested EIP-712 and is not '
-        'implemented yet',
+  Future<String> sign(String hash) async => _signErc1271(
+        digest: getKernelV4PersonalSignDigest(
+          accountAddress: await getAddress(),
+          chainId: chainId,
+          hash: hash,
+        ),
       );
 
   @override
-  Future<String> signMessage(String message) => throw UnsupportedError(
-        'Kernel v4 ERC-1271 message signing uses ERC-7739 nested EIP-712 and '
-        'is not implemented yet',
-      );
+  Future<String> signMessage(String message) => sign(hashMessage(message));
 
+  /// Signs app-side EIP-712 [typedData] via the ERC-7739 `TypedDataSign`
+  /// wrap — chain-bound: the signed struct carries this chain's id.
   @override
-  Future<String> signTypedData(TypedData typedData) => throw UnsupportedError(
-        'Kernel v4 ERC-1271 typed-data signing uses ERC-7739 nested EIP-712 '
-        'and is not implemented yet',
+  Future<String> signTypedData(TypedData typedData) =>
+      _signTypedData(typedData, replayable: false);
+
+  /// Like [signTypedData], but the `TypedDataSign` struct drops its chainId
+  /// field (Kernel's replayable ERC-7739 branch), so the same signature
+  /// verifies on every chain the account exists on — provided the app's own
+  /// domain is not chain-bound either.
+  Future<String> signTypedDataReplayable(TypedData typedData) =>
+      _signTypedData(typedData, replayable: true);
+
+  Future<String> _signTypedData(
+    TypedData typedData, {
+    required bool replayable,
+  }) async {
+    final wrap = getKernelV4TypedDataSignWrap(
+      accountAddress: await getAddress(),
+      chainId: chainId,
+      typedData: typedData,
+      replayable: replayable,
+    );
+    return _signErc1271(digest: wrap.digest, extension: wrap.extension);
+  }
+
+  /// Signs the wrapped [digest] and frames it for `isValidSignature`:
+  /// `[vMode | vType | vId]` prefix, the validation-shaped inner signature
+  /// (an `EnableModeSignature` blob when enable mode is configured — the
+  /// stateless view path, nothing gets installed), then the TypedDataSign
+  /// [extension] when present.
+  Future<String> _signErc1271({
+    required String digest,
+    String extension = '',
+  }) async {
+    final inner = validation.wrapSignature(await owner.signRawHash(digest));
+    final enable = enableMode;
+    if (enable == null) {
+      return encodeKernelV4Erc1271Signature(
+        validation: validation,
+        signature: inner,
+        extension: extension,
       );
+    }
+    var vMode = KernelV4ValidationMode.enable;
+    if (enable.replayableEnableSignature) {
+      vMode |= KernelV4ValidationMode.replayableEnable;
+    }
+    return encodeKernelV4Erc1271Signature(
+      validation: validation,
+      signature: await _encodeEnableModeBlob(
+        enable: enable,
+        accountAddress: await getAddress(),
+        innerSignature: inner,
+      ),
+      vMode: vMode,
+      extension: extension,
+    );
+  }
 }
