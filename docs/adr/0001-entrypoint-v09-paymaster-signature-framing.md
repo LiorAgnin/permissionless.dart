@@ -7,7 +7,8 @@
 
 This ADR records the framing question ticket 01 was required to resolve
 against contract truth. The broader "why the Kernel v4 contracts, not
-permissionless.js, are the parity baseline" decision is a separate, later ADR.
+permissionless.js, are the parity baseline" decision is
+[ADR 0002](./0002-kernel-v4-parity-baseline.md).
 
 ## Context
 
