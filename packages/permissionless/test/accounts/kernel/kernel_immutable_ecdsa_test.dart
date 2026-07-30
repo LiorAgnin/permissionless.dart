@@ -544,8 +544,7 @@ void main() {
           address: EthereumAddress.fromHex(e['sender'] as String),
         );
 
-    test('the nonce key carries the enable flag and routes to the module',
-        () {
+    test('the nonce key carries the enable flag and routes to the module', () {
       final account = enableAccount();
       expect(
         account.nonceKey,
