@@ -16,6 +16,12 @@ class KernelImmutableECDSAConfig {
   /// - [version]: Kernel version (defaults to v0.4.0; non-v4 rejected)
   /// - [index]: Deployment nonce for salt derivation (defaults to 0)
   /// - [nonceKey]: Custom 2-byte parallel nonce key (≤ maxUint16)
+  /// - [validation]: Which validation path UserOperations run under
+  ///   (defaults to root — the immutable fallback signer). Non-root paths
+  ///   require the module(s) to be installed on the account
+  /// - [replayableUserOps]: Set nonce mode `0x40` and sign the
+  ///   chain-agnostic digest, so the same signed operation is portable
+  ///   across chains
   /// - [additionalPackages]: Extra Install packages for creation-time
   ///   initialize; they feed the CREATE2 salt
   /// - [useStaker]: Route deployment through the staked `Staker` wrapper
@@ -31,6 +37,8 @@ class KernelImmutableECDSAConfig {
     this.version = KernelVersion.v0_4_0,
     BigInt? index,
     this.nonceKey,
+    this.validation = const KernelV4Validation.root(),
+    this.replayableUserOps = false,
     List<KernelV4Install>? additionalPackages,
     this.useStaker = true,
     this.customAddresses,
@@ -76,6 +84,12 @@ class KernelImmutableECDSAConfig {
 
   /// Optional custom 2-byte nonce key for parallel UserOperation streams.
   final BigInt? nonceKey;
+
+  /// The validation path UserOperations run under (root by default).
+  final KernelV4Validation validation;
+
+  /// Whether UserOperations carry the replayable mode bit (`0x40`).
+  final bool replayableUserOps;
 
   /// Install packages applied at creation (`initialize`).
   ///
@@ -142,6 +156,12 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
   BigInt? get customNonceKey => _config.nonceKey;
 
   @override
+  KernelV4Validation get validation => _config.validation;
+
+  @override
+  bool get replayableUserOps => _config.replayableUserOps;
+
+  @override
   BigInt get chainId => _config.chainId;
 
   @override
@@ -206,6 +226,8 @@ KernelImmutableECDSA createKernelImmutableECDSA({
   KernelVersion version = KernelVersion.v0_4_0,
   BigInt? index,
   BigInt? nonceKey,
+  KernelV4Validation validation = const KernelV4Validation.root(),
+  bool replayableUserOps = false,
   List<KernelV4Install>? additionalPackages,
   bool useStaker = true,
   KernelV4Addresses? customAddresses,
@@ -220,6 +242,8 @@ KernelImmutableECDSA createKernelImmutableECDSA({
         version: version,
         index: index,
         nonceKey: nonceKey,
+        validation: validation,
+        replayableUserOps: replayableUserOps,
         additionalPackages: additionalPackages,
         useStaker: useStaker,
         customAddresses: customAddresses,

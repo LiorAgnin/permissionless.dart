@@ -245,6 +245,212 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    final nonceKeyCases =
+        (vectors['nonceKeys'] as List<dynamic>).cast<Map<String, dynamic>>();
+    for (final c in nonceKeyCases) {
+      test('matches the contract-side key packing for case ${c['name']}', () {
+        final key = encodeKernelV4NonceKey(
+          vMode: c['vMode'] as int,
+          vType: c['vType'] as int,
+          vId: c['vId'] as String,
+          nonceKey: BigInt.from(c['nonceKey'] as int),
+        );
+        expect(key, equals(BigInt.parse(c['key'] as String)));
+      });
+    }
+  });
+
+  group('decodeKernelV4Nonce', () {
+    final nonceKeyCases =
+        (vectors['nonceKeys'] as List<dynamic>).cast<Map<String, dynamic>>();
+    for (final c in nonceKeyCases) {
+      test('unpacks the fixture nonce for case ${c['name']}', () {
+        final decoded = decodeKernelV4Nonce(BigInt.parse(c['nonce'] as String));
+        expect(decoded.vMode, equals(c['vMode']));
+        expect(decoded.vType, equals(c['vType']));
+        expect(decoded.vId, equals(c['vId']));
+        expect(decoded.nonceKey, equals(BigInt.from(c['nonceKey'] as int)));
+        expect(decoded.sequence, equals(BigInt.from(c['sequence'] as int)));
+      });
+    }
+
+    test('roundtrips an encoded key with a sequence', () {
+      final validator =
+          EthereumAddress.fromHex('0x845ADb2C711129d4f3966735eD98a9F09fC4cE57');
+      final key = encodeKernelV4NonceKey(
+        vMode: KernelV4ValidationMode.replayableUserOpHash,
+        vType: KernelV4ValidationType.validator,
+        vId: validator.hex,
+        nonceKey: BigInt.from(0xBEEF),
+      );
+      final decoded = decodeKernelV4Nonce((key << 64) | BigInt.from(12345));
+      expect(
+        decoded.vMode,
+        equals(KernelV4ValidationMode.replayableUserOpHash),
+      );
+      expect(decoded.vType, equals(KernelV4ValidationType.validator));
+      expect(decoded.vId, equals(validator.hex.toLowerCase()));
+      expect(decoded.nonceKey, equals(BigInt.from(0xBEEF)));
+      expect(decoded.sequence, equals(BigInt.from(12345)));
+    });
+
+    test('left-aligns a short permission id into the vId field', () {
+      final key = encodeKernelV4NonceKey(
+        vType: KernelV4ValidationType.permission,
+        vId: '0xdeadbeef',
+      );
+      final decoded = decodeKernelV4Nonce(key << 64);
+      expect(decoded.vId, equals('0xdeadbeef00000000000000000000000000000000'));
+    });
+
+    test('rejects a negative nonce', () {
+      expect(
+        () => decodeKernelV4Nonce(BigInt.from(-1)),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a nonce above 32 bytes', () {
+      expect(
+        () => decodeKernelV4Nonce(BigInt.two.pow(256)),
+        throwsArgumentError,
+      );
+    });
+  });
+
+  group('encodeKernelV4PermissionSignature', () {
+    final permissionCase = vectors['permissionUserOp'] as Map<String, dynamic>;
+
+    test('byte-matches abi.encode(bytes[]) for the fixture stub list', () {
+      // The fixture stub is [policy proof, library dummy ECDSA signature].
+      expect(
+        encodeKernelV4PermissionSignature(
+          policySignatures: [permissionCase['policyData'] as String],
+          signerSignature: kernelDummyEcdsaSignature,
+        ),
+        equals(permissionCase['stubSignature']),
+      );
+    });
+
+    test('encodes an empty policy list as a one-element array', () {
+      // abi.encode(bytes[]) with a single 3-byte entry.
+      expect(
+        encodeKernelV4PermissionSignature(
+          policySignatures: const [],
+          signerSignature: '0xc0ffee',
+        ),
+        equals(
+          '0x'
+          '0000000000000000000000000000000000000000000000000000000000000020'
+          '0000000000000000000000000000000000000000000000000000000000000001'
+          '0000000000000000000000000000000000000000000000000000000000000020'
+          '0000000000000000000000000000000000000000000000000000000000000003'
+          'c0ffee0000000000000000000000000000000000000000000000000000000000',
+        ),
+      );
+    });
+  });
+
+  group('KernelV4Validation', () {
+    final permissionCase = vectors['permissionUserOp'] as Map<String, dynamic>;
+
+    test('root routes to vType 0x00 with no vId and the ECDSA stub', () {
+      const validation = KernelV4Validation.root();
+      expect(validation.vType, equals(KernelV4ValidationType.root));
+      expect(validation.vId, equals('0x'));
+      expect(validation.stubSignature, equals(kernelDummyEcdsaSignature));
+      expect(validation.wrapSignature('0x1234'), equals('0x1234'));
+    });
+
+    test('validator routes to vType 0x01 with the module address as vId', () {
+      final validator =
+          EthereumAddress.fromHex('0x845ADb2C711129d4f3966735eD98a9F09fC4cE57');
+      final validation = KernelV4Validation.validator(validator);
+      expect(validation.vType, equals(KernelV4ValidationType.validator));
+      expect(validation.vId, equals(validator.hex));
+      expect(validation.stubSignature, equals(kernelDummyEcdsaSignature));
+      expect(validation.wrapSignature('0x1234'), equals('0x1234'));
+    });
+
+    test('validator accepts a custom stub for non-ECDSA modules', () {
+      final validation = KernelV4Validation.validator(
+        EthereumAddress.fromHex('0x845ADb2C711129d4f3966735eD98a9F09fC4cE57'),
+        stubSignature: '0xdeadbeef',
+      );
+      expect(validation.stubSignature, equals('0xdeadbeef'));
+    });
+
+    test('permission routes to vType 0x02 and frames the signature list', () {
+      final validation = KernelV4Validation.permission(
+        permissionCase['permissionId'] as String,
+        policySignatures: [permissionCase['policyData'] as String],
+      );
+      expect(validation.vType, equals(KernelV4ValidationType.permission));
+      expect(validation.vId, equals(permissionCase['permissionId']));
+      expect(
+        validation.stubSignature,
+        equals(permissionCase['stubSignature']),
+      );
+      expect(
+        validation.wrapSignature(kernelDummyEcdsaSignature),
+        equals(permissionCase['stubSignature']),
+      );
+    });
+
+    test('permission rejects an id that is not exactly four bytes', () {
+      expect(
+        () => KernelV4Validation.permission('0xdeadbe'),
+        throwsArgumentError,
+      );
+      expect(
+        () => KernelV4Validation.permission('0xdeadbeef01'),
+        throwsArgumentError,
+      );
+    });
+
+    test('permission nonce key left-aligns the id into the vId field', () {
+      final validation = KernelV4Validation.permission(
+        permissionCase['permissionId'] as String,
+      );
+      final key = encodeKernelV4NonceKey(
+        vType: validation.vType,
+        vId: validation.vId,
+        nonceKey: BigInt.from(permissionCase['nonceKey'] as int),
+      );
+      expect(
+        (key << 64).toString(),
+        equals(permissionCase['nonce']),
+      );
+    });
+  });
+
+  group('getKernelV4ChainAgnosticUserOpHash', () {
+    final r = vectors['replayableUserOp'] as Map<String, dynamic>;
+    final entryPoint = EthereumAddress.fromHex(vectors['entryPoint'] as String);
+    final chainId = BigInt.from(vectors['chainId'] as int);
+    final userOp = kernelV4UserOpFromCase(r);
+
+    test('the standard v0.9 hash still matches the EntryPoint', () {
+      expect(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: entryPoint,
+          entryPointVersion: EntryPointVersion.v09,
+          chainId: chainId,
+        ),
+        equals(r['standardUserOpHash']),
+      );
+    });
+
+    test('matches the pinned Lib4337 chain-agnostic digest', () {
+      final hash = getKernelV4ChainAgnosticUserOpHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+      );
+      expect(hash, equals(r['chainAgnosticUserOpHash']));
+      expect(hash, isNot(equals(r['standardUserOpHash'])));
+    });
   });
 
   group('KernelV4Install', () {

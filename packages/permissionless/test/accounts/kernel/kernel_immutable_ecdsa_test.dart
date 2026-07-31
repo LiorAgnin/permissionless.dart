@@ -12,6 +12,11 @@ import '../../helpers/kernel_v4_vectors.dart';
 const String _testPrivateKey =
     '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 
+/// Hardhat account #1 — the non-root owner in the fixture's validator and
+/// permission cases (deliberately distinct from the root fallback signer).
+const String _otherPrivateKey =
+    '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
+
 void main() {
   final vectors = loadKernelV4Vectors();
   final addressCases =
@@ -400,6 +405,121 @@ void main() {
       final signature = await account.signUserOperation(userOp);
       expect(signature, equals(r['signature']));
       expect(Hex.byteLength(signature), equals(65));
+    });
+  });
+
+  group('validator-routed UserOperations', () {
+    final v = vectors['validatorUserOp'] as Map<String, dynamic>;
+    final validator = EthereumAddress.fromHex(v['validator'] as String);
+    // The validator's owner is Hardhat #1 — not the root fallback signer.
+    final account = createKernelImmutableECDSA(
+      owner: PrivateKeyOwner(_otherPrivateKey),
+      chainId: chainId,
+      validation: KernelV4Validation.validator(validator),
+    );
+
+    test('the nonce key routes to the validator module', () {
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(v['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(decoded.vType, equals(KernelV4ValidationType.validator));
+      expect(decoded.vId, equals((v['validator'] as String).toLowerCase()));
+    });
+
+    test('signs the userOpHash raw — the signature the contract accepted',
+        () async {
+      final signature =
+          await account.signUserOperation(kernelV4UserOpFromCase(v));
+      expect(signature, equals(v['signature']));
+      expect(Hex.byteLength(signature), equals(65));
+    });
+
+    test('the stub keeps the raw ECDSA shape', () {
+      expect(account.getStubSignature(), equals(kernelDummyEcdsaSignature));
+    });
+  });
+
+  group('permission-routed UserOperations', () {
+    final p = vectors['permissionUserOp'] as Map<String, dynamic>;
+    // The permission's signer module owner is Hardhat #1.
+    final account = createKernelImmutableECDSA(
+      owner: PrivateKeyOwner(_otherPrivateKey),
+      chainId: chainId,
+      validation: KernelV4Validation.permission(
+        p['permissionId'] as String,
+        policySignatures: [p['policyData'] as String],
+      ),
+      nonceKey: BigInt.from(p['nonceKey'] as int),
+    );
+
+    test('the nonce key routes to the permission with the parallel key', () {
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(p['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(decoded.vType, equals(KernelV4ValidationType.permission));
+      expect(
+        decoded.vId,
+        equals('0x${Hex.strip0x(p['permissionId'] as String)}'
+            '${'00' * 16}'),
+      );
+      expect(decoded.nonceKey, equals(BigInt.from(p['nonceKey'] as int)));
+    });
+
+    test(
+        'frames the signature list the contract accepted '
+        '(policies then signer)', () async {
+      final signature =
+          await account.signUserOperation(kernelV4UserOpFromCase(p));
+      expect(signature, equals(p['signature']));
+    });
+
+    test('the stub is the framed list the contract failed cleanly on', () {
+      expect(account.getStubSignature(), equals(p['stubSignature']));
+    });
+  });
+
+  group('replayable UserOperations (nonce mode 0x40)', () {
+    final r = vectors['replayableUserOp'] as Map<String, dynamic>;
+    final account = createKernelImmutableECDSA(
+      owner: owner,
+      chainId: chainId,
+      replayableUserOps: true,
+    );
+
+    test('the nonce key carries the replayable mode bit', () {
+      expect(
+        account.nonceKey,
+        equals(BigInt.parse(r['nonce'] as String) >> 64),
+      );
+      final decoded = decodeKernelV4Nonce(account.nonceKey << 64);
+      expect(
+        decoded.vMode,
+        equals(KernelV4ValidationMode.replayableUserOpHash),
+      );
+      expect(decoded.vType, equals(KernelV4ValidationType.root));
+    });
+
+    test(
+        'signs the chain-agnostic digest — the signature the contract '
+        'accepted', () async {
+      final signature =
+          await account.signUserOperation(kernelV4UserOpFromCase(r));
+      expect(signature, equals(r['signature']));
+    });
+
+    test('a chain-specific account signs the standard digest instead',
+        () async {
+      final standard = createKernelImmutableECDSA(
+        owner: owner,
+        chainId: chainId,
+      );
+      final signature =
+          await standard.signUserOperation(kernelV4UserOpFromCase(r));
+      expect(signature, isNot(equals(r['signature'])));
     });
   });
 

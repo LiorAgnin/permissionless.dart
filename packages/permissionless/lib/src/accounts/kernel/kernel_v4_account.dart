@@ -37,6 +37,14 @@ abstract class KernelV4AccountBase implements SmartAccount {
   /// Optional custom 2-byte parallel nonce key.
   BigInt? get customNonceKey;
 
+  /// The validation path this account's UserOperations run under
+  /// (root by default; a validator module or permission otherwise).
+  KernelV4Validation get validation;
+
+  /// Whether UserOperations carry the replayable mode bit (`0x40`) and sign
+  /// the chain-agnostic digest instead of the chain-bound userOpHash.
+  bool get replayableUserOps;
+
   /// The EntryPoint version this account targets — always v0.9 for Kernel v4.
   EntryPointVersion get entryPointVersion => version.entryPointVersion;
 
@@ -48,7 +56,14 @@ abstract class KernelV4AccountBase implements SmartAccount {
   bool get isWebAuthn => false;
 
   @override
-  BigInt get nonceKey => encodeKernelV4NonceKey(nonceKey: customNonceKey);
+  BigInt get nonceKey => encodeKernelV4NonceKey(
+        vMode: replayableUserOps
+            ? KernelV4ValidationMode.replayableUserOpHash
+            : KernelV4ValidationMode.standard,
+        vType: validation.vType,
+        vId: validation.vId,
+        nonceKey: customNonceKey,
+      );
 
   @override
   Future<String> getInitCode() async {
@@ -78,20 +93,28 @@ abstract class KernelV4AccountBase implements SmartAccount {
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
 
   @override
-  String getStubSignature() => kernelDummyEcdsaSignature;
+  String getStubSignature() => validation.stubSignature;
 
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = getUserOperationHash(
-      userOperation: userOp,
-      entryPointAddress: entryPoint,
-      entryPointVersion: entryPointVersion,
-      chainId: chainId,
-    );
-    // The root validation path recovers the signer over the raw EIP-712
-    // userOpHash digest (no EIP-191 personal-message prefix), and the
-    // root/fallback signature carries no mode or validator prefix.
-    return owner.signRawHash(userOpHash);
+    // With the replayable mode bit set, Kernel validates the chain-agnostic
+    // digest instead of the EntryPoint-supplied hash.
+    final userOpHash = replayableUserOps
+        ? getKernelV4ChainAgnosticUserOpHash(
+            userOperation: userOp,
+            entryPointAddress: entryPoint,
+          )
+        : getUserOperationHash(
+            userOperation: userOp,
+            entryPointAddress: entryPoint,
+            entryPointVersion: entryPointVersion,
+            chainId: chainId,
+          );
+    // Validation paths recover the signer over the raw digest (no EIP-191
+    // personal-message prefix). Routing lives in the nonce, so the raw
+    // signature needs no prefix — a permission validation wraps it as the
+    // signer's chunk of the signature list.
+    return validation.wrapSignature(await owner.signRawHash(userOpHash));
   }
 
   @override

@@ -26,6 +26,24 @@ developer machines unless the vectors need regenerating.
   test mock), plus `deploy` landing exactly on `factory.getAddress`.
 - **Execute round-trips** — ERC-7579 single and batch `execute` calldata that
   the deployed account actually executed, for byte-matching the Dart encoders.
+- **Nonce key packing** — `[1B vMode | 1B vType | 20B vId | 2B nonceKey]`
+  keys (and full nonces with a sequence) for root, validator, and permission
+  validation types, non-zero parallel nonce keys, and the replayable mode bit
+  `0x40` — restating the pinned repo's own `KernelTestBase.encodeNonce`.
+- **Validator-routed userOp** — an account with an installed validator module
+  (vType `0x01`) accepts the validator owner's raw 65-byte signature, rejects
+  the root fallback signer, and fails cleanly on the stub — proving the nonce
+  key, not the signature, does the routing.
+- **Permission-routed userOp** — an account with a policy + ECDSA-signer
+  permission (vType `0x02`, non-zero nonceKey) accepts
+  `abi.encode(bytes[])` signatures (policy chunks in install order, signer
+  last), rejects a wrong signer or wrong policy chunk, and fails cleanly on
+  the stub list.
+- **Replayable userOp** — with nonce mode `0x40`, the real Kernel accepts a
+  signature over the chain-agnostic (sans-chainId EIP-712) digest and rejects
+  one over the standard hash. The fixture hash is cross-checked between a
+  restated oracle and the pinned `Lib4337` against etched EntryPoint v0.9
+  bytecode.
 
 ## Regenerating
 
