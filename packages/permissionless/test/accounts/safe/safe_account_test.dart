@@ -865,7 +865,7 @@ void main() {
         final payload =
             hexData.startsWith('0x') ? hexData.substring(2) : hexData;
         final length = payload.length ~/ 2;
-        final offset =
+        const offset =
             '0000000000000000000000000000000000000000000000000000000000000020';
         final lengthWord = length.toRadixString(16).padLeft(64, '0');
         final padded = payload.padRight(((length + 31) ~/ 32) * 64, '0');

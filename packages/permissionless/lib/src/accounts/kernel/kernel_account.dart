@@ -40,7 +40,7 @@ class KernelSmartAccountConfig {
   KernelSmartAccountConfig({
     required this.owner,
     required this.chainId,
-    this.version = KernelVersion.v0_3_0_beta,
+    this.version = KernelVersion.v0_3_0Beta,
     BigInt? index,
     this.customAddresses,
     this.nonceKey,
@@ -844,15 +844,17 @@ class KernelSmartAccount implements SmartAccount {
 
   /// Root validator identifier for Kernel v0.3.x: `0x01 ‖ validatorAddress`.
   String _getEcdsaRootIdentifier() => Hex.concat([
-        Hex.fromBigInt(BigInt.from(KernelValidatorType.validator),
-            byteLength: 1),
+        Hex.fromBigInt(
+          BigInt.from(KernelValidatorType.validator),
+          byteLength: 1,
+        ),
         _validatorAddress.hex,
       ]);
 }
 
 /// Creates a Kernel smart account.
 ///
-/// Default [version] is [KernelVersion.v0_3_0_beta] (EntryPoint v0.7 default),
+/// Default [version] is [KernelVersion.v0_3_0Beta] (EntryPoint v0.7 default),
 /// matching permissionless.js `toKernelSmartAccount`. For EntryPoint v0.6,
 /// pass [KernelVersion.v0_2_2] (or another v0.2.x) explicitly — the JS default
 /// for EP v0.6 is `0.2.2`.
@@ -876,7 +878,7 @@ class KernelSmartAccount implements SmartAccount {
 KernelSmartAccount createKernelSmartAccount({
   required AccountOwner owner,
   required BigInt chainId,
-  KernelVersion version = KernelVersion.v0_3_0_beta,
+  KernelVersion version = KernelVersion.v0_3_0Beta,
   BigInt? index,
   KernelAddresses? customAddresses,
   BigInt? nonceKey,
@@ -909,7 +911,7 @@ KernelSmartAccount createKernelSmartAccount({
 KernelSmartAccount createEcdsaKernelSmartAccount({
   required AccountOwner owner,
   required BigInt chainId,
-  KernelVersion version = KernelVersion.v0_3_0_beta,
+  KernelVersion version = KernelVersion.v0_3_0Beta,
   BigInt? index,
   KernelAddresses? customAddresses,
   EthereumAddress? ecdsaValidatorAddress,

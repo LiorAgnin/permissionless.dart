@@ -7,29 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+Kernel v4.0 + EntryPoint v0.9 feature release. Kernel v4 has no
+permissionless.js counterpart; correctness is anchored to the Kernel v4.0
+contracts (release v0.4.0) and viem EntryPoint v0.9 packing/hash via committed
+Foundry-generated vectors (`tool/kernel_v4_vectors/`,
+`tool/entry_point_v09_vectors/`). See
+[ADR 0002](../../docs/adr/0002-kernel-v4-parity-baseline.md).
 
-- **Kernel v4.0 ImmutableECDSA accounts** (`createKernelImmutableECDSA`) on
-  EntryPoint v0.9 — the first of the Kernel v4 class family. The ECDSA
-  signer lives in the proxy's immutable args, so no validator module is
-  needed for the default signing path: root UserOperations carry the raw
-  65-byte signature over the v0.9 userOpHash, with all routing in the nonce.
-  Includes offline counterfactual addresses (no RPC), `deployECDSA`
-  factory data (Staker-wrapped by default, `useStaker: false` for direct
-  factory calls), ERC-7579 single/batch call encoding, and the existing
-  smart-account client prepare/sign/send pipeline. Kernel v4 has no
-  permissionless.js counterpart; correctness is anchored to the Kernel v4.0
-  contracts via committed Foundry-generated vectors
-  (`tool/kernel_v4_vectors/`).
-- **Kernel v4 helpers** under `utils/kernel_v4/`: `KernelV4Addresses`
-  (release v0.4.0 CREATE2 predictions), `KernelV4Install` package encoding,
-  `computeKernelV4Salt` / `computeKernelV4EcdsaAddress` /
-  `kernelV4CloneInitCode`, and `encodeKernelV4NonceKey` with the v4
-  validation mode/type constants.
-- `KernelVersion.v0_4_0`, with `isV4` / `entryPointVersion` accessors. The
-  v2/v3 Kernel factories reject it with a pointer to the v4 API. ERC-1271
-  message/typed-data signing for Kernel v4 (ERC-7739 nested EIP-712) is not
-  yet implemented and currently throws `UnsupportedError`.
+**Verified chains:** no public Kernel v4.0 / EntryPoint v0.9 deployments are
+confirmed yet. Address cross-checks and funded e2e tests skip cleanly when
+`KERNEL_V4_RPC_URL` / bundler / module env vars are unset; the intended path
+is a local anvil where the release recipe has been run. Re-verify against a
+public stack when one lands.
+
+### Added
 
 - **EntryPoint v0.9 as a first-class version.** `EntryPointVersion.v09` and
   `EntryPointAddresses.v09`
@@ -52,6 +43,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [ADR 0001](../../docs/adr/0001-entrypoint-v09-paymaster-signature-framing.md).
 - `unpackPaymasterAndData` now reports a `paymasterSignature` separately from
   `paymasterData`.
+
+- **`KernelVersion.v0_4_0`**, with `isV4` / `entryPointVersion` accessors. The
+  v2/v3 Kernel factories reject it with a pointer to the v4 API.
+- **Kernel v4.0 ImmutableECDSA accounts** (`createKernelImmutableECDSA`) —
+  immutable fallback ECDSA signer in the proxy args; root UserOperations carry
+  the raw 65-byte signature over the v0.9 userOpHash with routing in the nonce.
+  Offline counterfactual addresses, `deployECDSA` factory data (Staker-wrapped
+  by default, `useStaker: false` for direct factory calls), ERC-7579
+  single/batch encoding, prepare/sign/send via the smart-account client.
+- **Kernel v4.0 UUPS accounts** (`createKernelUUPS`) — upgradeable proxy with
+  an initial root validator package; `deploy` / `getAddress` parity with the
+  factory.
+- **Kernel7702** (`createKernel7702`) — EIP-7702 delegation to the Kernel7702
+  implementation on EntryPoint v0.9; EOA is the fallback signer; supports raw
+  ERC-1271 where the contracts allow.
+- **Nonce-encoded validation** — root / validator / permission vTypes;
+  standard, enable, replayable (and enable-replayable) modes; 2-byte parallel
+  nonce keys within the Kernel v4 layout.
+- **Enable-mode UserOperations** — install modules atomically with the first
+  validation (`KernelV4EnableMode` + EIP-712 InstallPackages digest).
+- **Module management** — typed `KernelV4Install` packages (validator,
+  executor, fallback, hook, policy, signer), install/uninstall/batch
+  encoders, and smart-account-client actions (`installKernelV4Module(s)`,
+  `uninstallKernelV4Module`, `uninstallKernelV4Permission`, `setKernelV4Root`,
+  `grantKernelV4Access`).
+- **Permissions / session keys** — compose policies + one signer under a
+  `PermissionId`; permission-mode UserOp signatures
+  (`abi.encode(bytes[])` of policy chunks then signer).
+- **ERC-1271 / ERC-7739 signing** for Kernel v4 — nested EIP-712 PersonalSign
+  and typed-data wrapping (chain-specific and replayable); Kernel7702 raw
+  path.
+- **Kernel v4 helpers** under `utils/kernel_v4/`: `KernelV4Addresses` (release
+  v0.4.0 CREATE2 predictions), salt/address computation, install encoding,
+  nonce packing, enable-mode digests, ERC-7739 wrappers.
+- **Docs:** ADR 0001 (paymaster-signature framing), ADR 0002 (parity baseline),
+  glossary terms, README account matrix for Kernel v4 / EntryPoint v0.9.
+- **Integration and funded e2e** for address prediction, enable-mode estimation,
+  Kernel7702 ERC-1271 against delegated code, and funded deploy/enable/
+  permission/Kernel7702 paths that skip cleanly when the stack is missing.
 
 ### Changed
 

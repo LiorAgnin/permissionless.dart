@@ -1141,7 +1141,8 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     final hex = Hex.strip0x(signature);
     if (hex.length != 130) {
       throw ArgumentError(
-          'Expected 65-byte ECDSA signature, got ${hex.length ~/ 2} bytes');
+        'Expected 65-byte ECDSA signature, got ${hex.length ~/ 2} bytes',
+      );
     }
     var v = int.parse(hex.substring(128, 130), radix: 16);
     if (v != 0 && v != 1 && v != 27 && v != 28) {

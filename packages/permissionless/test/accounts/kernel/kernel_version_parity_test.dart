@@ -62,7 +62,7 @@ void main() {
       );
       expect(
         KernelVersion.defaultForEntryPoint(isEntryPointV06: false),
-        equals(KernelVersion.v0_3_0_beta),
+        equals(KernelVersion.v0_3_0Beta),
       );
     });
 
@@ -99,7 +99,7 @@ void main() {
         expect(v.usesErc7579, isFalse, reason: v.value);
       }
       for (final v in [
-        KernelVersion.v0_3_0_beta,
+        KernelVersion.v0_3_0Beta,
         KernelVersion.v0_3_1,
         KernelVersion.v0_3_2,
         KernelVersion.v0_3_3,
@@ -107,7 +107,7 @@ void main() {
         expect(v.isV3, isTrue, reason: v.value);
         expect(v.usesErc7579, isTrue, reason: v.value);
       }
-      expect(KernelVersion.v0_3_0_beta.usesBetaInitialize, isTrue);
+      expect(KernelVersion.v0_3_0Beta.usesBetaInitialize, isTrue);
       expect(KernelVersion.v0_3_1.usesBetaInitialize, isFalse);
       expect(KernelVersion.v0_2_1.skipsKernelMessageWrap, isTrue);
       expect(KernelVersion.v0_2_2.skipsKernelMessageWrap, isTrue);
@@ -142,7 +142,7 @@ void main() {
         'ecdsa': '0xd9ab5096a832b9ce79914329daee236f8eea0390',
         'meta': null,
       },
-      KernelVersion.v0_3_0_beta: {
+      KernelVersion.v0_3_0Beta: {
         'logic': '0x94f097e1ebeb4eca3aae54cabb08905b239a7d27',
         'factory': '0x6723b44abeec4e71ebe3232bd5b455805badd22f',
         'ecdsa': '0x8104e3ad430ea6d354d013a6789fdfc71e671c43',
@@ -305,7 +305,9 @@ void main() {
       final a = await ecdsa.getFactoryData();
       final b = await kernel.getFactoryData();
       expect(
-          a!.factoryData.toLowerCase(), equals(b!.factoryData.toLowerCase()));
+        a!.factoryData.toLowerCase(),
+        equals(b!.factoryData.toLowerCase()),
+      );
     });
   });
 }
