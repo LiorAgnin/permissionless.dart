@@ -143,22 +143,37 @@ void main() {
       expect(Hex.byteLength(account.getStubSignature()), equals(65));
     });
 
-    test('message and typed-data signing are not implemented yet', () {
-      expect(() => account.signMessage('hello'), throwsUnsupportedError);
-      expect(() => account.sign('0x${'11' * 32}'), throwsUnsupportedError);
+    test('message and typed-data signing produce ERC-7739 framed signatures',
+        () async {
+      // Byte-exact contract-vector coverage lives in
+      // kernel_v4_erc1271_test.dart; this pins the root-path shape:
+      // `[0x00 vMode | 0x00 vType]` then the 65-byte inner signature.
+      final signature = await account.signMessage('hello');
+      expect(signature, startsWith('0x0000'));
+      expect(Hex.byteLength(signature), equals(2 + 65));
       expect(
-        () => account.signTypedData(
-          const TypedData(
-            domain: TypedDataDomain(name: 'T', version: '1'),
-            types: {
-              'M': [TypedDataField(name: 'v', type: 'string')],
-            },
-            primaryType: 'M',
-            message: {'v': 'x'},
-          ),
-        ),
-        throwsUnsupportedError,
+        await account.sign(hashMessage('hello')),
+        equals(signature),
       );
+      final typedDataSignature = await account.signTypedData(
+        const TypedData(
+          domain: TypedDataDomain(name: 'T', version: '1'),
+          types: {
+            'M': [TypedDataField(name: 'v', type: 'string')],
+          },
+          primaryType: 'M',
+          message: {'v': 'x'},
+        ),
+      );
+      // TypedDataSign appends the app domain, contents, contentsType, and
+      // its uint16 length after the inner signature.
+      const contentsTypeLength = 'M(string v)'.length;
+      expect(typedDataSignature, startsWith('0x0000'));
+      expect(
+        Hex.byteLength(typedDataSignature),
+        equals(2 + 65 + 32 + 32 + contentsTypeLength + 2),
+      );
+      expect(typedDataSignature, endsWith('000b')); // uint16(11)
     });
   });
 
