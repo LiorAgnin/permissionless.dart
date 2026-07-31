@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Kernel v4.0 ImmutableECDSA accounts** (`createKernelImmutableECDSA`) on
+  EntryPoint v0.9 — the first of the Kernel v4 class family. The ECDSA
+  signer lives in the proxy's immutable args, so no validator module is
+  needed for the default signing path: root UserOperations carry the raw
+  65-byte signature over the v0.9 userOpHash, with all routing in the nonce.
+  Includes offline counterfactual addresses (no RPC), `deployECDSA`
+  factory data (Staker-wrapped by default, `useStaker: false` for direct
+  factory calls), ERC-7579 single/batch call encoding, and the existing
+  smart-account client prepare/sign/send pipeline. Kernel v4 has no
+  permissionless.js counterpart; correctness is anchored to the Kernel v4.0
+  contracts via committed Foundry-generated vectors
+  (`tool/kernel_v4_vectors/`).
+- **Kernel v4 helpers** under `utils/kernel_v4/`: `KernelV4Addresses`
+  (release v0.4.0 CREATE2 predictions), `KernelV4Install` package encoding,
+  `computeKernelV4Salt` / `computeKernelV4EcdsaAddress` /
+  `kernelV4CloneInitCode`, and `encodeKernelV4NonceKey` with the v4
+  validation mode/type constants.
+- `KernelVersion.v0_4_0`, with `isV4` / `entryPointVersion` accessors. The
+  v2/v3 Kernel factories reject it with a pointer to the v4 API. ERC-1271
+  message/typed-data signing for Kernel v4 (ERC-7739 nested EIP-712) is not
+  yet implemented and currently throws `UnsupportedError`.
+
 - **EntryPoint v0.9 as a first-class version.** `EntryPointVersion.v09` and
   `EntryPointAddresses.v09`
   (`0x433709009B8330FDa32311DF1C2AFA402eD8D009`). The UserOperation wire format

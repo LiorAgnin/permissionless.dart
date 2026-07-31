@@ -50,6 +50,14 @@ class KernelSmartAccountConfig {
     this.address,
   }) : index = index ?? BigInt.zero {
     // Validate version-specific requirements
+    if (version.isV4) {
+      throw ArgumentError.value(
+        version,
+        'version',
+        'Kernel v4 accounts have their own factories; '
+            'use createKernelImmutableECDSA',
+      );
+    }
     final addresses =
         customAddresses ?? KernelVersionAddresses.getAddresses(version);
     if (addresses == null) {

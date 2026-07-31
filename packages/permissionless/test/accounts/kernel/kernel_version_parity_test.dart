@@ -21,7 +21,7 @@ void main() {
     test('all eight JS versions are defined', () {
       expect(
         KernelVersion.values.map((v) => v.value).toSet(),
-        equals({
+        containsAll({
           '0.2.1',
           '0.2.2',
           '0.2.3',
@@ -32,6 +32,27 @@ void main() {
           '0.3.3',
         }),
       );
+    });
+
+    test('versions beyond JS parity are deliberate extensions', () {
+      // permissionless.js has no Kernel v4; its parity baseline is the
+      // Kernel v4.0 contracts + viem EntryPoint v0.9 utilities.
+      final beyondJs = KernelVersion.values
+          .map((v) => v.value)
+          .where(
+            (v) => ![
+              '0.2.1',
+              '0.2.2',
+              '0.2.3',
+              '0.2.4',
+              '0.3.0-beta',
+              '0.3.1',
+              '0.3.2',
+              '0.3.3',
+            ].contains(v),
+          )
+          .toSet();
+      expect(beyondJs, equals({'0.4.0'}));
     });
 
     test('defaults match permissionless.js getDefaultKernelVersion', () {
