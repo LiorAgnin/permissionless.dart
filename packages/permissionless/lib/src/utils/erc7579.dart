@@ -31,7 +31,19 @@ enum Erc7579ModuleType {
   /// Hooks run before and/or after executions.
   ///
   /// Example: Spending limits, allowlist enforcement.
-  hook(4);
+  hook(4),
+
+  /// Policies gate a permission's UserOperations (Kernel v4).
+  ///
+  /// Part of a permission validation: every policy must pass before the
+  /// signer is consulted. Example: spending limit, call-target allowlist.
+  policy(5),
+
+  /// Signers finalize a permission validation (Kernel v4).
+  ///
+  /// The permission's signature-checking module, installed after its
+  /// policies. Example: ECDSA session key signer.
+  signer(6);
 
   const Erc7579ModuleType(this.id);
 
