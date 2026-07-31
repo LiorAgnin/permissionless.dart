@@ -45,6 +45,10 @@ abstract class KernelV4AccountBase implements SmartAccount {
   /// the chain-agnostic digest instead of the chain-bound userOpHash.
   bool get replayableUserOps;
 
+  /// Enable-mode configuration: install modules atomically with the next
+  /// UserOperation (nonce mode bit `0x08`), or `null` for plain operations.
+  KernelV4EnableMode? get enableMode;
+
   /// The EntryPoint version this account targets — always v0.9 for Kernel v4.
   EntryPointVersion get entryPointVersion => version.entryPointVersion;
 
@@ -55,11 +59,25 @@ abstract class KernelV4AccountBase implements SmartAccount {
   @override
   bool get isWebAuthn => false;
 
+  /// The composed nonce mode bitfield: `0x40` for replayable userOp hashes,
+  /// `0x08` (+ `0x04` for a replayable enable signature) in enable mode.
+  int get _vMode {
+    var vMode = replayableUserOps
+        ? KernelV4ValidationMode.replayableUserOpHash
+        : KernelV4ValidationMode.standard;
+    final enable = enableMode;
+    if (enable != null) {
+      vMode |= KernelV4ValidationMode.enable;
+      if (enable.replayableEnableSignature) {
+        vMode |= KernelV4ValidationMode.replayableEnable;
+      }
+    }
+    return vMode;
+  }
+
   @override
   BigInt get nonceKey => encodeKernelV4NonceKey(
-        vMode: replayableUserOps
-            ? KernelV4ValidationMode.replayableUserOpHash
-            : KernelV4ValidationMode.standard,
+        vMode: _vMode,
         vType: validation.vType,
         vId: validation.vId,
         nonceKey: customNonceKey,
@@ -93,7 +111,20 @@ abstract class KernelV4AccountBase implements SmartAccount {
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
 
   @override
-  String getStubSignature() => validation.stubSignature;
+  String getStubSignature() {
+    final enable = enableMode;
+    if (enable == null) return validation.stubSignature;
+    // Estimation must exercise the full enable path shape: the Kernel
+    // decodes the blob, verifies (and fails cleanly on) the stub enable
+    // signature, installs the packages, and runs the inner validation on
+    // its stub — so both slots carry validation-shaped stubs.
+    return encodeKernelV4EnableModeSignature(
+      installNonce: enable.installNonce,
+      packages: enable.packages,
+      enableSignature: kernelDummyEcdsaSignature,
+      userOpSignature: validation.stubSignature,
+    );
+  }
 
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
@@ -114,7 +145,32 @@ abstract class KernelV4AccountBase implements SmartAccount {
     // personal-message prefix). Routing lives in the nonce, so the raw
     // signature needs no prefix — a permission validation wraps it as the
     // signer's chunk of the signature list.
-    return validation.wrapSignature(await owner.signRawHash(userOpHash));
+    final innerSignature =
+        validation.wrapSignature(await owner.signRawHash(userOpHash));
+
+    final enable = enableMode;
+    if (enable == null) return innerSignature;
+
+    // Enable mode: the root authorizes the install by signing the
+    // InstallPackages digest over the account's own EIP-712 domain
+    // (verifyingContract = sender), and the inner signature is validated by
+    // the path the nonce routes to — typically the module being installed.
+    final rootSigner = enable.rootOwner ?? owner;
+    final enableSignature = await rootSigner.signRawHash(
+      getKernelV4InstallPackagesDigest(
+        accountAddress: userOp.sender,
+        installNonce: enable.installNonce,
+        packages: enable.packages,
+        chainId: chainId,
+        replayable: enable.replayableEnableSignature,
+      ),
+    );
+    return encodeKernelV4EnableModeSignature(
+      installNonce: enable.installNonce,
+      packages: enable.packages,
+      enableSignature: enableSignature,
+      userOpSignature: innerSignature,
+    );
   }
 
   @override

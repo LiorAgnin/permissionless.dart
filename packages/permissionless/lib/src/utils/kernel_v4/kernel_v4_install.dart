@@ -102,9 +102,13 @@ String computeKernelV4Salt({
   return Hex.fromBytes(keccak256(Hex.decode(Hex.concat(words))));
 }
 
-/// ABI-encodes an `Install[]` value (length word, element offsets, elements),
-/// without the leading offset word of an enclosing head.
-String _encodeInstallArrayTail(List<KernelV4Install> packages) {
+/// ABI-encodes an `Install[]` value (length word, element offsets, elements)
+/// without the leading offset word of an enclosing head — the tail an
+/// enclosing `abi.encode` places at the offset its head points to.
+///
+/// Shared by the factory deploy calldata encoders below and the enable-mode
+/// signature blob (`encodeKernelV4EnableModeSignature`).
+String encodeKernelV4InstallArray(List<KernelV4Install> packages) {
   final elements = packages.map(_encodeInstallElement).toList();
 
   final offsets = <String>[];
@@ -150,7 +154,7 @@ String encodeKernelV4DeployCalldata({
       KernelV4Selectors.deploy,
       AbiEncoder.encodeUint256(BigInt.from(2 * 32)), // offset to packages
       AbiEncoder.encodeUint256(nonce),
-      Hex.strip0x(_encodeInstallArrayTail(packages)),
+      Hex.strip0x(encodeKernelV4InstallArray(packages)),
     ]);
 
 /// Calldata for `KernelFactory.deployECDSA(signer, initialPackages, nonce)`.
@@ -167,7 +171,7 @@ String encodeKernelV4DeployEcdsaCalldata({
       AbiEncoder.encodeAddress(signer),
       AbiEncoder.encodeUint256(BigInt.from(3 * 32)), // offset to packages
       AbiEncoder.encodeUint256(nonce),
-      Hex.strip0x(_encodeInstallArrayTail(packages)),
+      Hex.strip0x(encodeKernelV4InstallArray(packages)),
     ]);
 
 /// Calldata for `Staker.deployWithFactory(factory, createData)`.

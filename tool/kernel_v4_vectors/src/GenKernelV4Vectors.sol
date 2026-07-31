@@ -6,6 +6,11 @@ import {KernelUUPS} from "@kernel/KernelUUPS.sol";
 import {KernelImmutableECDSA} from "@kernel/KernelImmutableECDSA.sol";
 import {KernelFactory} from "@kernel/KernelFactory.sol";
 import {Install} from "@kernel/types/Structs.sol";
+import {
+    INSTALL_PACKAGES_STRUCT_HASH,
+    INSTALL_STRUCT_HASH,
+    DOMAIN_TYPEHASH_SANS_CHAIN_ID
+} from "@kernel/types/Constants.sol";
 import {Lib4337} from "@kernel/lib/Lib4337.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
@@ -116,6 +121,13 @@ contract RootEcdsaValidator {
             return 0;
         }
         return 1;
+    }
+
+    /// The enable-mode digest check for accounts whose *root* is a validator
+    /// module (`_verifySignature` routes non-fallback roots here): raw-digest
+    /// recovery, same semantics as `validateUserOp`.
+    function isValidSignatureWithSender(address, bytes32 hash, bytes calldata sig) external view returns (bytes4) {
+        return owners[msg.sender] == ECDSA.tryRecoverCalldata(hash, sig) ? bytes4(0x1626ba7e) : bytes4(0xffffffff);
     }
 }
 
@@ -239,6 +251,39 @@ contract GenKernelV4Vectors {
     address internal signerModule;
     address internal permissionSender;
 
+    // Scratch for the enable-mode cases (ticket 05).
+    address internal enableValidator;
+    address internal enableSender;
+    address internal enableTarget;
+    bytes32 internal enableChainDigest;
+    bytes32 internal enableSansDigest;
+    bytes32 internal enableOpHash;
+    bytes internal enableRootSig;
+    bytes internal enableInnerSig;
+    bytes internal enableBlob;
+    bytes internal enableStubBlob;
+    uint256 internal enableValidationData;
+    uint256 internal enableWrongSignerVD;
+    uint256 internal enableWrongDomainVD;
+    uint256 internal enableStubVD;
+    address internal enableReplaySender;
+    bytes32 internal enableReplayChainDigest;
+    bytes32 internal enableReplaySansDigest;
+    bytes32 internal enableReplayOpHash;
+    bytes internal enableReplayRootSig;
+    bytes internal enableReplayInnerSig;
+    bytes internal enableReplayBlob;
+    uint256 internal enableReplayValidationData;
+    uint256 internal enableReplayWrongDomainVD;
+    address internal uupsEnableSender;
+    address internal uupsEnableRootValidator;
+    bytes32 internal uupsEnableDigest;
+    bytes32 internal uupsEnableOpHash;
+    bytes internal uupsEnableRootSig;
+    bytes internal uupsEnableInnerSig;
+    bytes internal uupsEnableBlob;
+    uint256 internal uupsEnableValidationData;
+
     function run() external {
         hashOracle = new HashOracle();
         localUups = address(new KernelUUPS(IEntryPoint(ENTRY_POINT)));
@@ -292,6 +337,11 @@ contract GenKernelV4Vectors {
         _validatorUserOpCase();
         _permissionUserOpCase();
         _replayableUserOpCase();
+
+        // Ticket-05 vectors: enable-mode UserOperations.
+        _enableUserOpCase();
+        _enableReplayableUserOpCase();
+        _uupsEnableUserOpCase();
 
         buf = string.concat(buf, "\n}\n");
         vm.writeFile(OUT_PATH, buf);
@@ -662,6 +712,20 @@ contract GenKernelV4Vectors {
         _nonceKeyCase(
             "replayableValidator", 0x40, 0x01, bytes20(0x2222222222222222222222222222222222222222), 1, 3
         );
+        buf = string.concat(buf, ",\n");
+        _nonceKeyCase(
+            "enableValidator", 0x08, 0x01, bytes20(0x3333333333333333333333333333333333333333), 0, 0
+        );
+        buf = string.concat(buf, ",\n");
+        _nonceKeyCase(
+            "enableReplayableEnable", 0x0C, 0x01, bytes20(0x4444444444444444444444444444444444444444), 2, 5
+        );
+        buf = string.concat(buf, ",\n");
+        _nonceKeyCase(
+            "enableWithReplayableUserOp", 0x48, 0x01, bytes20(0x5555555555555555555555555555555555555555), 0, 1
+        );
+        buf = string.concat(buf, ",\n");
+        _nonceKeyCase("allModeFlags", 0x4C, 0x02, bytes20(PERMISSION_ID), 3, 9);
         buf = string.concat(buf, "\n  ]");
     }
 
@@ -937,6 +1001,374 @@ contract GenKernelV4Vectors {
         buf = string.concat(
             buf, ', "standardHashSignatureValidationData": ', vm.toString(standardHashSignatureValidationData)
         );
+        buf = string.concat(buf, "}");
+    }
+
+    // ------------------------------------------------------------------
+    // Enable-mode userOps (ticket 05)
+    // ------------------------------------------------------------------
+
+    /// The package list every enable case installs: one validator module
+    /// owned by OTHER_SIGNER, with a zero hook and the `execute` selector
+    /// allow-listed (the same internalData shape as the ticket-04 validator
+    /// case — required because non-root validations gate on the leading
+    /// selector).
+    function _enablePackages() internal view returns (Install[] memory) {
+        return _enablePackagesFor(OTHER_SIGNER);
+    }
+
+    function _enablePackagesFor(address moduleOwner) internal view returns (Install[] memory pkgs) {
+        pkgs = new Install[](1);
+        pkgs[0] = Install({
+            moduleType: 1,
+            module: enableValidator,
+            moduleData: abi.encodePacked(moduleOwner),
+            internalData: abi.encodePacked(address(0), Kernel.execute.selector)
+        });
+    }
+
+    /// Restatement of `ModuleManager._installHash` (EIP-712 array-of-structs
+    /// hashing: keccak of the concatenated per-package struct hashes).
+    function _installHash(Install[] memory packages) internal pure returns (bytes32) {
+        bytes memory acc;
+        for (uint256 i = 0; i < packages.length; i++) {
+            acc = abi.encodePacked(
+                acc,
+                keccak256(
+                    abi.encode(
+                        INSTALL_STRUCT_HASH,
+                        packages[i].moduleType,
+                        packages[i].module,
+                        keccak256(packages[i].moduleData),
+                        keccak256(packages[i].internalData)
+                    )
+                )
+            );
+        }
+        return keccak256(acc);
+    }
+
+    /// Restatement of the enable digest built by
+    /// `ModuleManager._verifyInstallSignatureRaw`: the `InstallPackages`
+    /// struct hash under the *account's* EIP-712 domain ("Kernel" / "0.4.0",
+    /// verifyingContract = the account) — with the chainId field dropped when
+    /// the nonce carries the enable-replayable bit (`0x04`). Kernel-side
+    /// acceptance below keeps this honest.
+    function _installDigest(address account, uint256 installNonce, Install[] memory packages, bool sansChainId)
+        internal
+        view
+        returns (bytes32)
+    {
+        // Honesty checks: the pinned constants really are the keccak of the
+        // documented type strings the Dart implementation hashes.
+        require(
+            INSTALL_PACKAGES_STRUCT_HASH
+                == keccak256(
+                    "InstallPackages(uint256 nonce,Install[] packages)Install(uint256 moduleType,address module,bytes moduleData,bytes internalData)"
+                ),
+            "InstallPackages typehash drifted"
+        );
+        require(
+            INSTALL_STRUCT_HASH
+                == keccak256("Install(uint256 moduleType,address module,bytes moduleData,bytes internalData)"),
+            "Install typehash drifted"
+        );
+        bytes32 structHash =
+            keccak256(abi.encode(INSTALL_PACKAGES_STRUCT_HASH, installNonce, _installHash(packages)));
+        bytes32 domainSeparator = sansChainId
+            ? keccak256(
+                abi.encode(DOMAIN_TYPEHASH_SANS_CHAIN_ID, keccak256(bytes("Kernel")), keccak256(bytes("0.4.0")), account)
+            )
+            : keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes("Kernel")),
+                    keccak256(bytes("0.4.0")),
+                    block.chainid,
+                    account
+                )
+            );
+        return keccak256(abi.encodePacked(hex"1901", domainSeparator, structHash));
+    }
+
+    function _sign(uint256 key, bytes32 digest) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    /// The `EnableModeSignature` blob carried in `userOp.signature`:
+    /// `abi.encode(uint256 nonce, Install[] packages, bytes enableSignature,
+    /// bytes userOpSignature)` — the tuple encoding Kernel's
+    /// `sig := signature.offset` calldata cast expects (no extra wrapper
+    /// offset word).
+    function _enableModeSignature(
+        uint256 installNonce,
+        Install[] memory packages,
+        bytes memory enableSignature,
+        bytes memory userOpSignature
+    ) internal pure returns (bytes memory) {
+        return abi.encode(installNonce, packages, enableSignature, userOpSignature);
+    }
+
+    /// Runs `validateUserOp` for an enable-mode op against [sender] and
+    /// returns the validation data. Every call mutates the account (enable
+    /// mode installs packages and consumes the install nonce even when the
+    /// signature is invalid), so each assertion gets its own account.
+    function _validateEnableOp(address sender, uint8 vMode, bytes memory signature)
+        internal
+        returns (uint256 validationData, bytes32 opHash)
+    {
+        uint256 nonce = uint256(_packNonceKey(vMode, 0x01, bytes20(enableValidator), 0)) << 64;
+        PackedUserOperation memory op = _defaultOp(sender, nonce, _executeSetXCallData(Target(enableTarget)));
+        opHash = _userOpHash(op);
+        op.signature = signature;
+        vm.prank(ENTRY_POINT);
+        validationData = Kernel(payable(sender)).validateUserOp(op, opHash, 0);
+    }
+
+    /// Builds the full EnableModeSignature blob for [sender]'s enable op:
+    /// signs the inner userOp signature with the enabled validator's owner
+    /// key and wraps it with the given enable signature.
+    function _enableBlobFor(address sender, uint8 vMode, bytes memory enableSignature)
+        internal
+        view
+        returns (bytes memory blob)
+    {
+        uint256 nonce = uint256(_packNonceKey(vMode, 0x01, bytes20(enableValidator), 0)) << 64;
+        PackedUserOperation memory op = _defaultOp(sender, nonce, _executeSetXCallData(Target(enableTarget)));
+        bytes memory innerSig = _sign(WRONG_KEY, _userOpHash(op)); // OTHER_SIGNER owns the enabled validator
+        blob = _enableModeSignature(0, _enablePackages(), enableSignature, innerSig);
+    }
+
+    /// The chain-specific enable case (nonce mode `0x08`): a fresh
+    /// `KernelImmutableECDSA` account installs a validator module atomically
+    /// with the first (non-deploy) op — the immutable fallback signer signs
+    /// the InstallPackages digest, the module owner signs the userOpHash.
+    /// Negative assertions each run on their own account (see
+    /// [_validateEnableOp]).
+    function _enableUserOpCase() internal {
+        enableValidator = address(new RootEcdsaValidator());
+        enableTarget = address(new Target());
+        enableSender = address(factory.deployECDSA(SIGNER, _noPackages(), 200));
+
+        Install[] memory pkgs = _enablePackages();
+        enableChainDigest = _installDigest(enableSender, 0, pkgs, false);
+        enableSansDigest = _installDigest(enableSender, 0, pkgs, true);
+        enableRootSig = _sign(SIGNER_KEY, enableChainDigest);
+
+        _enableUserOpValidate();
+        _enableUserOpNegatives();
+        _enableUserOpEmit();
+    }
+
+    function _enableUserOpValidate() internal {
+        uint256 nonce = uint256(_packNonceKey(0x08, 0x01, bytes20(enableValidator), 0)) << 64;
+        PackedUserOperation memory op = _defaultOp(enableSender, nonce, _executeSetXCallData(Target(enableTarget)));
+        enableOpHash = _userOpHash(op);
+        enableInnerSig = _sign(WRONG_KEY, enableOpHash);
+        enableBlob = _enableModeSignature(0, _enablePackages(), enableRootSig, enableInnerSig);
+
+        op.signature = enableBlob;
+        vm.prank(ENTRY_POINT);
+        enableValidationData = Kernel(payable(enableSender)).validateUserOp(op, enableOpHash, 0);
+        require(enableValidationData == 0, "enable-mode signature was not accepted");
+
+        // The install nonce was consumed: an identical replay must revert
+        // (InvalidNonce), not validate.
+        vm.prank(ENTRY_POINT);
+        try Kernel(payable(enableSender)).validateUserOp(op, enableOpHash, 0) returns (uint256) {
+            revert("install nonce replay unexpectedly accepted");
+        } catch {}
+    }
+
+    function _enableUserOpNegatives() internal {
+        // Wrong enable signer: the module owner cannot authorize its own
+        // install; only the root (fallback) signer can.
+        address sender = address(factory.deployECDSA(SIGNER, _noPackages(), 201));
+        bytes memory enableSig = _sign(WRONG_KEY, _installDigest(sender, 0, _enablePackages(), false));
+        (enableWrongSignerVD,) = _validateEnableOp(sender, 0x08, _enableBlobFor(sender, 0x08, enableSig));
+        require(enableWrongSignerVD == 1, "non-root enable signature unexpectedly accepted");
+
+        // Chain-agnostic digest under plain enable mode 0x08: the domain
+        // must be chain-bound unless the 0x04 bit says otherwise.
+        sender = address(factory.deployECDSA(SIGNER, _noPackages(), 202));
+        enableSig = _sign(SIGNER_KEY, _installDigest(sender, 0, _enablePackages(), true));
+        (enableWrongDomainVD,) = _validateEnableOp(sender, 0x08, _enableBlobFor(sender, 0x08, enableSig));
+        require(enableWrongDomainVD == 1, "sans-chainId enable digest unexpectedly accepted in mode 0x08");
+
+        // Estimation stub: both signature slots stubbed must fail cleanly,
+        // not revert. When BOTH the enable and the inner validation fail,
+        // `intersectValidationData(1, 1)` packs explicit no-expiry time
+        // bounds around the failure flag, so only the low 160-bit
+        // aggregator field (1 = sig failure) is asserted and emitted. The
+        // byte-match target emitted for the Dart side is the main account's
+        // stub blob (identical shape).
+        sender = address(factory.deployECDSA(SIGNER, _noPackages(), 203));
+        enableStubBlob = _enableModeSignature(0, _enablePackages(), STUB_SIGNATURE, STUB_SIGNATURE);
+        (enableStubVD,) = _validateEnableOp(sender, 0x08, enableStubBlob);
+        enableStubVD = uint160(enableStubVD);
+        require(enableStubVD == 1, "enable stub signature must fail cleanly, not revert");
+    }
+
+    function _enableUserOpEmit() internal {
+        buf = string.concat(buf, ',\n  "enableUserOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(enableSender), '"');
+        buf = string.concat(buf, ', "rootSigner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(enableValidator), '"');
+        buf = string.concat(buf, ', "moduleOwner": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "installNonce": "0"');
+        _emitPackages(_enablePackages());
+        buf = string.concat(buf, ', "chainSpecificInstallDigest": "', vm.toString(enableChainDigest), '"');
+        buf = string.concat(buf, ', "sansChainIdInstallDigest": "', vm.toString(enableSansDigest), '"');
+        buf = string.concat(buf, ', "enableSignature": "', vm.toString(enableRootSig), '"');
+        _emitEnableOpFields(0x08, enableOpHash);
+        buf = string.concat(buf, ', "innerSignature": "', vm.toString(enableInnerSig), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(enableBlob), '"');
+        buf = string.concat(buf, ', "stubSignature": "', vm.toString(enableStubBlob), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(enableValidationData));
+        buf = string.concat(buf, ', "wrongEnableSignerValidationData": ', vm.toString(enableWrongSignerVD));
+        buf = string.concat(buf, ', "wrongDomainValidationData": ', vm.toString(enableWrongDomainVD));
+        buf = string.concat(buf, ', "stubSignatureValidationData": ', vm.toString(enableStubVD));
+        buf = string.concat(buf, "}");
+    }
+
+    /// Emits the shared op-shape fields of an enable case: the packed nonce,
+    /// callData, gas fields, and userOpHash.
+    function _emitEnableOpFields(uint8 vMode, bytes32 opHash) internal {
+        uint256 nonce = uint256(_packNonceKey(vMode, 0x01, bytes20(enableValidator), 0)) << 64;
+        buf = string.concat(buf, ', "nonce": "', vm.toString(nonce), '"');
+        buf = string.concat(
+            buf, ', "callData": "', vm.toString(_executeSetXCallData(Target(enableTarget))), '"'
+        );
+        _emitGasFields();
+        buf = string.concat(buf, ', "userOpHash": "', vm.toString(opHash), '"');
+    }
+
+    function _emitPackages(Install[] memory packages) internal {
+        buf = string.concat(buf, ', "packages": [');
+        for (uint256 i = 0; i < packages.length; i++) {
+            if (i > 0) buf = string.concat(buf, ", ");
+            buf = string.concat(buf, '{"moduleType": ', vm.toString(packages[i].moduleType));
+            buf = string.concat(buf, ', "module": "', vm.toString(packages[i].module), '"');
+            buf = string.concat(buf, ', "moduleData": "', vm.toString(packages[i].moduleData), '"');
+            buf = string.concat(buf, ', "internalData": "', vm.toString(packages[i].internalData), '"}');
+        }
+        buf = string.concat(buf, "]");
+    }
+
+    /// The replayable-enable case (nonce mode `0x0C` = enable `0x08` +
+    /// enable-replayable `0x04`): the root signs the *sans-chainId*
+    /// InstallPackages digest, so the same install authorization is portable
+    /// across chains. The userOp hash itself stays chain-bound (bit `0x40`
+    /// is a separate axis).
+    function _enableReplayableUserOpCase() internal {
+        enableReplaySender = address(factory.deployECDSA(SIGNER, _noPackages(), 204));
+
+        Install[] memory pkgs = _enablePackages();
+        enableReplayChainDigest = _installDigest(enableReplaySender, 0, pkgs, false);
+        enableReplaySansDigest = _installDigest(enableReplaySender, 0, pkgs, true);
+        enableReplayRootSig = _sign(SIGNER_KEY, enableReplaySansDigest);
+
+        _enableReplayableValidate();
+        _enableReplayableEmit();
+    }
+
+    function _enableReplayableValidate() internal {
+        uint256 nonce = uint256(_packNonceKey(0x0C, 0x01, bytes20(enableValidator), 0)) << 64;
+        PackedUserOperation memory op =
+            _defaultOp(enableReplaySender, nonce, _executeSetXCallData(Target(enableTarget)));
+        enableReplayOpHash = _userOpHash(op);
+        enableReplayInnerSig = _sign(WRONG_KEY, enableReplayOpHash);
+        enableReplayBlob = _enableModeSignature(0, _enablePackages(), enableReplayRootSig, enableReplayInnerSig);
+
+        op.signature = enableReplayBlob;
+        vm.prank(ENTRY_POINT);
+        enableReplayValidationData = Kernel(payable(enableReplaySender)).validateUserOp(op, enableReplayOpHash, 0);
+        require(enableReplayValidationData == 0, "replayable enable signature was not accepted");
+
+        // The chain-bound digest must NOT pass once the 0x04 bit is set.
+        address sender = address(factory.deployECDSA(SIGNER, _noPackages(), 205));
+        bytes memory enableSig = _sign(SIGNER_KEY, _installDigest(sender, 0, _enablePackages(), false));
+        (enableReplayWrongDomainVD,) = _validateEnableOp(sender, 0x0C, _enableBlobFor(sender, 0x0C, enableSig));
+        require(
+            enableReplayWrongDomainVD == 1, "chain-specific enable digest unexpectedly accepted in mode 0x0C"
+        );
+    }
+
+    function _enableReplayableEmit() internal {
+        buf = string.concat(buf, ',\n  "enableReplayableUserOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(enableReplaySender), '"');
+        buf = string.concat(buf, ', "rootSigner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(enableValidator), '"');
+        buf = string.concat(buf, ', "moduleOwner": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "installNonce": "0"');
+        _emitPackages(_enablePackages());
+        buf = string.concat(buf, ', "chainSpecificInstallDigest": "', vm.toString(enableReplayChainDigest), '"');
+        buf = string.concat(buf, ', "sansChainIdInstallDigest": "', vm.toString(enableReplaySansDigest), '"');
+        buf = string.concat(buf, ', "enableSignature": "', vm.toString(enableReplayRootSig), '"');
+        _emitEnableOpFields(0x0C, enableReplayOpHash);
+        buf = string.concat(buf, ', "innerSignature": "', vm.toString(enableReplayInnerSig), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(enableReplayBlob), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(enableReplayValidationData));
+        buf = string.concat(
+            buf, ', "chainSpecificDigestValidationData": ', vm.toString(enableReplayWrongDomainVD)
+        );
+        buf = string.concat(buf, "}");
+    }
+
+    /// The UUPS variant: the account's root is a *validator module* (not the
+    /// immutable fallback), so the enable digest routes through the root
+    /// validator's `isValidSignatureWithSender`. Proves the same Dart-side
+    /// bytes work for both factory-deployed variants. Single-key on purpose
+    /// (the root owner also owns the enabled module) — the common SDK flow;
+    /// the ImmutableECDSA case above proves the two-key routing.
+    function _uupsEnableUserOpCase() internal {
+        RootEcdsaValidator rootValidator = new RootEcdsaValidator();
+        uupsEnableRootValidator = address(rootValidator);
+        Install[] memory rootPkgs = new Install[](1);
+        rootPkgs[0] = Install({
+            moduleType: 1,
+            module: uupsEnableRootValidator,
+            moduleData: abi.encodePacked(SIGNER),
+            internalData: hex""
+        });
+        uupsEnableSender = address(factory.deploy(rootPkgs, 206));
+
+        uupsEnableDigest = _installDigest(uupsEnableSender, 0, _enablePackagesFor(SIGNER), false);
+        _uupsEnableValidate();
+        _uupsEnableEmit();
+    }
+
+    function _uupsEnableValidate() internal {
+        uupsEnableRootSig = _sign(SIGNER_KEY, uupsEnableDigest);
+        uint256 nonce = uint256(_packNonceKey(0x08, 0x01, bytes20(enableValidator), 0)) << 64;
+        PackedUserOperation memory op =
+            _defaultOp(uupsEnableSender, nonce, _executeSetXCallData(Target(enableTarget)));
+        uupsEnableOpHash = _userOpHash(op);
+        uupsEnableInnerSig = _sign(SIGNER_KEY, uupsEnableOpHash);
+        uupsEnableBlob = _enableModeSignature(0, _enablePackagesFor(SIGNER), uupsEnableRootSig, uupsEnableInnerSig);
+
+        op.signature = uupsEnableBlob;
+        vm.prank(ENTRY_POINT);
+        uupsEnableValidationData = Kernel(payable(uupsEnableSender)).validateUserOp(op, uupsEnableOpHash, 0);
+        require(uupsEnableValidationData == 0, "UUPS enable-mode signature was not accepted");
+    }
+
+    function _uupsEnableEmit() internal {
+        buf = string.concat(buf, ',\n  "uupsEnableUserOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(uupsEnableSender), '"');
+        buf = string.concat(buf, ', "rootValidator": "', vm.toString(uupsEnableRootValidator), '"');
+        buf = string.concat(buf, ', "rootSigner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(enableValidator), '"');
+        buf = string.concat(buf, ', "moduleOwner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "installNonce": "0"');
+        _emitPackages(_enablePackagesFor(SIGNER));
+        buf = string.concat(buf, ', "chainSpecificInstallDigest": "', vm.toString(uupsEnableDigest), '"');
+        buf = string.concat(buf, ', "enableSignature": "', vm.toString(uupsEnableRootSig), '"');
+        _emitEnableOpFields(0x08, uupsEnableOpHash);
+        buf = string.concat(buf, ', "innerSignature": "', vm.toString(uupsEnableInnerSig), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(uupsEnableBlob), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(uupsEnableValidationData));
         buf = string.concat(buf, "}");
     }
 
