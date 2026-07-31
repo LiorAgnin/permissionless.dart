@@ -151,7 +151,7 @@ void main() {
 
     test('honors an EntryPoint address override', () {
       final override =
-          EthereumAddress.fromHex('0x43370900c8de573dB349BEd8DD53b4Ebd3Cce709');
+          EthereumAddress.fromHex('0x000000000000000000000000000000000000beef');
       final overridden = createKernel7702(
         owner: owner,
         chainId: chainId,
