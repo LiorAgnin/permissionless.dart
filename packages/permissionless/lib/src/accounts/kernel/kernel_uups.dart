@@ -6,18 +6,23 @@ import '../webauthn_utils.dart';
 import 'constants.dart';
 import 'kernel_v4_account.dart';
 
-/// Configuration for creating a Kernel v4 ImmutableECDSA smart account.
-class KernelImmutableECDSAConfig {
-  /// Creates a configuration for a Kernel v4 ImmutableECDSA account.
+/// Configuration for creating a Kernel v4 UUPS smart account.
+class KernelUUPSConfig {
+  /// Creates a configuration for a Kernel v4 UUPS account.
   ///
-  /// - [owner]: A local ECDSA owner; its address is baked into the proxy's
-  ///   immutable args and is part of the account's CREATE2 identity
+  /// - [owner]: A local ECDSA owner; its 20-byte address becomes the root
+  ///   validator's `onInstall` data, and thus part of the account's CREATE2
+  ///   identity
   /// - [chainId]: Chain ID for the network
+  /// - [rootValidator]: Root validator module address (type 1). **Required**
+  ///   — Kernel v4 has no published validator deployments, so there is no
+  ///   library default. Pass a self-deployed v4 ECDSAValidator, or knowingly
+  ///   choose the v3 drop-in `0x845ADb2C…` (enable-mode ERC-1271 limitation)
   /// - [version]: Kernel version (defaults to v0.4.0; non-v4 rejected)
   /// - [index]: Deployment nonce for salt derivation (defaults to 0)
   /// - [nonceKey]: Custom 2-byte parallel nonce key (≤ maxUint16)
-  /// - [additionalPackages]: Extra Install packages for creation-time
-  ///   initialize; they feed the CREATE2 salt
+  /// - [additionalPackages]: Extra Install packages after the root
+  ///   (packages[1…] of `initialize`); they feed the CREATE2 salt
   /// - [useStaker]: Route deployment through the staked `Staker` wrapper
   ///   (default), or call the `KernelFactory` directly
   /// - [customAddresses]: Override the release v0.4.0 contract addresses
@@ -25,9 +30,10 @@ class KernelImmutableECDSAConfig {
   ///
   /// Throws [ArgumentError] when a requirement is violated, so
   /// misconfiguration fails fast and offline.
-  KernelImmutableECDSAConfig({
+  KernelUUPSConfig({
     required this.owner,
     required this.chainId,
+    required this.rootValidator,
     this.version = KernelVersion.v0_4_0,
     BigInt? index,
     this.nonceKey,
@@ -43,7 +49,7 @@ class KernelImmutableECDSAConfig {
       throw ArgumentError.value(
         version,
         'version',
-        'KernelImmutableECDSA is a Kernel v4 account; '
+        'KernelUUPS is a Kernel v4 account; '
             'use createKernelSmartAccount for v0.2.x / v0.3.x',
       );
     }
@@ -51,10 +57,12 @@ class KernelImmutableECDSAConfig {
       throw ArgumentError.value(
         owner,
         'owner',
-        'KernelImmutableECDSA requires a local ECDSA owner — the signer '
-            'address is embedded in the proxy immutable args. WebAuthn '
-            'owners need an external validator module (not yet supported '
-            'for Kernel v4)',
+        'KernelUUPS synthesizes the root install data as the 20-byte owner '
+            'address — an ECDSA-validator encoding. WebAuthn owners only '
+            'have a derived placeholder address, so the account would be '
+            'permanently broken (the moduleData is part of the CREATE2 '
+            'identity). Kernel v4 WebAuthn root support is not available '
+            'yet',
       );
     }
     // Delegates the ≤ 2-byte range check (and its error) to the encoder so
@@ -62,11 +70,14 @@ class KernelImmutableECDSAConfig {
     encodeKernelV4NonceKey(nonceKey: nonceKey);
   }
 
-  /// The account owner (local ECDSA; immutable fallback signer).
+  /// The account owner (local ECDSA; registered with the root validator).
   final AccountOwner owner;
 
   /// Chain ID for the network.
   final BigInt chainId;
+
+  /// Root validator module address — packages[0] of `initialize`.
+  final EthereumAddress rootValidator;
 
   /// Kernel version to use (v4 only).
   final KernelVersion version;
@@ -77,21 +88,19 @@ class KernelImmutableECDSAConfig {
   /// Optional custom 2-byte nonce key for parallel UserOperation streams.
   final BigInt? nonceKey;
 
-  /// Install packages applied at creation (`initialize`).
-  ///
-  /// For ImmutableECDSA these never become root — the immutable signer is the
-  /// root/fallback path — but they are installed and feed the CREATE2 salt.
+  /// Install packages applied after the root at creation (packages[1…] of
+  /// `initialize`). They feed the CREATE2 salt.
   final List<KernelV4Install> additionalPackages;
 
   /// Whether deployment routes through the staked `Staker` wrapper.
   ///
   /// When `true` (default), factory args use
-  /// `staker.deployWithFactory(factory, deployECDSA calldata)` — the wrapper
+  /// `staker.deployWithFactory(factory, deploy calldata)` — the wrapper
   /// bundlers accept as a staked deployment entity (the factory must be
   /// approved on the Staker). When `false`, factory args call
-  /// `factory.deployECDSA(...)` directly, which suits fresh private
-  /// deployments without an approval step. The counterfactual address is the
-  /// same either way.
+  /// `factory.deploy(...)` directly, which suits fresh private deployments
+  /// without an approval step. The counterfactual address is the same either
+  /// way.
   final bool useStaker;
 
   /// Custom contract addresses (defaults to [KernelV4Addresses.predicted]).
@@ -109,23 +118,27 @@ class KernelImmutableECDSAConfig {
   final EthereumAddress? address;
 }
 
-/// Kernel v4 ImmutableECDSA smart account (Solidity: `KernelImmutableECDSA`).
+/// Kernel v4 UUPS smart account (Solidity: `KernelUUPS`).
 ///
-/// An ERC-1967 clone whose ECDSA signer lives in the proxy's immutable args.
-/// Root validation is never set at initialization, so root-type UserOperations
-/// (`vType 0x00`) fall through to the immutable fallback signer: the
+/// A UUPS-upgradeable ERC-1967 proxy deployed by the `KernelFactory`. The
+/// root validator is packages[0] of `initialize` — this account synthesizes
+/// it from [KernelUUPSConfig.rootValidator] and the owner's 20-byte address
+/// as `onInstall` data, so the owner is part of the CREATE2 identity via the
+/// salt (not via immutable args, as in `KernelImmutableECDSA`).
+///
+/// Root-type UserOperations (`vType 0x00`) route to that validator: the
 /// signature is the raw 65-byte `r‖s‖v` over the EntryPoint v0.9 userOpHash —
 /// no validator prefix; all routing lives in the nonce.
 ///
 /// Targets EntryPoint v0.9 exclusively.
-class KernelImmutableECDSA extends KernelV4AccountBase {
-  /// Creates a Kernel v4 ImmutableECDSA account from the given configuration.
+class KernelUUPS extends KernelV4AccountBase {
+  /// Creates a Kernel v4 UUPS account from the given configuration.
   ///
-  /// Prefer the [createKernelImmutableECDSA] factory function.
-  KernelImmutableECDSA(this._config)
+  /// Prefer the [createKernelUUPS] factory function.
+  KernelUUPS(this._config)
       : _addresses = _config.customAddresses ?? KernelV4Addresses.predicted;
 
-  final KernelImmutableECDSAConfig _config;
+  final KernelUUPSConfig _config;
   final KernelV4Addresses _addresses;
   EthereumAddress? _cachedAddress;
 
@@ -144,16 +157,26 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
   @override
   BigInt get chainId => _config.chainId;
 
+  /// The full `initialize` package list: the synthesized root install
+  /// followed by the caller's extras.
+  List<KernelV4Install> get _packages => [
+        KernelV4Install(
+          moduleType: BigInt.one,
+          module: _config.rootValidator,
+          moduleData: _config.owner.address.hex,
+        ),
+        ..._config.additionalPackages,
+      ];
+
   @override
   Future<EthereumAddress> getAddress() async {
     if (_cachedAddress != null) return _cachedAddress!;
     _cachedAddress = _config.address ??
-        computeKernelV4EcdsaAddress(
-          signer: _config.owner.address,
-          packages: _config.additionalPackages,
+        computeKernelV4UupsAddress(
+          packages: _packages,
           nonce: _config.index,
           factory: _addresses.factory,
-          implementation: _addresses.kernelImmutableECDSA,
+          implementation: _addresses.kernelUUPS,
         );
     return _cachedAddress!;
   }
@@ -161,9 +184,8 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
   @override
   Future<({EthereumAddress factory, String factoryData})?>
       getFactoryData() async {
-    final createData = encodeKernelV4DeployEcdsaCalldata(
-      signer: _config.owner.address,
-      packages: _config.additionalPackages,
+    final createData = encodeKernelV4DeployCalldata(
+      packages: _packages,
       nonce: _config.index,
     );
 
@@ -181,12 +203,20 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
   }
 }
 
-/// Creates a Kernel v4 ImmutableECDSA smart account.
+/// Creates a Kernel v4 UUPS smart account.
 ///
-/// The ECDSA [owner]'s address is embedded in the account proxy's immutable
-/// args, so the owner is part of the CREATE2 identity and no validator module
-/// is needed for the default signing path. The counterfactual address is
-/// computed offline — no RPC round-trip.
+/// The root validator is packages[0] of the factory `initialize` call,
+/// synthesized from [rootValidator] and the ECDSA [owner]'s 20-byte address
+/// as `onInstall` data. Both feed the CREATE2 salt, so the owner and
+/// validator are part of the account's identity. The counterfactual address
+/// is computed offline — no RPC round-trip.
+///
+/// [rootValidator] is **required**: Kernel v4 ships no published validator
+/// deployments, so there is no safe library default. Pass a self-deployed v4
+/// ECDSAValidator, or knowingly choose the v3 drop-in
+/// `0x845ADb2C711129d4f3966735eD98a9F09fC4cE57` (it lacks type-10 stateless
+/// validation, which breaks enable-mode ERC-1271 — fine for basic root
+/// flows).
 ///
 /// Defaults use the Kernel release v0.4.0 addresses
 /// ([KernelV4Addresses.predicted]) and the canonical EntryPoint v0.9. For
@@ -194,15 +224,17 @@ class KernelImmutableECDSA extends KernelV4AccountBase {
 /// [entryPointAddress]).
 ///
 /// ```dart
-/// final account = createKernelImmutableECDSA(
+/// final account = createKernelUUPS(
 ///   owner: PrivateKeyOwner(privateKey),
 ///   chainId: BigInt.from(11155111),
+///   rootValidator: myEcdsaValidator, // required — no default yet
 /// );
 /// final address = await account.getAddress(); // offline
 /// ```
-KernelImmutableECDSA createKernelImmutableECDSA({
+KernelUUPS createKernelUUPS({
   required AccountOwner owner,
   required BigInt chainId,
+  required EthereumAddress rootValidator,
   KernelVersion version = KernelVersion.v0_4_0,
   BigInt? index,
   BigInt? nonceKey,
@@ -213,10 +245,11 @@ KernelImmutableECDSA createKernelImmutableECDSA({
   PublicClient? publicClient,
   EthereumAddress? address,
 }) =>
-    KernelImmutableECDSA(
-      KernelImmutableECDSAConfig(
+    KernelUUPS(
+      KernelUUPSConfig(
         owner: owner,
         chainId: chainId,
+        rootValidator: rootValidator,
         version: version,
         index: index,
         nonceKey: nonceKey,

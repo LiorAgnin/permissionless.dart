@@ -14,11 +14,16 @@ developer machines unless the vectors need regenerating.
   the signer as immutable args, and the CREATE2 address — both against a
   locally deployed `KernelFactory` (via `getECDSAAddress` / `getAddress`) and
   against the canonical release addresses from `releases/v0.4.0.json`. Also the
-  exact `deployECDSA` and `Staker.deployWithFactory` calldata bytes.
+  exact `deployECDSA`, UUPS `deploy`, and `Staker.deployWithFactory` calldata
+  bytes.
 - **Root userOp acceptance** — a `KernelImmutableECDSA` account deployed by the
   real factory accepts a raw 65-byte `r‖s‖v` signature over the EntryPoint v0.9
   userOpHash (`validateUserOp` returns 0), rejects a wrong signer (returns 1),
   and fails cleanly (no revert) on the library's stub signature.
+- **UUPS root userOp acceptance** — the same three assertions for a
+  `KernelUUPS` account deployed via `factory.deploy` with a root ECDSA
+  validator as packages[0] (a minimal restatement of the pinned repo's own
+  test mock), plus `deploy` landing exactly on `factory.getAddress`.
 - **Execute round-trips** — ERC-7579 single and batch `execute` calldata that
   the deployed account actually executed, for byte-matching the Dart encoders.
 

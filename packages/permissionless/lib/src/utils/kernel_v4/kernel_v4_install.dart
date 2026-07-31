@@ -137,6 +137,22 @@ String _encodeInstallElement(KernelV4Install pkg) {
   ]);
 }
 
+/// Calldata for `KernelFactory.deploy(initialPackages, nonce)` — the UUPS
+/// deployment path, where packages[0] becomes the root validator.
+///
+/// This is the `factoryData` a first `KernelUUPS` UserOperation carries
+/// (directly, or wrapped via [encodeKernelV4DeployWithFactoryCalldata]).
+String encodeKernelV4DeployCalldata({
+  required List<KernelV4Install> packages,
+  required BigInt nonce,
+}) =>
+    Hex.concat([
+      KernelV4Selectors.deploy,
+      AbiEncoder.encodeUint256(BigInt.from(2 * 32)), // offset to packages
+      AbiEncoder.encodeUint256(nonce),
+      Hex.strip0x(_encodeInstallArrayTail(packages)),
+    ]);
+
 /// Calldata for `KernelFactory.deployECDSA(signer, initialPackages, nonce)`.
 ///
 /// This is the `factoryData` a first UserOperation carries (directly, or
