@@ -73,33 +73,32 @@ void main() {
 
   PublicClient publicClientFromHandler(
     dynamic Function(Map<String, dynamic> body) handler,
-  ) {
-    return createPublicClient(
-      url: 'http://localhost:8545',
-      httpClient: MockClient((request) async {
-        final body = jsonDecode(request.body) as Map<String, dynamic>;
-        final response = handler(body);
-        if (response is Map && response.containsKey('error')) {
+  ) =>
+      createPublicClient(
+        url: 'http://localhost:8545',
+        httpClient: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final response = handler(body);
+          if (response is Map && response.containsKey('error')) {
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'error': response['error'],
+              }),
+              200,
+            );
+          }
           return http.Response(
             jsonEncode({
               'jsonrpc': '2.0',
               'id': body['id'],
-              'error': response['error'],
+              'result': response,
             }),
             200,
           );
-        }
-        return http.Response(
-          jsonEncode({
-            'jsonrpc': '2.0',
-            'id': body['id'],
-            'result': response,
-          }),
-          200,
-        );
-      }),
-    );
-  }
+        }),
+      );
 
   group('ERC-7579 query parity', () {
     test('supportsModule succeeds on direct eth_call', () async {
@@ -233,7 +232,7 @@ void main() {
 
       final result = await client.supportsExecutionMode(
         publicClient: public,
-        mode: ExecutionMode(
+        mode: const ExecutionMode(
           type: Erc7579CallKind.batchCall,
           revertOnError: true,
         ),

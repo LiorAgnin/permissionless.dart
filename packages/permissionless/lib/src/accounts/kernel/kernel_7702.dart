@@ -235,18 +235,28 @@ class Kernel7702 extends KernelV4AccountBase implements Eip7702SmartAccount {
   }
 
   /// Before delegation the EOA has no code, so no on-chain verifier can
-  /// accept any ERC-1271 signature it produces. With a [PublicClient]
-  /// configured, fail loudly instead of handing out a signature that cannot
-  /// verify.
+  /// accept any ERC-1271 signature it produces — and under a delegation to a
+  /// *different* implementation, `isValidSignature` runs that contract's
+  /// logic, not Kernel7702's. With a [PublicClient] configured, fail loudly
+  /// in both cases instead of handing out a signature that cannot verify.
   Future<void> _ensureDelegatedForErc1271() async {
     final client = _config.publicClient;
     if (client == null) return;
-    if (!await client.isDeployed(_config.owner.address)) {
+    final code = (await client.getCode(_config.owner.address)).toLowerCase();
+    final expected =
+        '0xef0100${Hex.strip0x(accountLogicAddress.hex).toLowerCase()}';
+    if (code == expected) return;
+    if (code == '0x' || code.isEmpty) {
       throw StateError(
         'Kernel7702 is not ERC-1271 capable before delegation. Submit a '
         'UserOperation with the EIP-7702 authorization first.',
       );
     }
+    throw StateError(
+      'Kernel7702 ERC-1271 signatures cannot verify: the EOA code is not an '
+      'EIP-7702 delegation to the Kernel7702 implementation '
+      '(${accountLogicAddress.hex}); on-chain code: $code.',
+    );
   }
 }
 

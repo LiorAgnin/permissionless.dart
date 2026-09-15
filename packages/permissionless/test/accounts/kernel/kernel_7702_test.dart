@@ -369,6 +369,20 @@ void main() {
         throwsA(isA<StateError>()),
       );
 
+      final delegatedElsewhere = localAccount(
+        publicClient: clientReturningCode(
+          '0xef0100${'11' * 20}', // delegated, but not to Kernel7702
+        ),
+      );
+      expect(
+        () => delegatedElsewhere.signMessage(message),
+        throwsA(isA<StateError>()),
+      );
+      expect(
+        () => delegatedElsewhere.signErc1271Raw(hashMessage(message)),
+        throwsA(isA<StateError>()),
+      );
+
       final delegated = localAccount(
         publicClient: clientReturningCode(
           '0xef0100${Hex.strip0x(localImplementation.hex)}',

@@ -164,7 +164,9 @@ void main() {
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
       expect(
-          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+        owner.address.hex.toLowerCase(),
+        equals(ownerAddress.toLowerCase()),
+      );
       // ignore: deprecated_member_use_from_same_package
       account = createBiconomySmartAccount(
         owner: owner,
@@ -199,7 +201,9 @@ void main() {
       test('returns pre-set address when provided', () async {
         final address = await account.getAddress();
         expect(
-            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+          address.hex.toLowerCase(),
+          equals(mockAddress.hex.toLowerCase()),
+        );
       });
     });
 
@@ -223,7 +227,9 @@ void main() {
     group('stub signature', () {
       test('matches permissionless.js module-wrapped dummy', () {
         expect(
-            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+          account.getStubSignature().toLowerCase(),
+          equals(jsStubSignature),
+        );
       });
     });
 

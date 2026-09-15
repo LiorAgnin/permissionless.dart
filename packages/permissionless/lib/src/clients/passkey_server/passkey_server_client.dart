@@ -212,7 +212,8 @@ class PasskeyServerClient {
     for (final item in result) {
       if (item is! Map<String, dynamic>) {
         throw const FormatException(
-            'Invalid passkey entry returned from server');
+          'Invalid passkey entry returned from server',
+        );
       }
       final id = item['id'];
       final publicKey = item['publicKey'];
@@ -269,13 +270,15 @@ class PasskeyServerClient {
     final attestation = response['attestation'];
     if (attestation is! String || !validAttestations.contains(attestation)) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
 
     final selection = response['authenticatorSelection'];
     if (selection is! Map<String, dynamic>) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
     final attachment = selection['authenticatorAttachment'];
     final requireResidentKey = selection['requireResidentKey'];
@@ -289,45 +292,53 @@ class PasskeyServerClient {
         userVerification is! String ||
         !validKeyOptions.contains(userVerification)) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
 
     if (response['challenge'] is! String ||
         (response['challenge'] as String).isEmpty) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
 
     final extensions = response['extensions'];
     if (extensions != null) {
       if (extensions is! Map) {
         throw const FormatException(
-            'Invalid response format from passkey server');
+          'Invalid response format from passkey server',
+        );
       }
       final ext = Map<String, dynamic>.from(extensions);
       if (ext.containsKey('appid') && ext['appid'] is! String) {
         throw const FormatException(
-            'Invalid response format from passkey server');
+          'Invalid response format from passkey server',
+        );
       }
       if (ext.containsKey('credProps') && ext['credProps'] is! bool) {
         throw const FormatException(
-            'Invalid response format from passkey server');
+          'Invalid response format from passkey server',
+        );
       }
       if (ext.containsKey('hmacCreateSecret') &&
           ext['hmacCreateSecret'] is! bool) {
         throw const FormatException(
-            'Invalid response format from passkey server');
+          'Invalid response format from passkey server',
+        );
       }
       if (ext.containsKey('minPinLength') && ext['minPinLength'] is! bool) {
         throw const FormatException(
-            'Invalid response format from passkey server');
+          'Invalid response format from passkey server',
+        );
       }
     }
 
     final rp = response['rp'];
     if (rp is! Map || rp['id'] is! String || rp['name'] is! String) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
 
     final user = response['user'];
@@ -336,7 +347,8 @@ class PasskeyServerClient {
         user['name'] is! String ||
         user['displayName'] is! String) {
       throw const FormatException(
-          'Invalid response format from passkey server');
+        'Invalid response format from passkey server',
+      );
     }
   }
 

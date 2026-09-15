@@ -234,7 +234,8 @@ void main() {
         expect(
           data.toLowerCase(),
           contains(
-              '000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'),
+            '000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd',
+          ),
         );
       });
     });
