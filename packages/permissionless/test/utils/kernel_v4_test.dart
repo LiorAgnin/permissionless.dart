@@ -130,6 +130,76 @@ void main() {
     }
   });
 
+  group('computeKernelV4UupsAddress', () {
+    final canonicalUups =
+        EthereumAddress.fromHex(canonical['kernelUUPS'] as String);
+    final localUups =
+        EthereumAddress.fromHex(vectors['localKernelUUPS'] as String);
+
+    for (final c in addressCases) {
+      test('matches canonical prediction for case ${c['name']}', () {
+        final address = computeKernelV4UupsAddress(
+          packages: kernelV4PackagesFromCase(c),
+          nonce: BigInt.parse(c['nonce'] as String),
+          factory: canonicalFactory,
+          implementation: canonicalUups,
+        );
+        expect(
+          address.hex.toLowerCase(),
+          equals((c['canonicalUupsAddress'] as String).toLowerCase()),
+        );
+      });
+
+      test('matches factory.getAddress for case ${c['name']}', () {
+        final address = computeKernelV4UupsAddress(
+          packages: kernelV4PackagesFromCase(c),
+          nonce: BigInt.parse(c['nonce'] as String),
+          factory: localFactory,
+          implementation: localUups,
+        );
+        expect(
+          address.hex.toLowerCase(),
+          equals((c['localUupsAddress'] as String).toLowerCase()),
+        );
+      });
+    }
+
+    test('the signer is absent from the UUPS identity', () {
+      // Same packages and nonce, different signers → same UUPS address
+      // (the fixture's emptyNonce0 and otherSigner cases agree on this).
+      final emptyNonce0 = addressCases.firstWhere(
+        (c) => c['name'] == 'emptyNonce0',
+      );
+      final otherSigner = addressCases.firstWhere(
+        (c) => c['name'] == 'otherSigner',
+      );
+      expect(
+        emptyNonce0['canonicalUupsAddress'],
+        equals(otherSigner['canonicalUupsAddress']),
+      );
+    });
+  });
+
+  group('encodeKernelV4DeployCalldata', () {
+    for (final c in addressCases) {
+      test('byte-matches abi.encodeCall for case ${c['name']}', () {
+        final calldata = encodeKernelV4DeployCalldata(
+          packages: kernelV4PackagesFromCase(c),
+          nonce: BigInt.parse(c['nonce'] as String),
+        );
+        expect(calldata, equals(c['deployUupsCalldata']));
+      });
+
+      test('staker wrap byte-matches for case ${c['name']}', () {
+        final calldata = encodeKernelV4DeployWithFactoryCalldata(
+          factory: canonicalFactory,
+          createData: c['deployUupsCalldata'] as String,
+        );
+        expect(calldata, equals(c['deployUupsWithFactoryCalldata']));
+      });
+    }
+  });
+
   group('encodeKernelV4NonceKey', () {
     test('root standard mode with zero key is zero', () {
       expect(encodeKernelV4NonceKey(), equals(BigInt.zero));

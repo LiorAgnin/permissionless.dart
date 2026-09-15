@@ -108,3 +108,24 @@ EthereumAddress computeKernelV4EcdsaAddress({
         immutableArgs: signer.hex,
       ),
     );
+
+/// The counterfactual address of a `KernelUUPS` account, computed offline
+/// (no RPC).
+///
+/// Reproduces `KernelFactory.getAddress(packages, nonce)`: the salt commits
+/// to [packages] and [nonce] ([computeKernelV4Salt]); the proxy initcode is
+/// the no-args clone shape — unlike `KernelImmutableECDSA` there are no
+/// immutable args, so the account's identity lives entirely in the packages
+/// (the root validator install carries the owner in its moduleData). As with
+/// the ECDSA variant, the CREATE2 deployer is always the [factory].
+EthereumAddress computeKernelV4UupsAddress({
+  required List<KernelV4Install> packages,
+  required BigInt nonce,
+  required EthereumAddress factory,
+  required EthereumAddress implementation,
+}) =>
+    _create2Address(
+      deployer: factory,
+      salt: computeKernelV4Salt(packages: packages, nonce: nonce),
+      initCodeHash: kernelV4CloneInitCodeHash(implementation: implementation),
+    );
