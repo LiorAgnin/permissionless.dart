@@ -21,6 +21,12 @@ class KernelUUPSConfig {
   /// - [version]: Kernel version (defaults to v0.4.0; non-v4 rejected)
   /// - [index]: Deployment nonce for salt derivation (defaults to 0)
   /// - [nonceKey]: Custom 2-byte parallel nonce key (≤ maxUint16)
+  /// - [validation]: Which validation path UserOperations run under
+  ///   (defaults to root). Non-root paths require the module(s) to be
+  ///   installed on the account
+  /// - [replayableUserOps]: Set nonce mode `0x40` and sign the
+  ///   chain-agnostic digest, so the same signed operation is portable
+  ///   across chains
   /// - [additionalPackages]: Extra Install packages after the root
   ///   (packages[1…] of `initialize`); they feed the CREATE2 salt
   /// - [useStaker]: Route deployment through the staked `Staker` wrapper
@@ -37,6 +43,8 @@ class KernelUUPSConfig {
     this.version = KernelVersion.v0_4_0,
     BigInt? index,
     this.nonceKey,
+    this.validation = const KernelV4Validation.root(),
+    this.replayableUserOps = false,
     List<KernelV4Install>? additionalPackages,
     this.useStaker = true,
     this.customAddresses,
@@ -87,6 +95,12 @@ class KernelUUPSConfig {
 
   /// Optional custom 2-byte nonce key for parallel UserOperation streams.
   final BigInt? nonceKey;
+
+  /// The validation path UserOperations run under (root by default).
+  final KernelV4Validation validation;
+
+  /// Whether UserOperations carry the replayable mode bit (`0x40`).
+  final bool replayableUserOps;
 
   /// Install packages applied after the root at creation (packages[1…] of
   /// `initialize`). They feed the CREATE2 salt.
@@ -153,6 +167,12 @@ class KernelUUPS extends KernelV4AccountBase {
 
   @override
   BigInt? get customNonceKey => _config.nonceKey;
+
+  @override
+  KernelV4Validation get validation => _config.validation;
+
+  @override
+  bool get replayableUserOps => _config.replayableUserOps;
 
   @override
   BigInt get chainId => _config.chainId;
@@ -238,6 +258,8 @@ KernelUUPS createKernelUUPS({
   KernelVersion version = KernelVersion.v0_4_0,
   BigInt? index,
   BigInt? nonceKey,
+  KernelV4Validation validation = const KernelV4Validation.root(),
+  bool replayableUserOps = false,
   List<KernelV4Install>? additionalPackages,
   bool useStaker = true,
   KernelV4Addresses? customAddresses,
@@ -253,6 +275,8 @@ KernelUUPS createKernelUUPS({
         version: version,
         index: index,
         nonceKey: nonceKey,
+        validation: validation,
+        replayableUserOps: replayableUserOps,
         additionalPackages: additionalPackages,
         useStaker: useStaker,
         customAddresses: customAddresses,

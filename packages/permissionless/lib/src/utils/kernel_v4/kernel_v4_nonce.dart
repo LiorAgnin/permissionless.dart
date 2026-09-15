@@ -93,3 +93,44 @@ BigInt encodeKernelV4NonceKey({
     ]),
   );
 }
+
+/// A Kernel v4 ERC-4337 nonce, unpacked per the layout in
+/// [encodeKernelV4NonceKey] (the EntryPoint-managed 8-byte sequence
+/// included).
+typedef KernelV4DecodedNonce = ({
+  int vMode,
+  int vType,
+  String vId,
+  BigInt nonceKey,
+  BigInt sequence,
+});
+
+/// Decodes a full 32-byte ERC-4337 [nonce] into Kernel v4's fields:
+///
+/// ```text
+/// | vMode (1) | vType (1) | vId (20) | nonceKey (2) | seq (8) |
+/// ```
+///
+/// The inverse of [encodeKernelV4NonceKey] plus the EntryPoint sequence:
+/// `decodeKernelV4Nonce((key << 64) | seq)` returns the encoder's inputs,
+/// with [KernelV4DecodedNonce.vId] normalized to a full 20-byte lowercase hex
+/// string (a short id such as a PermissionId comes back left-aligned and
+/// zero-padded, exactly as the contract reads the field).
+KernelV4DecodedNonce decodeKernelV4Nonce(BigInt nonce) {
+  if (nonce < BigInt.zero || nonce >> 256 != BigInt.zero) {
+    throw ArgumentError.value(
+      nonce,
+      'nonce',
+      'an ERC-4337 nonce is an unsigned 32-byte integer',
+    );
+  }
+  final hex = Hex.fromBigInt(nonce, byteLength: 32);
+  final bytes = Hex.strip0x(hex);
+  return (
+    vMode: int.parse(bytes.substring(0, 2), radix: 16),
+    vType: int.parse(bytes.substring(2, 4), radix: 16),
+    vId: '0x${bytes.substring(4, 44)}',
+    nonceKey: BigInt.parse(bytes.substring(44, 48), radix: 16),
+    sequence: BigInt.parse(bytes.substring(48, 64), radix: 16),
+  );
+}
