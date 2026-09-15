@@ -55,6 +55,17 @@ developer machines unless the vectors need regenerating.
   digest under mode `0x0C`, an install-nonce replay (reverts), and the
   all-stub estimation blob failing cleanly. The replayable-enable variant
   (`0x0C`) accepts the sans-chainId digest.
+- **Module management** — `installModule` / `uninstallModule` calldata
+  (with the Kernel-required `abi.encode(installData, internalData)` wrapping)
+  executed against a deployed account for all six module types, covering the
+  hook sentinel lanes (`address(0)` / `address(1)` / real hook), the fallback
+  selector·callType·hook packing (proven by dispatching through the account's
+  fallback), and the policy→signer permission batch via
+  `installModule(Install[])`. Uninstalls run in the contract-required order,
+  with the signer-before-policies negative proven to revert. Also `setRoot`
+  rotation off a validator root and off a permission root (with the
+  `PermissionUninstallData` bytes), `setRoot(ValidationId)`, `grantAccess`,
+  and the standalone root-signed `installModule(bool,uint256,Install[],bytes)`.
 
 ## Regenerating
 

@@ -6,6 +6,11 @@ solc = "0.8.33"
 evm_version = "prague"
 optimizer = true
 optimizer_runs = 200
+# The generator builds the whole fixture JSON in one storage string; the
+# ticket-06 vectors push the naive concatenation past the default script
+# gas/memory caps.
+gas_limit = "18446744073709551615"
+memory_limit = 268435456
 
 # `kernel` is a gitignored symlink to the workspace `kernel-v4.0` checkout
 # (zerodevapp/kernel pinned at tag v4.0), created by generate.sh. The Kernel

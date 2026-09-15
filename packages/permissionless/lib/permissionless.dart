@@ -35,6 +35,7 @@ export 'src/accounts/webauthn_owner.dart';
 export 'src/accounts/webauthn_utils.dart';
 // Actions
 export 'src/actions/erc7579/erc7579.dart';
+export 'src/actions/kernel_v4/kernel_v4.dart';
 export 'src/actions/smart_account/smart_account.dart';
 // Clients
 export 'src/clients/bundler/bundler.dart';
