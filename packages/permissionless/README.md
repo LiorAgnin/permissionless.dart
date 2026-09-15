@@ -8,17 +8,17 @@ Build account abstraction applications in Dart with support for multiple smart a
 
 ### Smart Accounts
 
-| Account       | Provider       | EntryPoint | ERC-7579   | Description                      |
-| ------------- | -------------- | ---------- | ---------- | -------------------------------- |
-| **Safe**      | Gnosis         | v0.6, v0.7 | Optional*  | Battle-tested multi-sig account  |
-| **Kernel**    | ZeroDev        | v0.6, v0.7 | v0.3.x     | Modular account with plugins     |
-| **Nexus**     | Biconomy       | v0.7       | Yes        | ERC-7579 modular account         |
-| **Light**     | Alchemy        | v0.6, v0.7 | No         | Gas-efficient single-owner       |
-| **Simple**    | eth-infinitism | v0.6, v0.7 | No         | Minimal reference implementation |
-| **Thirdweb**  | Thirdweb       | v0.6, v0.7 | No         | SDK ecosystem integration        |
-| **Trust**     | Trust Wallet   | v0.6       | No         | Diamond architecture (Barz)      |
-| **Etherspot** | Etherspot      | v0.7       | Internal** | ModularEtherspotWallet           |
-| **Biconomy**  | Biconomy       | v0.6       | No         | *Deprecated - use Nexus*         |
+| Account       | Provider       | EntryPoint        | ERC-7579   | Description                      |
+| ------------- | -------------- | ----------------- | ---------- | -------------------------------- |
+| **Safe**      | Gnosis         | v0.6, v0.7        | Optional*  | Battle-tested multi-sig account  |
+| **Kernel**    | ZeroDev        | v0.6, v0.7, v0.9  | v0.3.x, v4 | Modular account (plugins / modules) |
+| **Nexus**     | Biconomy       | v0.7              | Yes        | ERC-7579 modular account         |
+| **Light**     | Alchemy        | v0.6, v0.7        | No         | Gas-efficient single-owner       |
+| **Simple**    | eth-infinitism | v0.6, v0.7, v0.8  | No         | Minimal reference implementation |
+| **Thirdweb**  | Thirdweb       | v0.6, v0.7        | No         | SDK ecosystem integration        |
+| **Trust**     | Trust Wallet   | v0.6              | No         | Diamond architecture (Barz)      |
+| **Etherspot** | Etherspot      | v0.7              | Internal** | ModularEtherspotWallet           |
+| **Biconomy**  | Biconomy       | v0.6              | No         | *Deprecated - use Nexus*         |
 
 \* Safe requires `erc7579LaunchpadAddress` configuration to enable ERC-7579 module management.
 \** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.
@@ -166,7 +166,7 @@ final account = createSafeSmartAccount(
 
 ### Kernel Account
 
-ZeroDev's modular smart account with plugin support:
+ZeroDev's modular smart account with plugin/module support:
 
 ```dart
 final owner = PrivateKeyKernelOwner('0x...');
@@ -181,6 +181,13 @@ final account = createKernelSmartAccount(
 **Features:**
 - v0.2.x (v0.2.1-v0.2.4): EntryPoint v0.6, custom execute
 - v0.3.x (v0.3.0-beta, v0.3.1, v0.3.2, v0.3.3): EntryPoint v0.7, ERC-7579 compliant, external ECDSA validator
+- v4.0: EntryPoint v0.9 only — UUPS, ImmutableECDSA, and Kernel7702 variants; nonce-encoded validation (root / validator / permission); enable-mode installs; permissions (policies + signer)
+
+Kernel v4 is **not** ported from permissionless.js (which has no Kernel v4
+surface yet). Correctness is pinned to the Kernel v4.0 contracts and
+EntryPoint v0.9 packing/hash rules — see
+[ADR 0002](../../docs/adr/0002-kernel-v4-parity-baseline.md) and the
+[glossary](CONTEXT.md).
 
 ### Nexus Account (Biconomy)
 
@@ -471,7 +478,7 @@ final credentials = await passkeyServer.getCredentials(
 
 ## ERC-7579 Actions
 
-For ERC-7579 compliant accounts (Kernel v0.3.x, Safe 7579, Nexus):
+For ERC-7579 compliant accounts (Kernel v0.3.x / v4.0, Safe 7579, Nexus):
 
 ```dart
 // Install a module
@@ -593,10 +600,16 @@ final allowanceOverride = erc20AllowanceOverride(
 
 ## EntryPoint Versions
 
-| Version | Address         | Accounts                                                                            |
-| ------- | --------------- | ----------------------------------------------------------------------------------- |
-| v0.6    | `0x5FF1...2789` | Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust                                     |
-| v0.7    | `0x0000...0070` | Safe v1.4.1/v1.5.0, Kernel v0.3.1, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot |
+| Version | Address                                    | Accounts                                                                                     |
+| ------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| v0.6    | `0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789` | Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust                                              |
+| v0.7    | `0x0000000071727De22E5E9d8BAf0edAc6f37da032` | Safe v1.4.1/v1.5.0, Kernel v0.3.x, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot         |
+| v0.8    | `0x4337084d9e255ff0702461cf8895ce9e3b5ff108` | Simple (EIP-7702 path) and other v0.8-capable accounts                                       |
+| v0.9    | `0x433709009B8330FDa32311DF1C2AFA402eD8D009` | Kernel v4.0 (UUPS, ImmutableECDSA, Kernel7702); optional paymaster signature on packed ops |
+
+EntryPoint v0.9 paymaster-signature framing and the shared userOpHash utility
+are recorded in [ADR 0001](../../docs/adr/0001-entrypoint-v09-paymaster-signature-framing.md)
+and [ADR 0002](../../docs/adr/0002-kernel-v4-parity-baseline.md).
 
 ## Examples
 

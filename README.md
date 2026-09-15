@@ -149,7 +149,7 @@ permissionless-dart/
 
 ### Core Package (`permissionless`)
 - **Safe** (Gnosis) - battle-tested multi-sig account
-- **Kernel** (ZeroDev) - modular account, ERC-7579 in v0.3.x
+- **Kernel** (ZeroDev) - modular account; ERC-7579 in v0.3.x; Kernel v4.0 on EntryPoint v0.9 (UUPS, ImmutableECDSA, Kernel7702)
 - **Nexus** (Biconomy) - ERC-7579 modular account
 - **Light** (Alchemy) - gas-efficient single-owner account
 - **Simple** (eth-infinitism) - minimal reference implementation
