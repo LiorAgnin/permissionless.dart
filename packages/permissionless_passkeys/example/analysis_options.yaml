@@ -3,6 +3,12 @@
 # dart format cannot resolve workspace package URIs in sub-packages.
 # Lint rules are inherited from the workspace when running dart analyze.
 
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
 linter:
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
