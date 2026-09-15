@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **EntryPoint v0.9 as a first-class version.** `EntryPointVersion.v09` and
+  `EntryPointAddresses.v09`
+  (`0x433709009B8330FDa32311DF1C2AFA402eD8D009`). The UserOperation wire format
+  is unchanged from v0.8, so `UserOperationV07` is reused rather than
+  introducing a third UserOperation class.
+- **Shared `getUserOperationHash` and `getUserOperationTypedData`** covering
+  EntryPoint v0.6 through v0.9, including the EIP-7702 initCode hash override.
+  Every account now delegates to these instead of carrying its own copy of the
+  packing rules.
+- **Paymaster signatures (EntryPoint v0.9).**
+  `UserOperationV07.paymasterSignature` is packed as
+  `signature ‖ uint16(length) ‖ 0x22e325a297439656` on the wire and excluded
+  from the userOpHash, which is what lets the user and the paymaster sign in
+  parallel. Helpers: `encodePaymasterSignatureSuffix`,
+  `getPaymasterSignatureLength`, `getPaymasterSignature`,
+  `getSignedPaymasterData`, `getHashedPaymasterAndData`,
+  `splicePaymasterSignature`, and the `paymasterSignatureStub` placeholder for
+  signing before the paymaster responds. See
+  [ADR 0001](../../docs/adr/0001-entrypoint-v09-paymaster-signature-framing.md).
+- `unpackPaymasterAndData` now reports a `paymasterSignature` separately from
+  `paymasterData`.
+
+### Changed
+
+- `getPackedUserOperation` accepts an optional `delegationAddress` for EIP-7702
+  operations.
+- Accounts that do not support EntryPoint v0.9 now say so explicitly:
+  `LightAccountVersion.forEntryPoint` and
+  `SimpleAccountFactoryAddresses.fromVersion` throw with an actionable message
+  rather than falling through.
+
+v0.6, v0.7, and v0.8 hashes are byte-identical to previous releases; the
+migration is verified against the existing viem fixtures, and the new v0.9
+vectors are generated from the pinned EntryPoint contracts
+(`tool/entry_point_v09_vectors/`).
+
 ## [0.4.1] - 2026-07-14
 
 EIP-7702 + paymaster release: a paymaster-sponsored **first** 7702 operation no

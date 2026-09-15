@@ -1,7 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -12,6 +10,7 @@ import '../../types/user_operation.dart';
 import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -325,7 +324,7 @@ class TrustSmartAccount implements SmartAccountV06 {
   /// Signs a UserOperation v0.6.
   @override
   Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    final userOpHash = _computeUserOpHashV06(userOp);
+    final userOpHash = _userOperationHash(userOp, EntryPointVersion.v06);
     return _config.owner.signPersonalMessage(userOpHash);
   }
 
@@ -369,39 +368,18 @@ class TrustSmartAccount implements SmartAccountV06 {
     return _config.owner.signTypedData(wrappedTypedData);
   }
 
-  /// Computes the userOpHash for v0.6.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpForHashV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation v0.6 for hashing.
-  String _packUserOpForHashV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// The userOpHash this account signs, delegating the per-version packing
+  /// rules to the shared utility.
+  String _userOperationHash(
+    UserOperation userOp,
+    EntryPointVersion version,
+  ) =>
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: version,
+        chainId: _config.chainId,
+      );
 }
 
 /// Creates a Trust (Barz) smart account.

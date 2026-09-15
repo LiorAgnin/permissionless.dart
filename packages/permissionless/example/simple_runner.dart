@@ -155,7 +155,9 @@ Future<SimpleRunResult> runSimpleVariant({
     'Signing: ${switch (variant.entryPointVersion) {
       EntryPointVersion.v06 => 'EIP-191 personal-sign (v0.6 hash)',
       EntryPointVersion.v07 => 'EIP-191 personal-sign (packed hash)',
-      EntryPointVersion.v08 => 'EIP-712 PackedUserOperation typed data',
+      EntryPointVersion.v08 ||
+      EntryPointVersion.v09 =>
+        'EIP-712 PackedUserOperation typed data',
     }}',
   );
 

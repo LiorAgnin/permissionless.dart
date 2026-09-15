@@ -11,9 +11,9 @@ import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import 'constants.dart';
 
 /// Owner abstraction for EIP-7702 Kernel accounts.
@@ -359,7 +359,14 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// This matches permissionless.js which uses owner.signMessage({ message: { raw: hash } }).
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = _computeUserOpHash(userOp);
+    final userOpHash = getUserOperationHash(
+      userOperation: userOp,
+      entryPointAddress: entryPoint,
+      entryPointVersion: EntryPointVersion.v07,
+      chainId: chainId,
+      delegationAddress:
+          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
+    );
 
     // Apply EIP-191 prefix: "\x19Ethereum Signed Message:\n32" + hashBytes
     // This matches viem's signMessage({ message: { raw: hash } }) behavior
@@ -388,75 +395,6 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
       );
 
     return Hex.fromBytes(crypto.keccak256(combined));
-  }
-
-  /// Computes the UserOperation hash for v0.7.
-  String _computeUserOpHash(UserOperationV07 userOp) {
-    final packedUserOp = _packUserOp(userOp);
-    final userOpHashInner = crypto.keccak256(Hex.decode(packedUserOp));
-
-    final finalPreImage = Hex.concat([
-      Hex.fromBytes(userOpHashInner),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(crypto.keccak256(Hex.decode(finalPreImage)));
-  }
-
-  /// Packs a UserOperation for hashing (v0.7 format).
-  String _packUserOp(UserOperationV07 userOp) {
-    // Pack initCode (EIP-7702 marker → use account logic as delegation)
-    final initCode = packUserOperationInitCode(
-      factory: userOp.factory,
-      factoryData: userOp.factoryData,
-      delegationAddress:
-          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
-    );
-    final initCodeHash = crypto.keccak256(Hex.decode(initCode));
-    // Pack callData
-    final callDataHash = crypto.keccak256(Hex.decode(userOp.callData));
-
-    // Pack accountGasLimits (v0.7 packing)
-    final verificationGasLimitHex =
-        Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16);
-    final callGasLimitHex = Hex.fromBigInt(userOp.callGasLimit, byteLength: 16);
-    final accountGasLimits =
-        Hex.concat([verificationGasLimitHex, callGasLimitHex]);
-
-    // Pack gasFees
-    final maxPriorityFeeHex =
-        Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16);
-    final maxFeeHex = Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16);
-    final gasFees = Hex.concat([maxPriorityFeeHex, maxFeeHex]);
-
-    // Pack paymasterAndData
-    final paymasterAndData = userOp.paymaster != null
-        ? Hex.concat([
-            userOp.paymaster!.hex,
-            Hex.fromBigInt(
-              userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-              byteLength: 16,
-            ),
-            Hex.fromBigInt(
-              userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-              byteLength: 16,
-            ),
-            Hex.strip0x(userOp.paymasterData ?? '0x'),
-          ])
-        : '0x';
-    final paymasterAndDataHash = crypto.keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
   }
 
   /// Signs a personal message using Kernel's EIP-712 wrapper.

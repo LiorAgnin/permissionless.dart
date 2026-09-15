@@ -21,11 +21,21 @@ class SimpleAccountFactoryAddresses {
       EthereumAddress.fromHex('0x13E9ed32155810FDbd067D4522C492D6f68E5944');
 
   /// Gets the factory address for the given EntryPoint version.
+  ///
+  /// Throws [ArgumentError] for EntryPoint v0.9: eth-infinitism has not
+  /// published a SimpleAccountFactory for it. Pass an explicit factory address
+  /// to deploy against a v0.9 factory of your own, or use
+  /// [Eip7702SimpleSmartAccount], which needs no factory at all.
   static EthereumAddress fromVersion(EntryPointVersion version) =>
       switch (version) {
         EntryPointVersion.v06 => v06,
         EntryPointVersion.v07 => v07,
         EntryPointVersion.v08 => v08,
+        EntryPointVersion.v09 => throw ArgumentError(
+            'No published SimpleAccountFactory for EntryPoint v0.9. '
+            'Supply a factory address explicitly, or use '
+            'Eip7702SimpleSmartAccount which does not need one.',
+          ),
       };
 }
 

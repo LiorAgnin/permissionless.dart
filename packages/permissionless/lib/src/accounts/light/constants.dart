@@ -28,8 +28,9 @@ enum LightAccountVersion {
       case EntryPointVersion.v07:
         return LightAccountVersion.v200;
       case EntryPointVersion.v08:
+      case EntryPointVersion.v09:
         throw ArgumentError(
-          'Light Account does not support EntryPoint v0.8. '
+          'Light Account does not support EntryPoint ${entryPoint.value}. '
           'Use Eip7702SimpleSmartAccount for EIP-7702 support.',
         );
     }

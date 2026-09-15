@@ -12,6 +12,8 @@ import 'hex.dart';
 /// - **v0.6**: Original specification, widely deployed
 /// - **v0.7**: Updated spec with separate factory/paymaster fields,
 ///   better gas handling, and uint128 gas limits
+/// - **v0.8**: EIP-712 userOpHash and native EIP-7702 support
+/// - **v0.9**: Adds the optional paymaster signature suffix
 enum EntryPointVersion {
   /// EntryPoint v0.6 - Original ERC-4337 specification.
   ///
@@ -30,11 +32,22 @@ enum EntryPointVersion {
   /// - UserOperation hash includes EIP-7702 delegation address
   /// - EntryPoint checks delegation address is set correctly
   /// - Support for `eip7702Auth` parameter in eth_sendUserOperation
-  v08('0.8');
+  v08('0.8'),
+
+  /// EntryPoint v0.9 - Adds the optional paymaster signature.
+  ///
+  /// Address: `0x433709009B8330FDa32311DF1C2AFA402eD8D009`
+  /// The UserOperation wire format is unchanged from v0.8
+  /// (`PackedUserOperation` is byte-identical), and the userOpHash is the same
+  /// EIP-712 digest. What v0.9 adds is an optional paymaster signature
+  /// appended to `paymasterAndData`, which the userOpHash deliberately
+  /// excludes so the user and the paymaster can sign in parallel. See
+  /// [UserOperationV07.paymasterSignature].
+  v09('0.9');
 
   const EntryPointVersion(this.value);
 
-  /// The version string (e.g., "0.6", "0.7", or "0.8").
+  /// The version string (e.g., "0.6", "0.7", "0.8", or "0.9").
   final String value;
 }
 
@@ -262,6 +275,7 @@ class UserOperationV07 implements UserOperation {
     this.paymasterVerificationGasLimit,
     this.paymasterPostOpGasLimit,
     this.paymasterData,
+    this.paymasterSignature,
     this.signature = '0x',
   });
 
@@ -293,6 +307,7 @@ class UserOperationV07 implements UserOperation {
             ? Hex.toBigInt(json['paymasterPostOpGasLimit'] as String)
             : null,
         paymasterData: json['paymasterData'] as String?,
+        paymasterSignature: json['paymasterSignature'] as String?,
         signature: json['signature'] as String? ?? '0x',
       );
 
@@ -335,6 +350,29 @@ class UserOperationV07 implements UserOperation {
 
   /// Data for the paymaster contract.
   final String? paymasterData;
+
+  /// The paymaster's own signature over the operation (**EntryPoint v0.9
+  /// only**).
+  ///
+  /// On the wire this is appended to `paymasterAndData` as
+  /// `signature ‖ uint16(length) ‖ 0x22e325a297439656`. The userOpHash covers
+  /// neither the signature bytes nor its length — only the fact that a suffix
+  /// is present — which is what lets the user and the paymaster sign
+  /// concurrently.
+  ///
+  /// Because presence alone changes the hash, set this **before** signing even
+  /// if the real signature is not known yet. [paymasterSignatureStub] is a
+  /// correctly shaped placeholder that also keeps gas estimation honest about
+  /// the calldata size; swap in the real signature afterwards and the
+  /// userOpHash will not move.
+  ///
+  /// `'0x'` is not a valid value. The EntryPoint reads a zero-length
+  /// declaration as "no signature" and would hash the suffix bytes as data, so
+  /// packing rejects it — use `null` for "no paymaster signature".
+  ///
+  /// Ignored by EntryPoint v0.7 and v0.8, which have no such concept; setting
+  /// it on those versions is an error rather than a silent no-op.
+  final String? paymasterSignature;
   @override
   final String signature;
 
@@ -354,6 +392,7 @@ class UserOperationV07 implements UserOperation {
     BigInt? paymasterVerificationGasLimit,
     BigInt? paymasterPostOpGasLimit,
     String? paymasterData,
+    String? paymasterSignature,
     String? signature,
   }) =>
       UserOperationV07(
@@ -373,6 +412,7 @@ class UserOperationV07 implements UserOperation {
         paymasterPostOpGasLimit:
             paymasterPostOpGasLimit ?? this.paymasterPostOpGasLimit,
         paymasterData: paymasterData ?? this.paymasterData,
+        paymasterSignature: paymasterSignature ?? this.paymasterSignature,
         signature: signature ?? this.signature,
       );
 
@@ -417,6 +457,9 @@ class UserOperationV07 implements UserOperation {
     }
     if (paymasterData != null) {
       result['paymasterData'] = paymasterData;
+    }
+    if (paymasterSignature != null) {
+      result['paymasterSignature'] = paymasterSignature;
     }
 
     return result;
