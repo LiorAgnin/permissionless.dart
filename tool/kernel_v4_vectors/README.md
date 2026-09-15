@@ -66,6 +66,14 @@ developer machines unless the vectors need regenerating.
   rotation off a validator root and off a permission root (with the
   `PermissionUninstallData` bytes), `setRoot(ValidationId)`, `grantAccess`,
   and the standalone root-signed `installModule(bool,uint256,Install[],bytes)`.
+- **Kernel7702** — with the implementation's runtime code etched at a
+  dedicated EOA address (simulating an active EIP-7702 delegation), the EOA's
+  own fallback-signer path accepts a raw 65-byte signature over the EntryPoint
+  v0.9 userOpHash (and rejects a wrong signer / the stub cleanly); ERC-1271
+  verifies both **raw** (a bare 65-byte signature over the input hash —
+  `_erc1271RawAllowed` is Kernel7702-only) and the standard nested
+  `[vMode | vType]`-prefixed ERC-7739 PersonalSign flow; and a ticket-06-shaped
+  `installModule` calldata installs a validator module after delegation.
 
 ## Regenerating
 

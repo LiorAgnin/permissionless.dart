@@ -121,6 +121,18 @@ String hashStruct(
   return Hex.fromBytes(keccak256(Hex.decode(combined)));
 }
 
+/// Encodes the EIP-712 type string for [primaryType]: the primary type's
+/// definition followed by every referenced type, sorted alphabetically —
+/// `Mail(Person from,Person to,string contents)Person(string name,address wallet)`.
+///
+/// This is the `encodeType` of the EIP-712 spec; ERC-7739 embeds it verbatim
+/// as the `contentsType` of a nested `TypedDataSign` wrap.
+String encodeTypedDataType(
+  String primaryType,
+  Map<String, List<TypedDataField>> types,
+) =>
+    _encodeType(primaryType, types);
+
 /// Computes the type hash for a struct.
 ///
 /// typeHash = keccak256(encodeType(typeOf(s)))

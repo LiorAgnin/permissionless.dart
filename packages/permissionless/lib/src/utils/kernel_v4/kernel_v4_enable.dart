@@ -6,6 +6,7 @@ import '../../accounts/account_owner.dart';
 import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../encoding.dart';
+import 'kernel_v4_erc7739.dart';
 import 'kernel_v4_install.dart';
 
 /// `keccak256("InstallPackages(uint256 nonce,Install[] packages)Install(uint256 moduleType,address module,bytes moduleData,bytes internalData)")`
@@ -27,29 +28,6 @@ final String kernelV4InstallTypeHash = Hex.fromBytes(
   keccak256(
     ascii.encode(
       'Install(uint256 moduleType,address module,bytes moduleData,bytes internalData)',
-    ),
-  ),
-);
-
-final String _nameHash = Hex.fromBytes(keccak256(ascii.encode('Kernel')));
-final String _versionHash = Hex.fromBytes(keccak256(ascii.encode('0.4.0')));
-
-/// `keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")`.
-final String _domainTypeHash = Hex.fromBytes(
-  keccak256(
-    ascii.encode(
-      'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)',
-    ),
-  ),
-);
-
-/// `keccak256("EIP712Domain(string name,string version,address verifyingContract)")`
-/// — the chain-agnostic domain used when the enable signature is replayable
-/// (`DOMAIN_TYPEHASH_SANS_CHAIN_ID`).
-final String _domainTypeHashSansChainId = Hex.fromBytes(
-  keccak256(
-    ascii.encode(
-      'EIP712Domain(string name,string version,address verifyingContract)',
     ),
   ),
 );
@@ -97,31 +75,18 @@ String getKernelV4InstallPackagesDigest({
   BigInt? chainId,
   bool replayable = false,
 }) {
-  if (!replayable && chainId == null) {
-    throw ArgumentError.notNull(
-      'chainId — required unless the enable signature is replayable '
-      '(sans-chainId domain)',
-    );
-  }
+  // A missing chainId on the chain-bound path throws ArgumentError inside
+  // getKernelV4DomainSeparator.
   final structHash = _keccakConcat([
     kernelV4InstallPackagesTypeHash,
     Hex.fromBigInt(installNonce, byteLength: 32),
     _installArrayHash(packages),
   ]);
-  final domainSeparator = replayable
-      ? _keccakConcat([
-          _domainTypeHashSansChainId,
-          _nameHash,
-          _versionHash,
-          AbiEncoder.encodeAddress(accountAddress),
-        ])
-      : _keccakConcat([
-          _domainTypeHash,
-          _nameHash,
-          _versionHash,
-          AbiEncoder.encodeUint256(chainId!),
-          AbiEncoder.encodeAddress(accountAddress),
-        ]);
+  final domainSeparator = getKernelV4DomainSeparator(
+    accountAddress: accountAddress,
+    chainId: chainId,
+    sansChainId: replayable,
+  );
   return _keccakConcat(['0x1901', domainSeparator, structHash]);
 }
 

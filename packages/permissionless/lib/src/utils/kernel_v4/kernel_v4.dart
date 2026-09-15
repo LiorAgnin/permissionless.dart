@@ -9,6 +9,7 @@ library;
 export 'kernel_v4_addresses.dart';
 export 'kernel_v4_create2.dart';
 export 'kernel_v4_enable.dart';
+export 'kernel_v4_erc7739.dart';
 export 'kernel_v4_hash.dart';
 export 'kernel_v4_install.dart';
 export 'kernel_v4_modules.dart';

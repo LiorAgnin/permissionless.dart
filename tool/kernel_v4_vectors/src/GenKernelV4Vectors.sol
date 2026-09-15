@@ -2,6 +2,7 @@
 pragma solidity ^0.8.30;
 
 import {Kernel} from "@kernel/Kernel.sol";
+import {Kernel7702} from "@kernel/Kernel7702.sol";
 import {KernelUUPS} from "@kernel/KernelUUPS.sol";
 import {KernelImmutableECDSA} from "@kernel/KernelImmutableECDSA.sol";
 import {KernelFactory} from "@kernel/KernelFactory.sol";
@@ -10,7 +11,8 @@ import {ValidationId} from "@kernel/types/Types.sol";
 import {
     INSTALL_PACKAGES_STRUCT_HASH,
     INSTALL_STRUCT_HASH,
-    DOMAIN_TYPEHASH_SANS_CHAIN_ID
+    DOMAIN_TYPEHASH_SANS_CHAIN_ID,
+    PERSONAL_SIGN_TYPEHASH
 } from "@kernel/types/Constants.sol";
 import {Lib4337} from "@kernel/lib/Lib4337.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
@@ -130,6 +132,18 @@ contract RootEcdsaValidator {
     function isValidSignatureWithSender(address, bytes32 hash, bytes calldata sig) external view returns (bytes4) {
         return owners[msg.sender] == ECDSA.tryRecoverCalldata(hash, sig) ? bytes4(0x1626ba7e) : bytes4(0xffffffff);
     }
+
+    /// The stateless (module type 10) check used by enable-mode ERC-1271:
+    /// the module is *not* installed in that view context, so the owner comes
+    /// from the install package's `moduleData` instead of storage
+    /// (`ModuleManager._verifyStatelessSignature`).
+    function validateSignatureWithDataWithSender(address, bytes32 hash, bytes calldata sig, bytes calldata data)
+        external
+        view
+        returns (bool)
+    {
+        return address(bytes20(data[0:20])) == ECDSA.tryRecoverCalldata(hash, sig);
+    }
 }
 
 /// Minimal permission policy, restated in the spirit of the pinned repo's
@@ -244,6 +258,7 @@ contract GenKernelV4Vectors {
     address internal constant CANON_UUPS = 0xC842fE2aC44046AE3cEf033A16c67a9BC287cbD2;
     address internal constant CANON_IMMUTABLE_ECDSA = 0x6F0999265B6E1dFbe875F104548b875a99A65d37;
     address internal constant CANON_FACTORY = 0xA299A4eFee7BBFb2Ea5668b30218C45fff78356c;
+    address internal constant CANON_7702 = 0x36312BA78010247390C6677a59807Fe7878e9B59;
 
     /// Hardhat account #0 — fixed offline unit-test key, never used on live
     /// networks (see the repo test conventions).
@@ -253,6 +268,12 @@ contract GenKernelV4Vectors {
     /// Hardhat account #1 — the wrong-signer negative case.
     uint256 internal constant WRONG_KEY = 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d;
     address internal constant OTHER_SIGNER = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+
+    /// Hardhat account #2 — the Kernel7702 delegated EOA (its own dedicated
+    /// key, so etching delegation code onto it cannot interfere with the
+    /// factory-account cases that use accounts #0/#1 as plain signers).
+    uint256 internal constant K7702_KEY = 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a;
+    address internal constant K7702_EOA = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
 
     /// The v3-era ECDSA validator, used as a realistic module address in
     /// package vectors (drop-in for basic v4 root flows).
@@ -329,6 +350,28 @@ contract GenKernelV4Vectors {
     address internal mmRotSender;
     address internal mmPermRootSender;
 
+    // Scratch for the ERC-1271 / ERC-7739 cases (ticket 08).
+    address internal erc1271Sender;
+    bytes32 internal erc1271MessageHash;
+    bytes32 internal erc1271PersonalDigest;
+    bytes32 internal erc1271AppDomainSep;
+    bytes32 internal erc1271Contents;
+    bytes32 internal erc1271TypedHash;
+    bytes32 internal erc1271TypedDigest;
+    bytes32 internal erc1271TypedDigestReplayable;
+    address internal erc1271StatelessValidator;
+    address internal erc1271EnableSender;
+    bytes32 internal erc1271EnableDigest;
+    bytes32 internal erc1271EnableChainInstallDigest;
+    bytes32 internal erc1271EnableSansInstallDigest;
+    bytes internal erc1271EnableInnerSignature;
+    bytes internal erc1271EnableSignature;
+    bytes internal erc1271EnableReplayableSignature;
+    bytes4 internal erc1271EnableResult;
+    bytes4 internal erc1271EnableWrongSignerResult;
+    bytes4 internal erc1271EnableReplayableResult;
+    bytes4 internal erc1271EnableWrongDomainResult;
+
     address internal uupsEnableSender;
     address internal uupsEnableRootValidator;
     bytes32 internal uupsEnableDigest;
@@ -337,6 +380,10 @@ contract GenKernelV4Vectors {
     bytes internal uupsEnableInnerSig;
     bytes internal uupsEnableBlob;
     uint256 internal uupsEnableValidationData;
+
+    // Scratch for the Kernel7702 cases (ticket 09).
+    address internal k7702Impl;
+    address internal k7702InstallValidator;
 
     function run() external {
         hashOracle = new HashOracle();
@@ -399,6 +446,12 @@ contract GenKernelV4Vectors {
 
         // Ticket-06 vectors: module install / uninstall + setRoot.
         _moduleManagementCases();
+
+        // Ticket-08 vectors: ERC-1271 / ERC-7739 signing.
+        _erc1271Cases();
+
+        // Ticket-09 vectors: Kernel7702 (EIP-7702 delegation).
+        _kernel7702Cases();
 
         buf = string.concat(buf, "\n}\n");
         vm.writeFile(OUT_PATH, buf);
@@ -1848,6 +1901,657 @@ contract GenKernelV4Vectors {
         _emitPackages(pkgs);
         buf = string.concat(buf, ', "installDigest": "', vm.toString(digest), '"');
         buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
+    }
+
+    // ------------------------------------------------------------------
+    // ERC-1271 / ERC-7739 signing (ticket 08)
+    // ------------------------------------------------------------------
+
+    /// The message of every PersonalSign case (15 UTF-8 bytes).
+    string internal constant ERC1271_MESSAGE = "Hello Kernel v4";
+
+    /// The app-side typed data of the TypedDataSign cases: the classic
+    /// EIP-712 `Mail` example, chosen because its nested `Person` reference
+    /// exercises the encodeType appending rules inside the `TypedDataSign`
+    /// type string.
+    string internal constant CONTENTS_TYPE =
+        "Mail(Person from,Person to,string contents)Person(string name,address wallet)";
+    address internal constant APP_VERIFIER = 0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC;
+    address internal constant MAIL_FROM_WALLET = 0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826;
+    address internal constant MAIL_TO_WALLET = 0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB;
+
+    /// The account's Solady EIP712 domain separator: name "Kernel",
+    /// version "0.4.0", the current chain, verifyingContract = the account
+    /// (no salt field — Solady's default `fields = 0x0f`).
+    function _erc1271AccountDomainSeparator(address account) internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("Kernel")),
+                keccak256(bytes("0.4.0")),
+                block.chainid,
+                account
+            )
+        );
+    }
+
+    /// The ERC-7739 PersonalSign digest: the 1271 input hash wrapped as
+    /// `PersonalSign(bytes prefixed)` under the *account's* domain
+    /// (`ERC1271._erc1271IsValidSignatureViaNestedEIP712`, PersonalSign
+    /// branch — `prefixed` is stored pre-hashed, i.e. the input hash itself).
+    function _personalSignDigest(address account, bytes32 hash) internal view returns (bytes32) {
+        bytes32 structHash = keccak256(abi.encode(PERSONAL_SIGN_TYPEHASH, hash));
+        return keccak256(abi.encodePacked(hex"1901", _erc1271AccountDomainSeparator(account), structHash));
+    }
+
+    function _isValid(address account, bytes32 hash, bytes memory sig) internal view returns (bytes4) {
+        return Kernel(payable(account)).isValidSignature(hash, sig);
+    }
+
+    function _erc1271Cases() internal {
+        require(
+            PERSONAL_SIGN_TYPEHASH == keccak256("PersonalSign(bytes prefixed)"), "PersonalSign typehash drifted"
+        );
+        erc1271Sender = address(factory.deployECDSA(SIGNER, _noPackages(), 400));
+        erc1271MessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n15", ERC1271_MESSAGE));
+
+        buf = string.concat(buf, ',\n  "erc1271": {');
+        _erc1271PersonalSignRootCase();
+        _erc1271TypedDataSetup();
+        _erc1271TypedDataSignRootCase();
+        _erc1271TypedDataSignReplayableCase();
+        _erc1271ValidatorCase();
+        _erc1271PermissionCase();
+        _erc1271TypedDataSignValidatorCase();
+        _erc1271TypedDataSignPermissionCase();
+        _erc1271EnableModeCases();
+        _erc1271TypedDataSignEnableCase();
+        buf = string.concat(buf, "}");
+    }
+
+    /// Root-path PersonalSign: prefix `0x00 0x00` (standard vMode, ROOT
+    /// vType, empty vId) then the raw 65-byte signature over the wrapped
+    /// digest. The unwrapped negative proves Kernel v4 really requires the
+    /// ERC-7739 wrap on the factory accounts (`_erc1271RawAllowed` is false
+    /// — raw 1271 is Kernel7702-only).
+    function _erc1271PersonalSignRootCase() internal {
+        erc1271PersonalDigest = _personalSignDigest(erc1271Sender, erc1271MessageHash);
+        bytes memory signature =
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(SIGNER_KEY, erc1271PersonalDigest));
+
+        bytes4 accepted = _isValid(erc1271Sender, erc1271MessageHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "personal-sign root 1271 rejected");
+        bytes4 wrongSigner = _isValid(
+            erc1271Sender,
+            erc1271MessageHash,
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(WRONG_KEY, erc1271PersonalDigest))
+        );
+        require(wrongSigner == bytes4(0xffffffff), "wrong signer unexpectedly accepted");
+        bytes4 unwrapped = _isValid(
+            erc1271Sender,
+            erc1271MessageHash,
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(SIGNER_KEY, erc1271MessageHash))
+        );
+        require(unwrapped == bytes4(0xffffffff), "unwrapped (non-7739) root signature accepted");
+
+        buf = string.concat(buf, '\n    "personalSignRoot": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(erc1271Sender), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(erc1271PersonalDigest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, ', "wrongSignerResult": "', vm.toString(abi.encodePacked(wrongSigner)), '"');
+        buf = string.concat(buf, ', "unwrappedResult": "', vm.toString(abi.encodePacked(unwrapped)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// The app-side pieces shared by both TypedDataSign cases: the `Mail`
+    /// struct hash (`contents`), the app's domain separator, and the 1271
+    /// input hash the verifying app would pass
+    /// (`keccak256(0x1901 ‖ APP_DOMAIN_SEPARATOR ‖ contents)`).
+    function _erc1271TypedDataSetup() internal {
+        bytes32 personTypehash = keccak256("Person(string name,address wallet)");
+        bytes32 fromHash = keccak256(abi.encode(personTypehash, keccak256("Cow"), MAIL_FROM_WALLET));
+        bytes32 toHash = keccak256(abi.encode(personTypehash, keccak256("Bob"), MAIL_TO_WALLET));
+        erc1271Contents =
+            keccak256(abi.encode(keccak256(bytes(CONTENTS_TYPE)), fromHash, toHash, keccak256("Hello, Bob!")));
+        erc1271AppDomainSep = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256("Ether Mail"),
+                keccak256("1"),
+                block.chainid,
+                APP_VERIFIER
+            )
+        );
+        erc1271TypedHash = keccak256(abi.encodePacked(hex"1901", erc1271AppDomainSep, erc1271Contents));
+    }
+
+    /// The ERC-7739 signature tail appended after the inner signature:
+    /// `APP_DOMAIN_SEPARATOR ‖ contents ‖ contentsType ‖ uint16(len)`
+    /// (implicit mode — the contentsDescription is the full encodeType
+    /// string, which starts with the contents name).
+    function _erc7739Tail() internal view returns (bytes memory) {
+        return abi.encodePacked(
+            erc1271AppDomainSep, erc1271Contents, CONTENTS_TYPE, uint16(bytes(CONTENTS_TYPE).length)
+        );
+    }
+
+    /// The chain-specific TypedDataSign digest for [account]: `contents`
+    /// re-hashed as
+    /// `TypedDataSign(Mail contents,...,uint256 chainId,...){ContentsType}`
+    /// carrying the *account's* eip712Domain fields (salt = 0), under the
+    /// *app's* domain separator.
+    function _erc1271TypedDataSignDigest(address account) internal view returns (bytes32) {
+        bytes32 typehash = keccak256(
+            abi.encodePacked(
+                "TypedDataSign(Mail contents,string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)",
+                CONTENTS_TYPE
+            )
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(
+                typehash,
+                erc1271Contents,
+                keccak256(bytes("Kernel")),
+                keccak256(bytes("0.4.0")),
+                block.chainid,
+                account,
+                bytes32(0)
+            )
+        );
+        return keccak256(abi.encodePacked(hex"1901", erc1271AppDomainSep, structHash));
+    }
+
+    function _erc1271TypedDataSignRootCase() internal {
+        erc1271TypedDigest = _erc1271TypedDataSignDigest(erc1271Sender);
+
+        bytes memory signature = abi.encodePacked(
+            uint8(0x00), uint8(0x00), _sign(SIGNER_KEY, erc1271TypedDigest), _erc7739Tail()
+        );
+        bytes4 accepted = _isValid(erc1271Sender, erc1271TypedHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "typed-data-sign root 1271 rejected");
+        bytes4 wrongSigner = _isValid(
+            erc1271Sender,
+            erc1271TypedHash,
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(WRONG_KEY, erc1271TypedDigest), _erc7739Tail())
+        );
+        require(wrongSigner == bytes4(0xffffffff), "wrong typed-data signer unexpectedly accepted");
+
+        buf = string.concat(buf, '\n    "typedDataSignRoot": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(erc1271Sender), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(SIGNER), '"');
+        _emitErc1271TypedDataFields();
+        buf = string.concat(buf, ', "digest": "', vm.toString(erc1271TypedDigest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, ', "wrongSignerResult": "', vm.toString(abi.encodePacked(wrongSigner)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// Replayable TypedDataSign: identical signature encoding, but the
+    /// signed digest's `TypedDataSign` struct drops the chainId field —
+    /// Kernel accepts it through the
+    /// `_erc1271IsValidSignatureViaNestedEIP712Replayable` OR-branch.
+    function _erc1271TypedDataSignReplayableCase() internal {
+        bytes32 typehash = keccak256(
+            abi.encodePacked(
+                "TypedDataSign(Mail contents,string name,string version,address verifyingContract,bytes32 salt)",
+                CONTENTS_TYPE
+            )
+        );
+        bytes32 structHash = keccak256(
+            abi.encode(
+                typehash,
+                erc1271Contents,
+                keccak256(bytes("Kernel")),
+                keccak256(bytes("0.4.0")),
+                erc1271Sender,
+                bytes32(0)
+            )
+        );
+        erc1271TypedDigestReplayable = keccak256(abi.encodePacked(hex"1901", erc1271AppDomainSep, structHash));
+
+        bytes memory signature = abi.encodePacked(
+            uint8(0x00), uint8(0x00), _sign(SIGNER_KEY, erc1271TypedDigestReplayable), _erc7739Tail()
+        );
+        bytes4 accepted = _isValid(erc1271Sender, erc1271TypedHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "replayable typed-data-sign 1271 rejected");
+
+        buf = string.concat(buf, '\n    "typedDataSignReplayable": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(erc1271Sender), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(erc1271TypedDigestReplayable), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    function _emitErc1271TypedDataFields() internal {
+        buf = string.concat(buf, ', "appDomain": {"name": "Ether Mail", "version": "1"');
+        buf = string.concat(buf, ', "chainId": ', vm.toString(block.chainid));
+        buf = string.concat(buf, ', "verifyingContract": "', vm.toString(APP_VERIFIER), '"}');
+        buf = string.concat(buf, ', "mailFromName": "Cow"');
+        buf = string.concat(buf, ', "mailFromWallet": "', vm.toString(MAIL_FROM_WALLET), '"');
+        buf = string.concat(buf, ', "mailToName": "Bob"');
+        buf = string.concat(buf, ', "mailToWallet": "', vm.toString(MAIL_TO_WALLET), '"');
+        buf = string.concat(buf, ', "mailContents": "Hello, Bob!"');
+        buf = string.concat(buf, ', "contentsType": "', CONTENTS_TYPE, '"');
+        buf = string.concat(buf, ', "appDomainSeparator": "', vm.toString(erc1271AppDomainSep), '"');
+        buf = string.concat(buf, ', "contents": "', vm.toString(erc1271Contents), '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271TypedHash), '"');
+    }
+
+    /// Validator-selected 1271: prefix `0x00 0x01 ‖ 20-byte module`, inner
+    /// signature by the *module's* owner over the account-bound wrapped
+    /// digest. Reuses the ticket-04 validator account — the root fallback
+    /// signer must NOT pass on this path.
+    function _erc1271ValidatorCase() internal {
+        bytes32 digest = _personalSignDigest(validatorSender, erc1271MessageHash);
+        bytes memory signature =
+            abi.encodePacked(uint8(0x00), uint8(0x01), validatorModule, _sign(WRONG_KEY, digest));
+
+        bytes4 accepted = _isValid(validatorSender, erc1271MessageHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "validator-selected 1271 rejected");
+        bytes4 rootSigner = _isValid(
+            validatorSender,
+            erc1271MessageHash,
+            abi.encodePacked(uint8(0x00), uint8(0x01), validatorModule, _sign(SIGNER_KEY, digest))
+        );
+        require(rootSigner == bytes4(0xffffffff), "root signer unexpectedly accepted on the validator path");
+
+        buf = string.concat(buf, '\n    "personalSignValidator": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(validatorSender), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(validatorModule), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, ', "rootSignerResult": "', vm.toString(abi.encodePacked(rootSigner)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// Permission-selected 1271: prefix `0x00 0x02 ‖ 4-byte PermissionId`,
+    /// then the same `abi.encode(bytes[])` PermissionSignature list as the
+    /// userOp path (policy chunks in install order, signer last) — over the
+    /// wrapped digest. Reuses the ticket-04 permission account.
+    function _erc1271PermissionCase() internal {
+        bytes32 digest = _personalSignDigest(permissionSender, erc1271MessageHash);
+        bytes memory signature = abi.encodePacked(
+            uint8(0x00), uint8(0x02), PERMISSION_ID, _permissionSignature(hex"c0ffee", _sign(WRONG_KEY, digest))
+        );
+
+        bytes4 accepted = _isValid(permissionSender, erc1271MessageHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "permission-selected 1271 rejected");
+        bytes4 wrongPolicy = _isValid(
+            permissionSender,
+            erc1271MessageHash,
+            abi.encodePacked(
+                uint8(0x00), uint8(0x02), PERMISSION_ID, _permissionSignature(hex"baadf00d", _sign(WRONG_KEY, digest))
+            )
+        );
+        require(wrongPolicy == bytes4(0xffffffff), "wrong policy chunk unexpectedly accepted");
+
+        buf = string.concat(buf, '\n    "personalSignPermission": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(permissionSender), '"');
+        buf = string.concat(buf, ', "permissionId": "', vm.toString(abi.encodePacked(PERMISSION_ID)), '"');
+        buf = string.concat(buf, ', "policyData": "0xc0ffee"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, ', "wrongPolicyDataResult": "', vm.toString(abi.encodePacked(wrongPolicy)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// Validator-selected TypedDataSign: the `[0x00 0x01 ‖ module]` prefix
+    /// composes with the nested-EIP-712 tail — the tail is stripped from the
+    /// end before the prefix routing runs.
+    function _erc1271TypedDataSignValidatorCase() internal {
+        bytes32 digest = _erc1271TypedDataSignDigest(validatorSender);
+        bytes memory signature = abi.encodePacked(
+            uint8(0x00), uint8(0x01), validatorModule, _sign(WRONG_KEY, digest), _erc7739Tail()
+        );
+        bytes4 accepted = _isValid(validatorSender, erc1271TypedHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "validator-selected typed-data-sign 1271 rejected");
+
+        buf = string.concat(buf, '\n    "typedDataSignValidator": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(validatorSender), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(validatorModule), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// Permission-selected TypedDataSign: proves the ABI-encoded
+    /// `PermissionSignature` list still decodes correctly with the
+    /// nested-EIP-712 tail appended after it.
+    function _erc1271TypedDataSignPermissionCase() internal {
+        bytes32 digest = _erc1271TypedDataSignDigest(permissionSender);
+        bytes memory signature = abi.encodePacked(
+            uint8(0x00),
+            uint8(0x02),
+            PERMISSION_ID,
+            _permissionSignature(hex"c0ffee", _sign(WRONG_KEY, digest)),
+            _erc7739Tail()
+        );
+        bytes4 accepted = _isValid(permissionSender, erc1271TypedHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "permission-selected typed-data-sign 1271 rejected");
+
+        buf = string.concat(buf, '\n    "typedDataSignPermission": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(permissionSender), '"');
+        buf = string.concat(buf, ', "permissionId": "', vm.toString(abi.encodePacked(PERMISSION_ID)), '"');
+        buf = string.concat(buf, ', "policyData": "0xc0ffee"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, "},");
+    }
+
+    /// Enable-mode TypedDataSign: the one framing with all three layers —
+    /// `[prefix] ‖ EnableModeSignature blob ‖ nested-EIP-712 tail`. The tail
+    /// is stripped before the blob is ABI-decoded, so the blob's trailing
+    /// position is what the SDK must produce.
+    function _erc1271TypedDataSignEnableCase() internal {
+        bytes32 digest = _erc1271TypedDataSignDigest(erc1271EnableSender);
+        bytes memory signature = abi.encodePacked(
+            _erc1271EnableFrame(0x08, _sign(SIGNER_KEY, erc1271EnableChainInstallDigest), _sign(WRONG_KEY, digest)),
+            _erc7739Tail()
+        );
+        bytes4 accepted = _isValid(erc1271EnableSender, erc1271TypedHash, signature);
+        require(accepted == bytes4(0x1626ba7e), "enable-mode typed-data-sign 1271 rejected");
+
+        buf = string.concat(buf, ',\n    "typedDataSignEnable": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(erc1271EnableSender), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(erc1271StatelessValidator), '"');
+        buf = string.concat(buf, ', "rootSigner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(digest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(signature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(accepted)), '"');
+        buf = string.concat(buf, "}");
+    }
+
+    /// Enable-mode 1271 (stateless view verification): prefix
+    /// `[vMode 0x08 | vType 0x01 | 20-byte module]`, then the ABI-encoded
+    /// `EnableModeSignature` blob. Nothing is installed — the module's
+    /// type-10 `validateSignatureWithDataWithSender` verifies the inner
+    /// signature against the package's `moduleData`, and the root fallback
+    /// signer authorizes the packages via the InstallPackages digest. The
+    /// replayable variant (`0x0C`) signs the sans-chainId install digest.
+    function _erc1271EnablePackages() internal view returns (Install[] memory pkgs) {
+        pkgs = new Install[](1);
+        pkgs[0] = Install({
+            moduleType: 1,
+            module: erc1271StatelessValidator,
+            moduleData: abi.encodePacked(OTHER_SIGNER),
+            internalData: abi.encodePacked(address(0), Kernel.execute.selector)
+        });
+    }
+
+    /// Frames an enable-mode 1271 signature:
+    /// `[vMode | vType 0x01 | 20-byte module] ‖ EnableModeSignature blob`.
+    function _erc1271EnableFrame(uint8 vMode, bytes memory enableSignature, bytes memory innerSignature)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            vMode,
+            uint8(0x01),
+            erc1271StatelessValidator,
+            _enableModeSignature(0, _erc1271EnablePackages(), enableSignature, innerSignature)
+        );
+    }
+
+    function _erc1271EnableModeCases() internal {
+        erc1271StatelessValidator = address(new RootEcdsaValidator());
+        erc1271EnableSender = address(factory.deployECDSA(SIGNER, _noPackages(), 401));
+
+        erc1271EnableDigest = _personalSignDigest(erc1271EnableSender, erc1271MessageHash);
+        erc1271EnableInnerSignature = _sign(WRONG_KEY, erc1271EnableDigest);
+        erc1271EnableChainInstallDigest = _installDigest(erc1271EnableSender, 0, _erc1271EnablePackages(), false);
+        erc1271EnableSansInstallDigest = _installDigest(erc1271EnableSender, 0, _erc1271EnablePackages(), true);
+
+        _erc1271EnableChainSpecificCase();
+        _erc1271EnableReplayableCase();
+        _erc1271EnableEmit();
+    }
+
+    function _erc1271EnableChainSpecificCase() internal {
+        erc1271EnableSignature = _erc1271EnableFrame(
+            0x08, _sign(SIGNER_KEY, erc1271EnableChainInstallDigest), erc1271EnableInnerSignature
+        );
+        erc1271EnableResult = _isValid(erc1271EnableSender, erc1271MessageHash, erc1271EnableSignature);
+        require(erc1271EnableResult == bytes4(0x1626ba7e), "enable-mode 1271 rejected");
+
+        erc1271EnableWrongSignerResult = _isValid(
+            erc1271EnableSender,
+            erc1271MessageHash,
+            _erc1271EnableFrame(0x08, _sign(WRONG_KEY, erc1271EnableChainInstallDigest), erc1271EnableInnerSignature)
+        );
+        require(
+            erc1271EnableWrongSignerResult == bytes4(0xffffffff), "non-root enable signature unexpectedly accepted"
+        );
+    }
+
+    function _erc1271EnableReplayableCase() internal {
+        erc1271EnableReplayableSignature = _erc1271EnableFrame(
+            0x0C, _sign(SIGNER_KEY, erc1271EnableSansInstallDigest), erc1271EnableInnerSignature
+        );
+        erc1271EnableReplayableResult =
+            _isValid(erc1271EnableSender, erc1271MessageHash, erc1271EnableReplayableSignature);
+        require(erc1271EnableReplayableResult == bytes4(0x1626ba7e), "replayable enable-mode 1271 rejected");
+
+        erc1271EnableWrongDomainResult = _isValid(
+            erc1271EnableSender,
+            erc1271MessageHash,
+            _erc1271EnableFrame(0x0C, _sign(SIGNER_KEY, erc1271EnableChainInstallDigest), erc1271EnableInnerSignature)
+        );
+        require(
+            erc1271EnableWrongDomainResult == bytes4(0xffffffff),
+            "chain-bound enable signature accepted under mode 0x0C"
+        );
+    }
+
+    function _erc1271EnableEmit() internal {
+        buf = string.concat(buf, '\n    "enableMode": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(erc1271EnableSender), '"');
+        buf = string.concat(buf, ', "validator": "', vm.toString(erc1271StatelessValidator), '"');
+        buf = string.concat(buf, ', "rootSigner": "', vm.toString(SIGNER), '"');
+        buf = string.concat(buf, ', "signer": "', vm.toString(OTHER_SIGNER), '"');
+        buf = string.concat(buf, ', "installNonce": "0"');
+        _emitPackages(_erc1271EnablePackages());
+        buf = string.concat(buf, ', "message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "digest": "', vm.toString(erc1271EnableDigest), '"');
+        buf = string.concat(
+            buf, ', "chainSpecificInstallDigest": "', vm.toString(erc1271EnableChainInstallDigest), '"'
+        );
+        buf = string.concat(buf, ', "sansChainIdInstallDigest": "', vm.toString(erc1271EnableSansInstallDigest), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(erc1271EnableSignature), '"');
+        buf = string.concat(buf, ', "replayableSignature": "', vm.toString(erc1271EnableReplayableSignature), '"');
+        buf = string.concat(buf, ', "result": "', vm.toString(abi.encodePacked(erc1271EnableResult)), '"');
+        buf = string.concat(
+            buf,
+            ', "wrongEnableSignerResult": "',
+            vm.toString(abi.encodePacked(erc1271EnableWrongSignerResult)),
+            '"'
+        );
+        buf = string.concat(
+            buf, ', "replayableResult": "', vm.toString(abi.encodePacked(erc1271EnableReplayableResult)), '"'
+        );
+        buf = string.concat(
+            buf, ', "wrongDomainResult": "', vm.toString(abi.encodePacked(erc1271EnableWrongDomainResult)), '"'
+        );
+        buf = string.concat(buf, "}");
+    }
+
+    // ------------------------------------------------------------------
+    // Kernel7702 vectors (ticket 09)
+    // ------------------------------------------------------------------
+
+    /// Kernel7702: the EOA delegates its code to the implementation via
+    /// EIP-7702, so the account address *is* the EOA, `initialize` is a no-op,
+    /// the EOA is the fallback signer, and raw (non-7739) ERC-1271 is allowed.
+    function _kernel7702Cases() internal {
+        k7702Impl = address(new Kernel7702(IEntryPoint(ENTRY_POINT)));
+        // Simulate an active delegation: etch the implementation's runtime
+        // code at the EOA address, so every call runs Kernel7702 code with
+        // `address(this)` = the EOA — the semantics the 7702 delegation
+        // designator provides (the constructor-baked EntryPoint immutable
+        // travels inside the runtime code).
+        vm.etch(K7702_EOA, k7702Impl.code);
+
+        buf = string.concat(buf, ',\n  "kernel7702": {');
+        buf = string.concat(buf, '"eoa": "', vm.toString(K7702_EOA), '"');
+        buf = string.concat(buf, ', "canonicalImplementation": "', vm.toString(CANON_7702), '"');
+        buf = string.concat(buf, ', "localImplementation": "', vm.toString(k7702Impl), '"');
+        _kernel7702UserOpCase();
+        _kernel7702Erc1271Cases();
+        _kernel7702InstallCase();
+        buf = string.concat(buf, "}");
+    }
+
+    /// Root userOp on the delegated EOA: the raw 65-byte `r‖s‖v` over the
+    /// EntryPoint v0.9 userOpHash, signed by the EOA key, is accepted by the
+    /// EOA's own fallback-signer path (nonce 0 = standard mode, ROOT type).
+    function _kernel7702UserOpCase() internal {
+        Target target = new Target();
+        bytes memory execData = abi.encodePacked(address(target), uint256(0), abi.encodeCall(Target.setX, (42)));
+        bytes memory callData = abi.encodeCall(Kernel.execute, (bytes32(0), execData));
+
+        PackedUserOperation memory op = PackedUserOperation({
+            sender: K7702_EOA,
+            nonce: 0, // vMode 0x00 (standard), vType 0x00 (root), vId 0, key 0, seq 0
+            initCode: hex"",
+            callData: callData,
+            accountGasLimits: bytes32((uint256(200000) << 128) | uint256(100000)),
+            preVerificationGas: 50000,
+            gasFees: bytes32((uint256(1 gwei) << 128) | uint256(2 gwei)),
+            paymasterAndData: hex"",
+            signature: hex""
+        });
+
+        bytes32 opHash = _userOpHash(op);
+        bytes memory goodSignature = _sign(K7702_KEY, opHash);
+
+        op.signature = goodSignature;
+        vm.prank(ENTRY_POINT);
+        uint256 validationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(validationData == 0, "Kernel7702 EOA signature was not accepted");
+
+        op.signature = _sign(WRONG_KEY, opHash);
+        vm.prank(ENTRY_POINT);
+        uint256 wrongSignerValidationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(wrongSignerValidationData == 1, "Kernel7702 wrong-signer signature unexpectedly accepted");
+
+        op.signature = STUB_SIGNATURE;
+        vm.prank(ENTRY_POINT);
+        uint256 stubValidationData = Kernel(payable(K7702_EOA)).validateUserOp(op, opHash, 0);
+        require(stubValidationData == 1, "Kernel7702 stub signature must fail cleanly, not revert");
+
+        op.signature = goodSignature;
+
+        buf = string.concat(buf, ',\n    "userOp": {');
+        buf = string.concat(buf, '"sender": "', vm.toString(op.sender), '"');
+        buf = string.concat(buf, ', "nonce": "', vm.toString(op.nonce), '"');
+        buf = string.concat(buf, ', "callData": "', vm.toString(op.callData), '"');
+        buf = string.concat(buf, ', "callGasLimit": 100000');
+        buf = string.concat(buf, ', "verificationGasLimit": 200000');
+        buf = string.concat(buf, ', "preVerificationGas": 50000');
+        buf = string.concat(buf, ', "maxFeePerGas": ', vm.toString(uint256(2 gwei)));
+        buf = string.concat(buf, ', "maxPriorityFeePerGas": ', vm.toString(uint256(1 gwei)));
+        buf = string.concat(buf, ', "userOpHash": "', vm.toString(opHash), '"');
+        buf = string.concat(buf, ', "signature": "', vm.toString(op.signature), '"');
+        buf = string.concat(buf, ', "validationData": ', vm.toString(validationData));
+        buf = string.concat(buf, ', "wrongSignerValidationData": ', vm.toString(wrongSignerValidationData));
+        buf = string.concat(buf, ', "stubSignatureValidationData": ', vm.toString(stubValidationData));
+        buf = string.concat(buf, "}");
+    }
+
+    /// ERC-1271 on the delegated EOA, both paths ticket 09 requires:
+    ///
+    /// - **raw** (Kernel7702-only, `_erc1271RawAllowed`): a bare 65-byte
+    ///   signature over the app's input hash, no prefix, no ERC-7739 wrap;
+    /// - **nested**: the same `[0x00 vMode | 0x00 vType]`-prefixed PersonalSign
+    ///   flow the factory accounts use, verified here by the fallback signer.
+    function _kernel7702Erc1271Cases() internal {
+        // Reuses the message hash prepared by `_erc1271Cases` (run before us).
+        bytes memory rawSignature = _sign(K7702_KEY, erc1271MessageHash);
+        bytes4 rawResult = _isValid(K7702_EOA, erc1271MessageHash, rawSignature);
+        require(rawResult == bytes4(0x1626ba7e), "Kernel7702 raw 1271 rejected");
+
+        // A wrong-signer raw signature must not verify. After the fallback
+        // recovery fails, the contract reinterprets the 65 bytes as a
+        // prefixed signature, so junk leading bytes may revert
+        // (InvalidValidationType) instead of returning the failure magic —
+        // both are rejections; neither may be the success magic.
+        bool wrongSignerRejected;
+        try Kernel(payable(K7702_EOA)).isValidSignature(erc1271MessageHash, _sign(WRONG_KEY, erc1271MessageHash))
+        returns (bytes4 wrongRawResult) {
+            wrongSignerRejected = wrongRawResult != bytes4(0x1626ba7e);
+        } catch {
+            wrongSignerRejected = true;
+        }
+        require(wrongSignerRejected, "Kernel7702 wrong-signer raw 1271 unexpectedly accepted");
+
+        bytes32 personalDigest = _personalSignDigest(K7702_EOA, erc1271MessageHash);
+        bytes memory nestedSignature =
+            abi.encodePacked(uint8(0x00), uint8(0x00), _sign(K7702_KEY, personalDigest));
+        bytes4 nestedResult = _isValid(K7702_EOA, erc1271MessageHash, nestedSignature);
+        require(nestedResult == bytes4(0x1626ba7e), "Kernel7702 nested personal-sign 1271 rejected");
+
+        buf = string.concat(buf, ',\n    "erc1271": {');
+        buf = string.concat(buf, '"message": "', ERC1271_MESSAGE, '"');
+        buf = string.concat(buf, ', "hash": "', vm.toString(erc1271MessageHash), '"');
+        buf = string.concat(buf, ', "rawSignature": "', vm.toString(rawSignature), '"');
+        buf = string.concat(buf, ', "rawResult": "', vm.toString(abi.encodePacked(rawResult)), '"');
+        buf = string.concat(buf, ', "wrongSignerRawRejected": ', wrongSignerRejected ? "true" : "false");
+        buf = string.concat(buf, ', "personalSignDigest": "', vm.toString(personalDigest), '"');
+        buf = string.concat(buf, ', "nestedSignature": "', vm.toString(nestedSignature), '"');
+        buf = string.concat(buf, ', "nestedResult": "', vm.toString(abi.encodePacked(nestedResult)), '"');
+        buf = string.concat(buf, "}");
+    }
+
+    /// Module install *after* delegation, reusing the exact
+    /// `installModule(uint256,address,bytes)` calldata shape the ticket-06
+    /// encoders emit — proving the existing install path needs no 7702
+    /// special-casing.
+    function _kernel7702InstallCase() internal {
+        RootEcdsaValidator validator = new RootEcdsaValidator();
+        k7702InstallValidator = address(validator);
+        bytes memory moduleData = abi.encodePacked(OTHER_SIGNER);
+        // Installed-no-hook sentinel (address(1)) + an allow-listed `execute`
+        // selector — the same shape as the moduleManagement vectors.
+        bytes memory internalData = abi.encodePacked(address(1), Kernel.execute.selector);
+
+        bytes memory callData = abi.encodeWithSignature(
+            "installModule(uint256,address,bytes)", uint256(1), k7702InstallValidator, abi.encode(moduleData, internalData)
+        );
+        vm.prank(ENTRY_POINT);
+        (bool ok,) = K7702_EOA.call(callData);
+        require(ok, "Kernel7702 post-delegation install failed");
+        require(
+            Kernel(payable(K7702_EOA)).isModuleInstalled(1, k7702InstallValidator, hex""),
+            "validator not installed after Kernel7702 install"
+        );
+
+        buf = string.concat(buf, ',\n    "install": {');
+        buf = string.concat(buf, '"moduleType": 1');
+        buf = string.concat(buf, ', "module": "', vm.toString(k7702InstallValidator), '"');
+        buf = string.concat(buf, ', "moduleData": "', vm.toString(moduleData), '"');
+        buf = string.concat(buf, ', "internalData": "', vm.toString(internalData), '"');
         buf = string.concat(buf, ', "callData": "', vm.toString(callData), '"}');
     }
 

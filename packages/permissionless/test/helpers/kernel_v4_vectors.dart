@@ -38,3 +38,43 @@ List<KernelV4Install> kernelV4PackagesFromCase(Map<String, dynamic> c) =>
           ),
         )
         .toList();
+
+/// Rebuilds the app-side typed data of the ERC-1271 TypedDataSign fixture
+/// cases — the classic EIP-712 `Mail` example (its nested `Person` reference
+/// exercises the encodeType appending rules inside `TypedDataSign`). The
+/// field values live on the `typedDataSignRoot` case.
+TypedData kernelV4MailTypedDataFromCase(Map<String, dynamic> c) {
+  final domain = c['appDomain'] as Map<String, dynamic>;
+  return TypedData(
+    domain: TypedDataDomain(
+      name: domain['name'] as String,
+      version: domain['version'] as String,
+      chainId: BigInt.from(domain['chainId'] as int),
+      verifyingContract:
+          EthereumAddress.fromHex(domain['verifyingContract'] as String),
+    ),
+    types: {
+      'Person': [
+        const TypedDataField(name: 'name', type: 'string'),
+        const TypedDataField(name: 'wallet', type: 'address'),
+      ],
+      'Mail': [
+        const TypedDataField(name: 'from', type: 'Person'),
+        const TypedDataField(name: 'to', type: 'Person'),
+        const TypedDataField(name: 'contents', type: 'string'),
+      ],
+    },
+    primaryType: 'Mail',
+    message: {
+      'from': {
+        'name': c['mailFromName'] as String,
+        'wallet': c['mailFromWallet'] as String,
+      },
+      'to': {
+        'name': c['mailToName'] as String,
+        'wallet': c['mailToWallet'] as String,
+      },
+      'contents': c['mailContents'] as String,
+    },
+  );
+}
