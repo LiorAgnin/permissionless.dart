@@ -1,9 +1,12 @@
 import '../../types/address.dart';
+import '../../types/user_operation.dart';
 
 /// Kernel smart account version.
 ///
 /// Covers the full set of versions supported by permissionless.js
-/// (`KernelVersion<entryPointVersion>`).
+/// (`KernelVersion<entryPointVersion>`), plus Kernel v4.0 (EntryPoint v0.9),
+/// which has no permissionless.js counterpart and is grounded directly in the
+/// Kernel v4.0 contracts.
 enum KernelVersion {
   /// Kernel v0.2.1 - EntryPoint v0.6 (no Kernel EIP-712 message wrap).
   v0_2_1('0.2.1'),
@@ -27,7 +30,14 @@ enum KernelVersion {
   v0_3_2('0.3.2'),
 
   /// Kernel v0.3.3 - EntryPoint v0.7 with EIP-7702 support.
-  v0_3_3('0.3.3');
+  v0_3_3('0.3.3'),
+
+  /// Kernel v0.4.0 - EntryPoint v0.9.
+  ///
+  /// A new account generation with its own class family
+  /// (`KernelImmutableECDSA`, and — in later slices — `KernelUUPS` /
+  /// `Kernel7702`); the v2/v3 factories reject it.
+  v0_4_0('0.4.0');
 
   const KernelVersion(this.value);
 
@@ -39,13 +49,26 @@ enum KernelVersion {
       this == v0_2_1 || this == v0_2_2 || this == v0_2_3 || this == v0_2_4;
 
   /// Whether this is a Kernel v0.3.x (EntryPoint v0.7) account.
-  bool get isV3 => !isV2;
+  bool get isV3 => !isV2 && !isV4;
+
+  /// Whether this is a Kernel v4 (EntryPoint v0.9) account.
+  bool get isV4 => this == v0_4_0;
 
   /// Whether this version uses ERC-7579 encoding.
-  bool get usesErc7579 => isV3;
+  bool get usesErc7579 => isV3 || isV4;
 
   /// Whether this version requires a separate validator address.
+  ///
+  /// v4 is deliberately excluded: `KernelImmutableECDSA` validates through
+  /// the immutable fallback signer, with no external validator module.
   bool get hasExternalValidator => isV3;
+
+  /// The EntryPoint version this Kernel version targets.
+  EntryPointVersion get entryPointVersion => isV2
+      ? EntryPointVersion.v06
+      : isV4
+          ? EntryPointVersion.v09
+          : EntryPointVersion.v07;
 
   /// Whether this version supports EIP-7702.
   bool get supportsEip7702 => this == v0_3_3;

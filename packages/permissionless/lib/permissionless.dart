@@ -61,6 +61,7 @@ export 'src/utils/erc20.dart';
 export 'src/utils/erc20_paymaster.dart';
 export 'src/utils/erc7579.dart';
 export 'src/utils/gas.dart';
+export 'src/utils/kernel_v4/kernel_v4.dart';
 export 'src/utils/message_hash.dart';
 export 'src/utils/multisend.dart';
 export 'src/utils/packed_user_operation.dart';

@@ -113,6 +113,22 @@ class PrivateKeyEip7702KernelOwner implements Eip7702KernelOwner {
       );
 }
 
+/// Resolves the address table for an EIP-7702-capable Kernel version,
+/// throwing [ArgumentError] (not a bare null-check error) for versions this
+/// account family does not cover — notably Kernel v4, whose EIP-7702 path is
+/// a separate implementation (Kernel7702).
+KernelAddresses _requireEip7702Addresses(KernelVersion version) {
+  final addresses = KernelVersionAddresses.getAddresses(version);
+  if (!version.supportsEip7702 || addresses == null) {
+    throw ArgumentError(
+      'Kernel version ${version.value} does not support this EIP-7702 '
+      'path. Use v0.3.3${version.isV4 ? '; Kernel v4 EIP-7702 accounts '
+          'will have their own factory (Kernel7702)' : ''}.',
+    );
+  }
+  return addresses;
+}
+
 /// Configuration for creating an EIP-7702 Kernel smart account.
 class Eip7702KernelSmartAccountConfig {
   /// Creates a configuration for an EIP-7702 Kernel smart account.
@@ -138,15 +154,12 @@ class Eip7702KernelSmartAccountConfig {
     this.nonceKey,
     this.entryPointAddress,
   })  : accountLogicAddress = accountLogicAddress ??
-            KernelVersionAddresses.getAddresses(version)!.accountImplementation,
+            _requireEip7702Addresses(version).accountImplementation,
         ecdsaValidatorAddress = ecdsaValidatorAddress ??
-            KernelVersionAddresses.getAddresses(version)!.ecdsaValidator! {
-    if (!version.supportsEip7702) {
-      throw ArgumentError(
-        'Kernel version ${version.value} does not support EIP-7702. '
-        'Use v0.3.3 or later.',
-      );
-    }
+            _requireEip7702Addresses(version).ecdsaValidator! {
+    // Covers the case where both addresses were supplied explicitly and the
+    // initializer-list helper never ran.
+    _requireEip7702Addresses(version);
     if (nonceKey != null && nonceKey! > BigInt.from(0xffff)) {
       throw ArgumentError(
         'nonce key must be equal or less than 2 bytes(maxUint16) for '
