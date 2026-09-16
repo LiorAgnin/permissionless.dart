@@ -203,6 +203,35 @@ void main() {
         final initCode = await account.getInitCode();
         expect(initCode.toLowerCase(), equals(jsInitCode));
       });
+
+      test('reversed attesters produce the same factory data', () async {
+        final attesterA = EthereumAddress.fromHex(
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01',
+        );
+        final attesterB = EthereumAddress.fromHex(
+          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb02',
+        );
+
+        final account1 = createNexusSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
+          attesters: [attesterA, attesterB],
+          threshold: 1,
+        );
+        final account2 = createNexusSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
+          attesters: [attesterB, attesterA],
+          threshold: 1,
+        );
+
+        final factoryData1 = await account1.getFactoryData();
+        final factoryData2 = await account2.getFactoryData();
+
+        expect(factoryData1, isNotNull);
+        expect(factoryData2, isNotNull);
+        expect(factoryData1!.factoryData, equals(factoryData2!.factoryData));
+      });
     });
 
     group('stub signature', () {

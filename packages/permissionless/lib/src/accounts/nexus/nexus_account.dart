@@ -12,6 +12,7 @@ import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/sort_addresses.dart';
 import '../account_owner.dart';
 import 'constants.dart';
 
@@ -206,9 +207,7 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Encodes the createAccount factory call.
   String _encodeCreateAccount() {
-    // Sort attesters by address
-    final sortedAttesters = List<EthereumAddress>.from(_config.attesters)
-      ..sort((a, b) => a.hex.toLowerCase().compareTo(b.hex.toLowerCase()));
+    final sortedAttesters = sortAddresses(_config.attesters);
 
     // createAccount(address eoaOwner, uint256 index, address[] attesters, uint8 threshold)
     // This is a complex ABI encoding with a dynamic array
