@@ -466,13 +466,21 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
     final callDataHash = keccak256(Hex.decode(userOp.callData));
 
     final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
+      Hex.fromBigInt(
+        userOp.verificationGasLimit,
+        byteLength: 16,
+        name: 'verificationGasLimit',
+      ),
+      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
     ]);
 
     final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
+      Hex.fromBigInt(
+        userOp.maxPriorityFeePerGas,
+        byteLength: 16,
+        name: 'maxPriorityFeePerGas',
+      ),
+      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
     ]);
 
     var paymasterAndData = '0x';
@@ -482,10 +490,12 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
         Hex.fromBigInt(
           userOp.paymasterVerificationGasLimit ?? BigInt.zero,
           byteLength: 16,
+          name: 'paymasterVerificationGasLimit',
         ),
         Hex.fromBigInt(
           userOp.paymasterPostOpGasLimit ?? BigInt.zero,
           byteLength: 16,
+          name: 'paymasterPostOpGasLimit',
         ),
         Hex.strip0x(userOp.paymasterData ?? '0x'),
       ]);

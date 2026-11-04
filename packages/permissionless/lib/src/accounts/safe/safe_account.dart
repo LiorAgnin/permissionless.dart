@@ -1243,10 +1243,12 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         Hex.fromBigInt(
           userOp.paymasterVerificationGasLimit ?? BigInt.zero,
           byteLength: 16,
+          name: 'paymasterVerificationGasLimit',
         ),
         Hex.fromBigInt(
           userOp.paymasterPostOpGasLimit ?? BigInt.zero,
           byteLength: 16,
+          name: 'paymasterPostOpGasLimit',
         ),
         Hex.strip0x(userOp.paymasterData ?? '0x'),
       ]);
@@ -1259,11 +1261,17 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       AbiEncoder.encodeUint256(userOp.nonce),
       Hex.fromBytes(initCodeHash),
       Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint128(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint128(userOp.callGasLimit),
+      AbiEncoder.encodeUint128(
+        userOp.verificationGasLimit,
+        name: 'verificationGasLimit',
+      ),
+      AbiEncoder.encodeUint128(userOp.callGasLimit, name: 'callGasLimit'),
       AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint128(userOp.maxPriorityFeePerGas),
-      AbiEncoder.encodeUint128(userOp.maxFeePerGas),
+      AbiEncoder.encodeUint128(
+        userOp.maxPriorityFeePerGas,
+        name: 'maxPriorityFeePerGas',
+      ),
+      AbiEncoder.encodeUint128(userOp.maxFeePerGas, name: 'maxFeePerGas'),
       Hex.fromBytes(paymasterAndDataHash),
       AbiEncoder.encodeUint48(0), // validAfter
       AbiEncoder.encodeUint48(0), // validUntil

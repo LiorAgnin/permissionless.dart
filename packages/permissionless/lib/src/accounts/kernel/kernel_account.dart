@@ -891,14 +891,22 @@ class KernelSmartAccount implements SmartAccount {
 
     // Pack accountGasLimits (v0.7 packing)
     final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16),
+      Hex.fromBigInt(
+        userOp.verificationGasLimit,
+        byteLength: 16,
+        name: 'verificationGasLimit',
+      ),
+      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
     ]);
 
     // Pack gasFees
     final gasFees = Hex.concat([
-      Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16),
+      Hex.fromBigInt(
+        userOp.maxPriorityFeePerGas,
+        byteLength: 16,
+        name: 'maxPriorityFeePerGas',
+      ),
+      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
     ]);
 
     // Pack paymasterAndData
@@ -908,10 +916,12 @@ class KernelSmartAccount implements SmartAccount {
             Hex.fromBigInt(
               userOp.paymasterVerificationGasLimit ?? BigInt.zero,
               byteLength: 16,
+              name: 'paymasterVerificationGasLimit',
             ),
             Hex.fromBigInt(
               userOp.paymasterPostOpGasLimit ?? BigInt.zero,
               byteLength: 16,
+              name: 'paymasterPostOpGasLimit',
             ),
             Hex.strip0x(userOp.paymasterData ?? '0x'),
           ])
