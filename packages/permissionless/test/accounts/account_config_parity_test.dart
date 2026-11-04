@@ -307,7 +307,9 @@ void main() {
   group('decodeCalls round-trip', () {
     void expectCallEqual(Call actual, Call expected) {
       expect(
-          actual.to.hex.toLowerCase(), equals(expected.to.hex.toLowerCase()));
+        actual.to.hex.toLowerCase(),
+        equals(expected.to.hex.toLowerCase()),
+      );
       expect(actual.value, equals(expected.value));
       expect(
         Hex.strip0x(actual.data).toLowerCase(),
@@ -344,8 +346,10 @@ void main() {
       final decoded = account.decodeCalls(batch);
       expect(decoded, hasLength(2));
       // v0.6 batch has no values array — decoded values are zero
-      expect(decoded[0].to.hex.toLowerCase(),
-          equals(sampleCalls[0].to.hex.toLowerCase()));
+      expect(
+        decoded[0].to.hex.toLowerCase(),
+        equals(sampleCalls[0].to.hex.toLowerCase()),
+      );
       expect(decoded[0].value, equals(BigInt.zero));
       expect(
         Hex.strip0x(decoded[0].data).toLowerCase(),

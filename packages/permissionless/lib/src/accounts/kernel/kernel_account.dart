@@ -813,8 +813,10 @@ class KernelSmartAccount implements SmartAccount {
 
   /// Root validator identifier for Kernel v0.3.x: `0x01 ‖ validatorAddress`.
   String _getEcdsaRootIdentifier() => Hex.concat([
-        Hex.fromBigInt(BigInt.from(KernelValidatorType.validator),
-            byteLength: 1),
+        Hex.fromBigInt(
+          BigInt.from(KernelValidatorType.validator),
+          byteLength: 1,
+        ),
         _validatorAddress.hex,
       ]);
 
