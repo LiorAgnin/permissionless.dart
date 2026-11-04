@@ -7,6 +7,7 @@ import '../../types/eip7702.dart';
 import '../../types/user_operation.dart';
 import 'rpc_client.dart';
 import 'types.dart';
+import 'user_operation_request.dart';
 
 /// Client for interacting with ERC-4337 bundlers.
 ///
@@ -78,12 +79,10 @@ class BundlerClient {
     List<Eip7702Authorization> authorizationList,
   ) async {
     // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOp.toJson();
-    if (authorizationList.isNotEmpty) {
-      userOpJson['eip7702Auth'] = authorizationList.first.toRpcFormat();
-    }
-    // Handle EIP-7702 factory marker - bundler expects '0x7702' not the padded form
-    _normalizeEip7702Factory(userOpJson);
+    final userOpJson = userOperationRequestJson(
+      userOp,
+      authorization: authorizationList.firstOrNull,
+    );
 
     final result = await rpcClient.call(
       'eth_sendUserOperation',
@@ -127,12 +126,10 @@ class BundlerClient {
     Map<String, dynamic>? stateOverride,
   }) async {
     // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOp.toJson();
-    if (authorizationList.isNotEmpty) {
-      userOpJson['eip7702Auth'] = authorizationList.first.toRpcFormat();
-    }
-    // Handle EIP-7702 factory marker - bundler expects '0x7702' not the padded form
-    _normalizeEip7702Factory(userOpJson);
+    final userOpJson = userOperationRequestJson(
+      userOp,
+      authorization: authorizationList.firstOrNull,
+    );
 
     final params = <dynamic>[userOpJson, entryPoint.hex];
     if (stateOverride != null) {
@@ -144,17 +141,6 @@ class BundlerClient {
       params,
     );
     return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
-  }
-
-  /// Normalizes the factory field for EIP-7702.
-  ///
-  /// The bundler expects '0x7702' (4 bytes) not the padded 20-byte address.
-  void _normalizeEip7702Factory(Map<String, dynamic> userOpJson) {
-    final factory = userOpJson['factory'] as String?;
-    if (factory != null &&
-        factory.toLowerCase() == '0x7702000000000000000000000000000000000000') {
-      userOpJson['factory'] = '0x7702';
-    }
   }
 
   /// Gets a UserOperation by its hash.

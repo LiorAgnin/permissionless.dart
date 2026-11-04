@@ -39,7 +39,8 @@ class JsonRpcClient {
 
   /// Sends a JSON-RPC request and returns the result.
   ///
-  /// Throws [BundlerRpcError] if the RPC returns an error response.
+  /// Throws [BundlerRpcError] if the RPC returns an error response, or
+  /// [BundlerHttpError] (a [BundlerRpcError]) on a non-200 HTTP status.
   Future<dynamic> call(String method, [List<dynamic>? params]) async {
     final requestId = ++_requestId;
 
@@ -62,10 +63,10 @@ class JsonRpcClient {
         .timeout(timeout);
 
     if (response.statusCode != 200) {
-      throw BundlerRpcError(
-        code: response.statusCode,
-        message: 'HTTP error: ${response.reasonPhrase}',
-        data: response.body,
+      throw BundlerHttpError(
+        statusCode: response.statusCode,
+        reasonPhrase: response.reasonPhrase,
+        body: response.body,
       );
     }
 
@@ -115,10 +116,10 @@ class JsonRpcClient {
         .timeout(timeout);
 
     if (response.statusCode != 200) {
-      throw BundlerRpcError(
-        code: response.statusCode,
-        message: 'HTTP error: ${response.reasonPhrase}',
-        data: response.body,
+      throw BundlerHttpError(
+        statusCode: response.statusCode,
+        reasonPhrase: response.reasonPhrase,
+        body: response.body,
       );
     }
 

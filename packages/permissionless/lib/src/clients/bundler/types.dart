@@ -383,6 +383,28 @@ class BundlerRpcError implements Exception {
   }
 }
 
+/// A non-200 HTTP response from the RPC endpoint.
+///
+/// Subclasses [BundlerRpcError] so existing `on BundlerRpcError` handlers
+/// keep catching it. [code] is the HTTP status, not a JSON-RPC error code:
+/// the request never produced a JSON-RPC answer, so callers that classify
+/// JSON-RPC errors (e.g. `sendUserOperationSync`) treat it as "no answer".
+class BundlerHttpError extends BundlerRpcError {
+  /// Creates an HTTP error for [statusCode] with the response [body].
+  const BundlerHttpError({
+    required int statusCode,
+    String? reasonPhrase,
+    String? body,
+  }) : super(
+          code: statusCode,
+          message: 'HTTP error: $reasonPhrase',
+          data: body,
+        );
+
+  /// The HTTP status code (same as [code]).
+  int get statusCode => code;
+}
+
 // Helper to parse hex or decimal int
 int _parseHexInt(dynamic value) {
   if (value is int) return value;
