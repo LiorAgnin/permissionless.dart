@@ -2,7 +2,7 @@ name: permissionless_passkeys
 description: >-
   WebAuthn/Passkeys support for permissionless.dart ERC-4337 smart accounts.
   Enables biometric authentication with Kernel and Safe accounts using P256 signatures.
-version: 0.1.2
+version: 0.1.3
 homepage: https://github.com/LiorAgnin/permissionless.dart
 repository: https://github.com/LiorAgnin/permissionless.dart/tree/main/packages/permissionless_passkeys
 issue_tracker: https://github.com/LiorAgnin/permissionless.dart/issues
