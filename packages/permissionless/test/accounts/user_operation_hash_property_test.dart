@@ -109,32 +109,67 @@ void main() {
       skip: 'Known finding: EtherspotSmartAccount._getInitCodeFromUserOp '
           'drops the factory when factoryData is null.',
     );
+  });
 
-    test(
-      'signUserOperation rejects a v0.7 gas field >= 2^128',
-      () async {
-        final account = createSimpleSmartAccount(
-          owner: _RecordingOwner(),
-          chainId: BigInt.one,
-          address: _addr(1),
+  // Packed v0.7/v0.8 gas fields are uint128 on-chain. A value outside that
+  // range has no EntryPoint encoding, so signing must refuse it rather than
+  // sign a widened word that shifts the next field.
+  group('packed gas fields outside uint128', () {
+    final packedTargets = _targets.where((t) => t.ep != _Ep.v06);
+    for (final target in packedTargets) {
+      for (final field in _packedGasFields) {
+        for (final bad in [BigInt.one << 128, BigInt.from(-1)]) {
+          test('${target.name} ${target.ep.name} rejects $field = $bad',
+              () async {
+            await expectLater(
+              target.sign(_Op.gasEdge({field: bad}), BigInt.one),
+              throwsA(
+                isA<ArgumentError>()
+                    .having((e) => e.name, 'name', field)
+                    .having((e) => e.invalidValue, 'value', bad),
+              ),
+            );
+          });
+        }
+      }
+
+      test('${target.name} ${target.ep.name} signs every field at 2^128 - 1',
+          () async {
+        await _expectSignsEntryPointHash(
+          target,
+          _Op.gasEdge({for (final f in _packedGasFields) f: _u128}),
+          BigInt.one,
+          'all packed gas fields at 2^128 - 1',
         );
-        final op = UserOperationV07(
-          sender: _addr(1),
-          nonce: BigInt.zero,
-          callData: '0x',
-          callGasLimit: BigInt.from(5),
-          verificationGasLimit: BigInt.one << 128,
-          preVerificationGas: BigInt.zero,
-          maxFeePerGas: BigInt.zero,
-          maxPriorityFeePerGas: BigInt.zero,
-        );
-        await expectLater(account.signUserOperation(op), throwsA(anything));
-      },
-      skip: 'Known finding: no uint128 guard on packed gas fields; the SDK '
-          'signs a malformed preimage.',
-    );
+      });
+    }
+
+    test('Safe v0.7 rejects verificationGasLimit = 2^128', () async {
+      final account = createSafeSmartAccount(
+        owners: [_RecordingOwner()],
+        chainId: BigInt.one,
+        address: _addr(1),
+      );
+      final op = _Op.gasEdge({'verificationGasLimit': BigInt.one << 128});
+      await expectLater(
+        account.signUserOperation(op.toV07()),
+        throwsA(
+          isA<ArgumentError>()
+              .having((e) => e.name, 'name', 'verificationGasLimit'),
+        ),
+      );
+    });
   });
 }
+
+const _packedGasFields = [
+  'verificationGasLimit',
+  'callGasLimit',
+  'maxPriorityFeePerGas',
+  'maxFeePerGas',
+  'paymasterVerificationGasLimit',
+  'paymasterPostOpGasLimit',
+];
 
 Future<void> _expectSignsEntryPointHash(
   _Target target,
@@ -514,6 +549,29 @@ class _Op {
         paymasterData: null,
         signature: Uint8List(0),
       );
+
+  /// All-zero operation with a paymaster, every packed gas field zero
+  /// except those in [gas] (keyed by field name).
+  factory _Op.gasEdge(Map<String, BigInt> gas) {
+    BigInt g(String field) => gas[field] ?? BigInt.zero;
+    return _Op(
+      sender: Uint8List(20),
+      nonce: BigInt.zero,
+      factory: null,
+      factoryData: null,
+      callData: Uint8List(0),
+      callGasLimit: g('callGasLimit'),
+      verificationGasLimit: g('verificationGasLimit'),
+      preVerificationGas: BigInt.zero,
+      maxFeePerGas: g('maxFeePerGas'),
+      maxPriorityFeePerGas: g('maxPriorityFeePerGas'),
+      paymaster: Uint8List(20)..[19] = 1,
+      paymasterVerificationGasLimit: g('paymasterVerificationGasLimit'),
+      paymasterPostOpGasLimit: g('paymasterPostOpGasLimit'),
+      paymasterData: null,
+      signature: Uint8List(0),
+    );
+  }
 
   final Uint8List sender;
   final BigInt nonce;

@@ -138,6 +138,36 @@ void main() {
         );
       });
 
+      test('fromBigInt with length accepts the maximum value', () {
+        final max = (BigInt.one << 128) - BigInt.one;
+        expect(
+          Hex.fromBigInt(max, byteLength: 16),
+          equals('0x${'f' * 32}'),
+        );
+      });
+
+      test('fromBigInt with length rejects a value that does not fit', () {
+        expect(
+          () => Hex.fromBigInt(
+            BigInt.one << 128,
+            byteLength: 16,
+            name: 'callGasLimit',
+          ),
+          throwsA(
+            isA<ArgumentError>()
+                .having((e) => e.name, 'name', 'callGasLimit')
+                .having((e) => e.invalidValue, 'value', BigInt.one << 128),
+          ),
+        );
+      });
+
+      test('fromBigInt with length rejects a negative value', () {
+        expect(
+          () => Hex.fromBigInt(BigInt.from(-1), byteLength: 32),
+          throwsA(isA<ArgumentError>().having((e) => e.name, 'name', 'value')),
+        );
+      });
+
       test('toBigInt', () {
         expect(Hex.toBigInt('0xff'), equals(BigInt.from(255)));
       });

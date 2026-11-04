@@ -143,9 +143,19 @@ String getInitCode(
 /// final gasLimits = getAccountGasLimits(userOp);
 /// // Returns '0x0000000000000000000000000000c350000000000000000000000000000186a0'
 /// ```
+///
+/// Throws an [ArgumentError] if either limit does not fit in uint128.
 String getAccountGasLimits(UserOperationV07 userOperation) => Hex.concat([
-      Hex.padLeft(Hex.fromBigInt(userOperation.verificationGasLimit), 16),
-      Hex.padLeft(Hex.fromBigInt(userOperation.callGasLimit), 16),
+      Hex.fromBigInt(
+        userOperation.verificationGasLimit,
+        byteLength: 16,
+        name: 'verificationGasLimit',
+      ),
+      Hex.fromBigInt(
+        userOperation.callGasLimit,
+        byteLength: 16,
+        name: 'callGasLimit',
+      ),
     ]);
 
 /// Creates the packed gasFees from fee parameters.
@@ -156,9 +166,19 @@ String getAccountGasLimits(UserOperationV07 userOperation) => Hex.concat([
 /// ```dart
 /// final fees = getGasFees(userOp);
 /// ```
+///
+/// Throws an [ArgumentError] if either fee does not fit in uint128.
 String getGasFees(UserOperationV07 userOperation) => Hex.concat([
-      Hex.padLeft(Hex.fromBigInt(userOperation.maxPriorityFeePerGas), 16),
-      Hex.padLeft(Hex.fromBigInt(userOperation.maxFeePerGas), 16),
+      Hex.fromBigInt(
+        userOperation.maxPriorityFeePerGas,
+        byteLength: 16,
+        name: 'maxPriorityFeePerGas',
+      ),
+      Hex.fromBigInt(
+        userOperation.maxFeePerGas,
+        byteLength: 16,
+        name: 'maxFeePerGas',
+      ),
     ]);
 
 /// Creates the packed paymasterAndData from paymaster fields.
@@ -178,15 +198,15 @@ String getPaymasterAndData(UserOperationV07 userOperation) {
   }
   return Hex.concat([
     userOperation.paymaster!.hex,
-    Hex.padLeft(
-      Hex.fromBigInt(
-        userOperation.paymasterVerificationGasLimit ?? BigInt.zero,
-      ),
-      16,
+    Hex.fromBigInt(
+      userOperation.paymasterVerificationGasLimit ?? BigInt.zero,
+      byteLength: 16,
+      name: 'paymasterVerificationGasLimit',
     ),
-    Hex.padLeft(
-      Hex.fromBigInt(userOperation.paymasterPostOpGasLimit ?? BigInt.zero),
-      16,
+    Hex.fromBigInt(
+      userOperation.paymasterPostOpGasLimit ?? BigInt.zero,
+      byteLength: 16,
+      name: 'paymasterPostOpGasLimit',
     ),
     userOperation.paymasterData ?? '0x',
   ]);

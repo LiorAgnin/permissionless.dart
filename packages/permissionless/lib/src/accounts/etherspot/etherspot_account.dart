@@ -526,10 +526,12 @@ class EtherspotSmartAccount implements SmartAccount {
       Hex.fromBigInt(
         userOp.paymasterVerificationGasLimit ?? BigInt.zero,
         byteLength: 16,
+        name: 'paymasterVerificationGasLimit',
       ),
       Hex.fromBigInt(
         userOp.paymasterPostOpGasLimit ?? BigInt.zero,
         byteLength: 16,
+        name: 'paymasterPostOpGasLimit',
       ),
       Hex.strip0x(userOp.paymasterData ?? '0x'),
     ]);
@@ -538,17 +540,25 @@ class EtherspotSmartAccount implements SmartAccount {
   String _packAccountGasLimits(
     BigInt verificationGasLimit,
     BigInt callGasLimit,
-  ) {
-    final vgl = verificationGasLimit.toRadixString(16).padLeft(32, '0');
-    final cgl = callGasLimit.toRadixString(16).padLeft(32, '0');
-    return '0x$vgl$cgl';
-  }
+  ) =>
+      Hex.concat([
+        Hex.fromBigInt(
+          verificationGasLimit,
+          byteLength: 16,
+          name: 'verificationGasLimit',
+        ),
+        Hex.fromBigInt(callGasLimit, byteLength: 16, name: 'callGasLimit'),
+      ]);
 
-  String _packGasFees(BigInt maxPriorityFeePerGas, BigInt maxFeePerGas) {
-    final mpf = maxPriorityFeePerGas.toRadixString(16).padLeft(32, '0');
-    final mf = maxFeePerGas.toRadixString(16).padLeft(32, '0');
-    return '0x$mpf$mf';
-  }
+  String _packGasFees(BigInt maxPriorityFeePerGas, BigInt maxFeePerGas) =>
+      Hex.concat([
+        Hex.fromBigInt(
+          maxPriorityFeePerGas,
+          byteLength: 16,
+          name: 'maxPriorityFeePerGas',
+        ),
+        Hex.fromBigInt(maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
+      ]);
 }
 
 /// Creates an Etherspot smart account.

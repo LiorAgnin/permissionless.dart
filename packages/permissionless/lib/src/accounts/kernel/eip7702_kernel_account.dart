@@ -418,16 +418,30 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     final callDataHash = crypto.keccak256(Hex.decode(userOp.callData));
 
     // Pack accountGasLimits (v0.7 packing)
-    final verificationGasLimitHex =
-        Hex.fromBigInt(userOp.verificationGasLimit, byteLength: 16);
-    final callGasLimitHex = Hex.fromBigInt(userOp.callGasLimit, byteLength: 16);
+    final verificationGasLimitHex = Hex.fromBigInt(
+      userOp.verificationGasLimit,
+      byteLength: 16,
+      name: 'verificationGasLimit',
+    );
+    final callGasLimitHex = Hex.fromBigInt(
+      userOp.callGasLimit,
+      byteLength: 16,
+      name: 'callGasLimit',
+    );
     final accountGasLimits =
         Hex.concat([verificationGasLimitHex, callGasLimitHex]);
 
     // Pack gasFees
-    final maxPriorityFeeHex =
-        Hex.fromBigInt(userOp.maxPriorityFeePerGas, byteLength: 16);
-    final maxFeeHex = Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16);
+    final maxPriorityFeeHex = Hex.fromBigInt(
+      userOp.maxPriorityFeePerGas,
+      byteLength: 16,
+      name: 'maxPriorityFeePerGas',
+    );
+    final maxFeeHex = Hex.fromBigInt(
+      userOp.maxFeePerGas,
+      byteLength: 16,
+      name: 'maxFeePerGas',
+    );
     final gasFees = Hex.concat([maxPriorityFeeHex, maxFeeHex]);
 
     // Pack paymasterAndData
@@ -437,10 +451,12 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
             Hex.fromBigInt(
               userOp.paymasterVerificationGasLimit ?? BigInt.zero,
               byteLength: 16,
+              name: 'paymasterVerificationGasLimit',
             ),
             Hex.fromBigInt(
               userOp.paymasterPostOpGasLimit ?? BigInt.zero,
               byteLength: 16,
+              name: 'paymasterPostOpGasLimit',
             ),
             Hex.strip0x(userOp.paymasterData ?? '0x'),
           ])
