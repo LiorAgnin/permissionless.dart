@@ -14,7 +14,9 @@ import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../account_owner.dart';
 import 'constants.dart';
+import 'kernel_erc1271.dart';
 
 /// Owner abstraction for EIP-7702 Kernel accounts.
 ///
@@ -485,8 +487,18 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   @override
   Future<String> signMessage(String message) async {
     await _ensureDeployedForEip1271();
-    final messageHash = hashMessage(message);
-    return _signWithKernelWrapper(messageHash);
+    final signature = await signKernelMessage(
+      owner: _Eip7702KernelAccountOwner(_config.owner),
+      message: message,
+      address: _config.owner.address,
+      version: _config.version,
+      chainId: _config.chainId,
+      eip7702: true,
+    );
+    return Hex.concat([
+      _getEip7702ValidatorIdentifier(),
+      Hex.strip0x(signature),
+    ]);
   }
 
   /// Signs EIP-712 typed data using Kernel's EIP-712 wrapper.
@@ -499,8 +511,18 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   @override
   Future<String> signTypedData(TypedData typedData) async {
     await _ensureDeployedForEip1271();
-    final hash = hashTypedData(typedData);
-    return _signWithKernelWrapper(hash);
+    final signature = await signKernelTypedData(
+      owner: _Eip7702KernelAccountOwner(_config.owner),
+      typedData: typedData,
+      address: _config.owner.address,
+      version: _config.version,
+      chainId: _config.chainId,
+      eip7702: true,
+    );
+    return Hex.concat([
+      _getEip7702ValidatorIdentifier(),
+      Hex.strip0x(signature),
+    ]);
   }
 
   /// Checks if the account is deployed (delegated) before EIP-1271 signing.
@@ -519,41 +541,30 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
       );
     }
   }
+}
 
-  /// Signs a hash using Kernel's EIP-712 wrapper domain.
-  ///
-  /// This is how Kernel achieves EIP-1271 compliance for message signing.
-  Future<String> _signWithKernelWrapper(String messageHash) async {
-    // Create Kernel-specific typed data for wrapping the message
-    final kernelTypedData = TypedData(
-      domain: TypedDataDomain(
-        name: 'Kernel',
-        version: _config.version.value,
-        chainId: _config.chainId,
-        verifyingContract: _config.owner.address,
-      ),
-      types: {
-        'EIP712Domain': [
-          const TypedDataField(name: 'name', type: 'string'),
-          const TypedDataField(name: 'version', type: 'string'),
-          const TypedDataField(name: 'chainId', type: 'uint256'),
-          const TypedDataField(name: 'verifyingContract', type: 'address'),
-        ],
-        'Kernel': [
-          const TypedDataField(name: 'hash', type: 'bytes32'),
-        ],
-      },
-      primaryType: 'Kernel',
-      message: {
-        'hash': messageHash,
-      },
+/// Adapts [Eip7702KernelOwner] to [AccountOwner] for [signKernelMessage] /
+/// [signKernelTypedData]. The 7702 path only uses [signTypedData].
+class _Eip7702KernelAccountOwner extends AccountOwner {
+  const _Eip7702KernelAccountOwner(this._owner);
+
+  final Eip7702KernelOwner _owner;
+
+  @override
+  EthereumAddress get address => _owner.address;
+
+  @override
+  Future<String> signTypedData(TypedData typedData) =>
+      _owner.signTypedData(typedData);
+
+  @override
+  Future<String> signRawHash(String hash) => _owner.signHash(hash);
+
+  @override
+  Future<String> signPersonalMessage(String hash) {
+    throw UnsupportedError(
+      'EIP-7702 Kernel owner does not implement personal_sign',
     );
-
-    final signature = await _config.owner.signTypedData(kernelTypedData);
-
-    // Prepend validator identifier
-    final validatorId = _getEip7702ValidatorIdentifier();
-    return Hex.concat([validatorId, Hex.strip0x(signature)]);
   }
 }
 

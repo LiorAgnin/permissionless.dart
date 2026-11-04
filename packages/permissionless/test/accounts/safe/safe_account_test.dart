@@ -1605,6 +1605,37 @@ void main() {
         expect(address1, isNot(equals(address2)));
       });
 
+      test('reversed attesters produce the same address', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final attesterA = EthereumAddress.fromHex(
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01',
+        );
+        final attesterB = EthereumAddress.fromHex(
+          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb02',
+        );
+
+        final account1 = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.from(1),
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+          attesters: [attesterA, attesterB],
+          attestersThreshold: 1,
+        );
+
+        final account2 = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.from(1),
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+          attesters: [attesterB, attesterA],
+          attestersThreshold: 1,
+        );
+
+        final address1 = await account1.getAddress();
+        final address2 = await account2.getAddress();
+
+        expect(address1, equals(address2));
+      });
+
       test('different validators produce different addresses', () async {
         final owner = PrivateKeyOwner(testPrivateKey);
 

@@ -19,6 +19,7 @@ import '../account_owner.dart';
 import '../webauthn_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
+import 'kernel_erc1271.dart';
 
 /// Maximum nonce key for Kernel v0.3.x (2 bytes / maxUint16).
 final BigInt _kernelMaxUint16 = BigInt.from(0xffff);
@@ -752,12 +753,17 @@ class KernelSmartAccount implements SmartAccount {
   /// On Kernel 0.2.1 / 0.2.2, signs without Kernel wrapping (matches JS).
   @override
   Future<String> signMessage(String message) async {
-    final messageHash = hashMessage(message);
-    if (_config.version.skipsKernelMessageWrap && !_isWebAuthn) {
-      // Bare personal_sign of the message (= raw sign of hashMessage).
-      return _config.owner.signRawHash(messageHash);
+    if (_isWebAuthn) {
+      return _signWebAuthnWithKernelWrapper(hashMessage(message));
     }
-    return _signWithKernelWrapper(messageHash);
+    final signature = await signKernelMessage(
+      owner: _config.owner,
+      message: message,
+      address: await getAddress(),
+      version: _config.version,
+      chainId: _config.chainId,
+    );
+    return _prefixKernelErc1271Signature(signature);
   }
 
   /// Signs EIP-712 typed data with Kernel EIP-712 wrapping.
@@ -769,90 +775,41 @@ class KernelSmartAccount implements SmartAccount {
   /// On Kernel 0.2.1 / 0.2.2, signs typed data without Kernel wrapping (matches JS).
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    if (_config.version.skipsKernelMessageWrap && !_isWebAuthn) {
-      return _config.owner.signTypedData(typedData);
-    }
-    final hash = hashTypedData(typedData);
-    return _signWithKernelWrapper(hash);
-  }
-
-  /// Wraps [messageHash] with the Kernel EIP-712 domain and signs it.
-  ///
-  /// Mirrors permissionless.js `wrapMessageHash` + `owner.signMessage({ raw })`,
-  /// then for v0.3.x prefixes `0x01 ‖ validatorAddress`.
-  Future<String> _signWithKernelWrapper(String messageHash) async {
-    final wrappedDigest = await _wrapMessageHash(messageHash);
-
-    String signature;
     if (_isWebAuthn) {
-      final usePrecompiled = await _shouldUsePrecompile();
-      final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
-      final sigData = await webAuthnOwner.signP256(wrappedDigest);
-      signature = encodeKernelWebAuthnSignature(
-        sigData,
-        usePrecompiled: usePrecompiled,
-      );
-    } else {
-      // EIP-191 personal_sign over the 32-byte Kernel digest.
-      signature = await _config.owner.signPersonalMessage(wrappedDigest);
+      return _signWebAuthnWithKernelWrapper(hashTypedData(typedData));
     }
-
-    if (_config.version.isV2) {
-      return signature;
-    }
-
-    // v0.3.x: prepend root validator identifier `0x01 ‖ validatorAddress`
-    final validatorId = _getEcdsaRootIdentifier();
-    return Hex.concat([validatorId, Hex.strip0x(signature)]);
-  }
-
-  /// Kernel EIP-712 wrap of a message/typed-data hash.
-  ///
-  /// v0.2.x: digest = keccak256(0x1901 ‖ domainSeparator ‖ messageHash)
-  /// v0.3.x: digest = keccak256(0x1901 ‖ domainSeparator ‖
-  ///   keccak256(keccak256("Kernel(bytes32 hash)") ‖ messageHash))
-  Future<String> _wrapMessageHash(String messageHash) async {
-    final accountAddress = await getAddress();
-
-    final domain = TypedDataDomain(
-      name: 'Kernel',
-      version: _config.version.value,
+    final signature = await signKernelTypedData(
+      owner: _config.owner,
+      typedData: typedData,
+      address: await getAddress(),
+      version: _config.version,
       chainId: _config.chainId,
-      verifyingContract: accountAddress,
     );
-    final domainSep = computeDomainSeparator(domain);
-
-    final String structHash;
-    if (_config.version.isV2) {
-      structHash = messageHash;
-    } else {
-      final typeHash = keccak256(
-        Uint8List.fromList('Kernel(bytes32 hash)'.codeUnits),
-      );
-      structHash = Hex.fromBytes(
-        keccak256(
-          Hex.decode(
-            Hex.concat([
-              Hex.fromBytes(typeHash),
-              messageHash,
-            ]),
-          ),
-        ),
-      );
-    }
-
-    return Hex.fromBytes(
-      keccak256(
-        Hex.decode(
-          Hex.concat([
-            '0x1901',
-            Hex.strip0x(domainSep),
-            Hex.strip0x(structHash),
-          ]),
-        ),
-      ),
-    );
+    return _prefixKernelErc1271Signature(signature);
   }
+
+  /// WebAuthn ERC-1271 path: wrap via [wrapMessageHash], sign P256, prefix.
+  Future<String> _signWebAuthnWithKernelWrapper(String messageHash) async {
+    final wrappedDigest = wrapMessageHash(
+      hash: messageHash,
+      address: await getAddress(),
+      version: _config.version,
+      chainId: _config.chainId,
+    );
+    final usePrecompiled = await _shouldUsePrecompile();
+    final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
+    final sigData = await webAuthnOwner.signP256(wrappedDigest);
+    final signature = encodeKernelWebAuthnSignature(
+      sigData,
+      usePrecompiled: usePrecompiled,
+    );
+    return _prefixKernelErc1271Signature(signature);
+  }
+
+  /// v0.2.x: unprefixed helper bytes. v0.3.x: `0x01 ‖ validatorAddress`.
+  String _prefixKernelErc1271Signature(String signature) => _config.version.isV2
+      ? signature
+      : Hex.concat([_getEcdsaRootIdentifier(), Hex.strip0x(signature)]);
 
   /// Root validator identifier for Kernel v0.3.x: `0x01 ‖ validatorAddress`.
   String _getEcdsaRootIdentifier() => Hex.concat([

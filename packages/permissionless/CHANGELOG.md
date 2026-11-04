@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Kernel ERC-1271 helpers**: public `wrapMessageHash`,
+  `signKernelMessage`, and `signKernelTypedData` (unprefixed wrap-and-sign).
+  Account `signMessage` / `signTypedData` still prefix (`0x01‖validator` on
+  v0.3.x, `0x00` on 7702).
+- **`sortAddresses`**: public helper that copies then sorts
+  addresses by lowercased `0x` hex (UTF-16 code-unit order). Safe ERC-7579 and
+  Nexus attester encoding use it. **Counterfactual addresses are unchanged**.
+
 ## [0.4.1] - 2026-07-14
 
 EIP-7702 + paymaster release: a paymaster-sponsored **first** 7702 operation no

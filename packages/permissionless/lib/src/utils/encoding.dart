@@ -4,6 +4,7 @@ import 'package:web3dart/web3dart.dart';
 
 import '../types/address.dart';
 import '../types/hex.dart';
+import 'sort_addresses.dart';
 
 /// ABI encoding utilities for Ethereum smart contract interactions.
 class AbiEncoder {
@@ -561,9 +562,7 @@ String encodeInitSafe7579({
   required List<EthereumAddress> attesters,
   required int threshold,
 }) {
-  // Sort attesters by address (lowercase comparison)
-  final sortedAttesters = List<EthereumAddress>.from(attesters)
-    ..sort((a, b) => a.hex.toLowerCase().compareTo(b.hex.toLowerCase()));
+  final sortedAttesters = sortAddresses(attesters);
 
   // Encode each dynamic array
   final executorsEncoded = _encodeModuleInitArray(executors);
