@@ -32,10 +32,7 @@ class WebAuthnSignMetadata {
   final int typeIndex;
 
   /// Converts to [P256SignatureData] by combining with signature components.
-  P256SignatureData toSignatureData({
-    required BigInt r,
-    required BigInt s,
-  }) {
+  P256SignatureData toSignatureData({required BigInt r, required BigInt s}) {
     return P256SignatureData(
       r: r,
       s: s,

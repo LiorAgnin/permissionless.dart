@@ -33,10 +33,7 @@ Future<WebAuthnCredential> createPasskeyCredential({
   required String userName,
   String? displayName,
 }) async {
-  final config = PassKeyConfig(
-    rpId: rpId,
-    rpName: rpName,
-  );
+  final config = PassKeyConfig(rpId: rpId, rpName: rpName);
 
   final publicKey = await generatePassKey(
     config: config,
