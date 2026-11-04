@@ -23,7 +23,7 @@ dependencies:
   flutter:
     sdk: flutter
   # Core ERC-4337 package (sibling in monorepo)
-  permissionless: ^0.4.1
+  permissionless: ^0.5.0
   # PassKeySigner, P256 utilities (brings: passkeys, asn1lib, pointycastle)
   web3_signers: ^1.1.0
   # Ethereum types (EthereumAddress, keccak256, etc.)

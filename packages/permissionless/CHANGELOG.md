@@ -7,30 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
+Parity with permissionless.js **0.5.2**: the new `sendUserOperationSync`
+Pimlico action. This release also fixes two signing bugs found by a new property
+test that checks every account signs exactly the `userOpHash` the EntryPoint
+verifies, across v0.6, v0.7 and v0.8
+([#80](https://github.com/LiorAgnin/permissionless.dart/pull/80)). Minor bump: new public API, and v0.7/v0.8 signing now
+throws on out-of-range gas fields (see **Changed**).
+
 ### Added
 
-- **Kernel ERC-1271 helpers**: public `wrapMessageHash`,
-  `signKernelMessage`, and `signKernelTypedData` (unprefixed wrap-and-sign).
-  Account `signMessage` / `signTypedData` still prefix (`0x01‖validator` on
-  v0.3.x, `0x00` on 7702).
-- **`sortAddresses`**: public helper that copies then sorts
-  addresses by lowercased `0x` hex (UTF-16 code-unit order). Safe ERC-7579 and
-  Nexus attester encoding use it. **Counterfactual addresses are unchanged**.
 - **`sendUserOperationSync`** (permissionless.js 0.5.1/0.5.2 parity): new
-  `PimlicoActions` extension on `SmartAccountClient`. Prepares, signs and sends
-  a user operation with `pimlico_sendUserOperationNow` and returns its receipt;
-  a reverted call comes back as `success: false`, not a throw. If the outcome is
-  unclear it polls for the receipt until `timeout` (default: the bundler RPC
-  timeout), and never resends. Failures throw `SendUserOperationSyncError`,
-  whose `kind` (`rejected`, `bundleReverted`, `pending`, `notFound`) and
-  `canResend` say what happened and whether resending is safe. EntryPoint
-  v0.7 and v0.8.
+  `PimlicoActions` extension on `SmartAccountClient`. It prepares, signs and
+  sends a user operation with `pimlico_sendUserOperationNow` and returns its
+  receipt. A reverted call comes back as `success: false`, not a throw. If the
+  outcome is unclear it polls for the receipt until `timeout` (default: the
+  bundler RPC timeout) and never resends. Failures throw
+  `SendUserOperationSyncError`, whose `kind` (`rejected`, `bundleReverted`,
+  `pending`, `notFound`) and `canResend` say what happened and whether
+  resending is safe. EntryPoint v0.7 and v0.8
+  ([#87](https://github.com/LiorAgnin/permissionless.dart/pull/87)).
 - **`getUserOperationHash`** and **`entryPointVersionOf`**: public helpers for
-  the EntryPoint v0.7/v0.8 user operation hash (byte-identical to viem,
-  including the EIP-7702 `initCode` delegation rule).
+  the EntryPoint v0.7/v0.8 user operation hash, byte-identical to viem,
+  including the EIP-7702 `initCode` delegation rule
+  ([#87](https://github.com/LiorAgnin/permissionless.dart/pull/87)).
 - **`BundlerHttpError`**: non-200 HTTP responses from the RPC endpoint now
   throw this `BundlerRpcError` subclass, so callers can tell an HTTP failure
-  from a JSON-RPC error. Existing `on BundlerRpcError` handlers still catch it.
+  from a JSON-RPC error. Existing `on BundlerRpcError` handlers still catch it
+  ([#87](https://github.com/LiorAgnin/permissionless.dart/pull/87)).
+- **Kernel ERC-1271 helpers**: public `wrapMessageHash`, `signKernelMessage`
+  and `signKernelTypedData` (unprefixed wrap-and-sign). Account `signMessage` /
+  `signTypedData` still prefix (`0x01‖validator` on v0.3.x, `0x00` on 7702)
+  ([#75](https://github.com/LiorAgnin/permissionless.dart/pull/75)).
+- **`sortAddresses`**: public helper that copies, then sorts addresses by
+  lowercased `0x` hex (UTF-16 code-unit order). Safe ERC-7579 and Nexus
+  attester encoding use it. **Counterfactual addresses are unchanged**
+  ([#75](https://github.com/LiorAgnin/permissionless.dart/pull/75)).
+
+### Changed
+
+- **Packed gas fields outside uint128 now throw before signing.**
+  `signUserOperation` on every v0.7/v0.8 account throws `ArgumentError` when
+  `callGasLimit`, `verificationGasLimit`, `maxFeePerGas`,
+  `maxPriorityFeePerGas`, `paymasterVerificationGasLimit` or
+  `paymasterPostOpGasLimit` is negative or ≥ 2^128. It used to return a
+  signature over a malformed preimage that the EntryPoint would reject.
+  `getPackedUserOperation`, `getAccountGasLimits`, `getGasFees` and
+  `getPaymasterAndData` throw the same way. Valid inputs encode byte-for-byte
+  as before; v0.6 is unchanged
+  ([#82](https://github.com/LiorAgnin/permissionless.dart/pull/82)).
+- **Range-checked low-level encoders.** `Hex.fromBigInt(value, byteLength: n)`
+  throws `ArgumentError` for a negative value or one wider than `n` bytes, and
+  takes a new optional `name:` for the error. `AbiEncoder.encodeUint128` and
+  `encodeUint48` (new optional `name:`) now check 16 and 6 bytes. Calls
+  without `byteLength` are unchanged
+  ([#82](https://github.com/LiorAgnin/permissionless.dart/pull/82)).
+
+### Fixed
+
+- **Etherspot and Safe (EntryPoint v0.7): `factory` with a null `factoryData`
+  no longer signs `initCode = 0x`.** The EntryPoint hashes
+  `factory ‖ factoryData`, so these ops failed with AA24. A null `factoryData`
+  is now treated as empty. Only callers who set `factory` themselves were
+  affected; `getFactoryData` always returns both fields. Etherspot now matches
+  permissionless.js. Safe intentionally differs from permissionless.js, which
+  has the same bug, and follows the Safe 4337 module instead
+  ([#81](https://github.com/LiorAgnin/permissionless.dart/pull/81)).
 
 ## [0.4.1] - 2026-07-14
 
