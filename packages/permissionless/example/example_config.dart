@@ -13,6 +13,31 @@ import 'dart:io';
 
 /// Configuration for live example scripts.
 class ExampleConfig {
+  /// Load config from env / `.env`. Throws [StateError] if Pimlico key missing.
+  factory ExampleConfig.load({bool requirePimlico = true}) {
+    _ensureDotEnvLoaded();
+
+    final rawKey = _env('TEST_PRIVATE_KEY') ?? _hardhatAccount0;
+    final privateKey = rawKey.startsWith('0x') ? rawKey : '0x$rawKey';
+
+    final pimlicoApiKey = _env('PIMLICO_API_KEY') ?? '';
+    if (requirePimlico && pimlicoApiKey.isEmpty) {
+      throw StateError(
+        'PIMLICO_API_KEY is not set.\n'
+        'Export it or put it in packages/permissionless/.env\n'
+        '  PIMLICO_API_KEY=pim_...\n'
+        'Then re-run, e.g.:\n'
+        '  set -a && source .env && set +a && dart run example/safe_example.dart',
+      );
+    }
+
+    return ExampleConfig._(
+      privateKey: privateKey,
+      pimlicoApiKey: pimlicoApiKey,
+      sepoliaRpcUrl: _env('SEPOLIA_RPC_URL') ?? _defaultSepoliaRpc,
+      baseSepoliaRpcUrl: _env('BASE_SEPOLIA_RPC_URL') ?? _defaultBaseSepoliaRpc,
+    );
+  }
   ExampleConfig._({
     required this.privateKey,
     required this.pimlicoApiKey,
@@ -39,32 +64,6 @@ class ExampleConfig {
       'https://ethereum-sepolia-rpc.publicnode.com';
 
   static const _defaultBaseSepoliaRpc = 'https://sepolia.base.org';
-
-  /// Load config from env / `.env`. Throws [StateError] if Pimlico key missing.
-  static ExampleConfig load({bool requirePimlico = true}) {
-    _ensureDotEnvLoaded();
-
-    final rawKey = _env('TEST_PRIVATE_KEY') ?? _hardhatAccount0;
-    final privateKey = rawKey.startsWith('0x') ? rawKey : '0x$rawKey';
-
-    final pimlicoApiKey = _env('PIMLICO_API_KEY') ?? '';
-    if (requirePimlico && pimlicoApiKey.isEmpty) {
-      throw StateError(
-        'PIMLICO_API_KEY is not set.\n'
-        'Export it or put it in packages/permissionless/.env\n'
-        '  PIMLICO_API_KEY=pim_...\n'
-        'Then re-run, e.g.:\n'
-        '  set -a && source .env && set +a && dart run example/safe_example.dart',
-      );
-    }
-
-    return ExampleConfig._(
-      privateKey: privateKey,
-      pimlicoApiKey: pimlicoApiKey,
-      sepoliaRpcUrl: _env('SEPOLIA_RPC_URL') ?? _defaultSepoliaRpc,
-      baseSepoliaRpcUrl: _env('BASE_SEPOLIA_RPC_URL') ?? _defaultBaseSepoliaRpc,
-    );
-  }
 
   /// Pimlico bundler/paymaster URL for a network path segment.
   ///

@@ -175,7 +175,9 @@ void main() {
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
       expect(
-          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+        owner.address.hex.toLowerCase(),
+        equals(ownerAddress.toLowerCase()),
+      );
       account = createThirdwebSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -192,7 +194,9 @@ void main() {
       test('getAddress returns configured address', () async {
         final address = await account.getAddress();
         expect(
-            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+          address.hex.toLowerCase(),
+          equals(mockAddress.hex.toLowerCase()),
+        );
       });
 
       test('throws without address or publicClient', () {
@@ -200,7 +204,7 @@ void main() {
           owner: owner,
           chainId: BigInt.one,
         );
-        expect(() => bare.getAddress(), throwsA(isA<StateError>()));
+        expect(bare.getAddress, throwsA(isA<StateError>()));
       });
     });
 
@@ -224,11 +228,15 @@ void main() {
           address: mockAddress,
         );
         final factoryData = await salted.getFactoryData();
-        expect(factoryData!.factoryData.toLowerCase(),
-            equals(jsFactoryDataTestSalt));
+        expect(
+          factoryData!.factoryData.toLowerCase(),
+          equals(jsFactoryDataTestSalt),
+        );
         // UTF-8 of "test-salt"
-        expect(factoryData.factoryData.toLowerCase(),
-            contains('746573742d73616c74'));
+        expect(
+          factoryData.factoryData.toLowerCase(),
+          contains('746573742d73616c74'),
+        );
       });
 
       test('initCode embeds factoryData', () async {
@@ -255,7 +263,9 @@ void main() {
     group('stub signature', () {
       test('matches permissionless.js dummy signature', () {
         expect(
-            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+          account.getStubSignature().toLowerCase(),
+          equals(jsStubSignature),
+        );
       });
     });
 

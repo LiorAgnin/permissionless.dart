@@ -588,7 +588,7 @@ void main() {
     test('extracts AA error code from message when data is null', () {
       const error = BundlerRpcError(
         code: -32000,
-        message: "AA23 reverted: UserOperation reverted during simulation",
+        message: 'AA23 reverted: UserOperation reverted during simulation',
       );
 
       expect(error.aaErrorCode, equals('AA23'));

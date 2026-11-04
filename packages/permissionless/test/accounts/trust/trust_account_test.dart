@@ -145,7 +145,9 @@ void main() {
     setUp(() {
       owner = PrivateKeyOwner(testPrivateKey);
       expect(
-          owner.address.hex.toLowerCase(), equals(ownerAddress.toLowerCase()));
+        owner.address.hex.toLowerCase(),
+        equals(ownerAddress.toLowerCase()),
+      );
       account = createTrustSmartAccount(
         owner: owner,
         chainId: BigInt.one,
@@ -170,7 +172,9 @@ void main() {
         // Unit tests assert the pre-set address path used by clients offline.
         final address = await account.getAddress();
         expect(
-            address.hex.toLowerCase(), equals(mockAddress.hex.toLowerCase()));
+          address.hex.toLowerCase(),
+          equals(mockAddress.hex.toLowerCase()),
+        );
       });
 
       test('throws without address or publicClient', () {
@@ -178,7 +182,7 @@ void main() {
           owner: owner,
           chainId: BigInt.one,
         );
-        expect(() => bare.getAddress(), throwsA(isA<StateError>()));
+        expect(bare.getAddress, throwsA(isA<StateError>()));
       });
     });
 
@@ -202,7 +206,9 @@ void main() {
     group('stub signature', () {
       test('matches permissionless.js dummy signature', () {
         expect(
-            account.getStubSignature().toLowerCase(), equals(jsStubSignature));
+          account.getStubSignature().toLowerCase(),
+          equals(jsStubSignature),
+        );
       });
     });
 

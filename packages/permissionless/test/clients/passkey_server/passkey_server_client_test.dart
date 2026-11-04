@@ -133,7 +133,7 @@ void main() {
         );
 
         expect(
-          () => client.startRegistration(),
+          client.startRegistration,
           throwsA(isA<FormatException>()),
         );
       });
@@ -215,7 +215,7 @@ void main() {
         );
 
         expect(
-          () => client.getCredentials(),
+          client.getCredentials,
           throwsA(isA<FormatException>()),
         );
       });
@@ -232,7 +232,7 @@ void main() {
         );
 
         expect(
-          () => client.getCredentials(),
+          client.getCredentials,
           throwsA(isA<FormatException>()),
         );
       });
@@ -297,7 +297,9 @@ void main() {
         expect(response['clientDataJSON'], base64Encode(clientDataJSON));
         // attestationObject: base64url with pad
         expect(
-            response['attestationObject'], base64Url.encode(attestationObject));
+          response['attestationObject'],
+          base64Url.encode(attestationObject),
+        );
         // authenticatorData: standard base64
         expect(response['authenticatorData'], base64Encode(authenticatorData));
         expect(response['transports'], ['internal']);

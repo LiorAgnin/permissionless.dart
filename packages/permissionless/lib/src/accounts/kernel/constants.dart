@@ -18,6 +18,8 @@ enum KernelVersion {
   v0_2_4('0.2.4'),
 
   /// Kernel v0.3.0-beta - EntryPoint v0.7 default; 4-arg `initialize`.
+  // Public API name mirrors the version string; renaming would break callers.
+  // ignore: constant_identifier_names
   v0_3_0_beta('0.3.0-beta'),
 
   /// Kernel v0.3.1 - EntryPoint v0.7, ERC-7579, 5-arg `initialize`.
