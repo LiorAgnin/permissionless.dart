@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Bumped `web3_signers` dependency constraint to `^1.1.0` (was `^1.0.0`). This
+  pulls in `passkeys` 2.24 (from 2.18); `passkeys_ios` is gone and iOS/macOS go
+  through `passkeys_darwin` 0.4. The bytes `signAsync` produces are unchanged.
+  web3_signers 1.1.0 removes its deprecated aliases (`PassKeyPair`,
+  `PrivateKeySigner`, `EOAWallet`, `signToEc`, …), so apps that import those
+  directly from `web3_signers` need to switch to the current names.
+- Raised the minimum SDK to Dart `^3.9.0` / Flutter `>=3.35.0` (was
+  `>=3.5.0` / `>=3.10.0`), matching what `web3_signers` 1.1.0 already required.
+
 ## [0.1.2] - 2026-07-12
 
 ### Changed
