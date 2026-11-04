@@ -14,7 +14,7 @@ dependencies:
     sdk: flutter
   permissionless_passkeys: ^0.1.2
   permissionless: ^0.4.1
-  web3_signers: ^1.0.0
+  web3_signers: ^1.1.0
   flutter_riverpod: ^3.4.3
   shared_preferences: ^2.3.0
 
