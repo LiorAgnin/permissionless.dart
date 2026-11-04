@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`sortAddresses`**: public helper that copies then sorts
   addresses by lowercased `0x` hex (UTF-16 code-unit order). Safe ERC-7579 and
   Nexus attester encoding use it. **Counterfactual addresses are unchanged**.
+- **`sendUserOperationSync`** (permissionless.js 0.5.1/0.5.2 parity): new
+  `PimlicoActions` extension on `SmartAccountClient`. Prepares, signs and sends
+  a user operation with `pimlico_sendUserOperationNow` and returns its receipt;
+  a reverted call comes back as `success: false`, not a throw. If the outcome is
+  unclear it polls for the receipt until `timeout` (default: the bundler RPC
+  timeout), and never resends. Failures throw `SendUserOperationSyncError`,
+  whose `kind` (`rejected`, `bundleReverted`, `pending`, `notFound`) and
+  `canResend` say what happened and whether resending is safe. EntryPoint
+  v0.7 and v0.8.
+- **`getUserOperationHash`** and **`entryPointVersionOf`**: public helpers for
+  the EntryPoint v0.7/v0.8 user operation hash (byte-identical to viem,
+  including the EIP-7702 `initCode` delegation rule).
+- **`BundlerHttpError`**: non-200 HTTP responses from the RPC endpoint now
+  throw this `BundlerRpcError` subclass, so callers can tell an HTTP failure
+  from a JSON-RPC error. Existing `on BundlerRpcError` handlers still catch it.
 
 ## [0.4.1] - 2026-07-14
 

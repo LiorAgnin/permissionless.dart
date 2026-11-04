@@ -35,6 +35,7 @@ export 'src/accounts/webauthn_owner.dart';
 export 'src/accounts/webauthn_utils.dart';
 // Actions
 export 'src/actions/erc7579/erc7579.dart';
+export 'src/actions/pimlico/pimlico.dart';
 export 'src/actions/smart_account/smart_account.dart';
 // Clients
 export 'src/clients/bundler/bundler.dart';
@@ -67,4 +68,5 @@ export 'src/utils/packed_user_operation.dart';
 export 'src/utils/rip7212.dart';
 export 'src/utils/sort_addresses.dart';
 export 'src/utils/units.dart';
+export 'src/utils/user_operation_hash.dart';
 export 'src/utils/webauthn_encoding.dart';
