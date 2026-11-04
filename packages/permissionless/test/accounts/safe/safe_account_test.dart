@@ -562,6 +562,46 @@ void main() {
         expect(sig1, isNot(equals(sig2)));
       });
 
+      // The EntryPoint packs initCode as factory ++ factoryData, so a factory
+      // with null factoryData is the same initCode as factory ++ 0x and the
+      // Safe4337Module hashes exactly that. ECDSA signing is deterministic, so
+      // equal signatures mean equal SafeOp hashes.
+      test('signs initCode = factory when factoryData is null', () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final account = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        );
+        final factory = EthereumAddress.fromHex(
+          '0xa473ff7bb3cdc899a04dea0fbd30a72e95f0cf2f',
+        );
+
+        UserOperationV07 op({EthereumAddress? factory, String? factoryData}) =>
+            UserOperationV07(
+              sender: mockAddress,
+              nonce: BigInt.zero,
+              factory: factory,
+              factoryData: factoryData,
+              callData: '0x',
+              callGasLimit: BigInt.from(100000),
+              verificationGasLimit: BigInt.from(100000),
+              preVerificationGas: BigInt.from(21000),
+              maxFeePerGas: BigInt.from(1000000000),
+              maxPriorityFeePerGas: BigInt.from(1000000000),
+            );
+
+        final factoryOnly =
+            await account.signUserOperation(op(factory: factory));
+        final factoryEmptyData = await account.signUserOperation(
+          op(factory: factory, factoryData: '0x'),
+        );
+        final noFactory = await account.signUserOperation(op());
+
+        expect(factoryOnly, equals(factoryEmptyData));
+        expect(factoryOnly, isNot(equals(noFactory)));
+      });
+
       test(
         'v0.6 EIP-712 SafeOp signature matches permissionless.js fixture',
         () async {

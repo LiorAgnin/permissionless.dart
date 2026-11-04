@@ -19,12 +19,22 @@ class AbiEncoder {
       Hex.fromBigInt(value, byteLength: 32);
 
   /// Encodes a uint128 value (16 bytes, left-padded to 32 bytes).
-  static String encodeUint128(BigInt value) =>
-      Hex.fromBigInt(value, byteLength: 32);
+  ///
+  /// Throws an [ArgumentError] naming [name] if [value] does not fit in
+  /// uint128.
+  static String encodeUint128(BigInt value, {String? name}) => Hex.padLeft(
+        Hex.fromBigInt(value, byteLength: 16, name: name),
+        32,
+      );
 
   /// Encodes a uint48 value (6 bytes, left-padded to 32 bytes).
-  static String encodeUint48(int value) =>
-      Hex.fromBigInt(BigInt.from(value), byteLength: 32);
+  ///
+  /// Throws an [ArgumentError] naming [name] if [value] does not fit in
+  /// uint48.
+  static String encodeUint48(int value, {String? name}) => Hex.padLeft(
+        Hex.fromBigInt(BigInt.from(value), byteLength: 6, name: name),
+        32,
+      );
 
   /// Encodes a boolean value.
   static String encodeBool({required bool value}) =>

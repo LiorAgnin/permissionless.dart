@@ -79,9 +79,21 @@ class Hex {
   }
 
   /// Converts a BigInt to a hex string with '0x' prefix.
-  static String fromBigInt(BigInt value, {int? byteLength}) {
+  ///
+  /// With [byteLength], the result is exactly that many bytes, and a value
+  /// outside `0 <= value < 2^(8 * byteLength)` throws an [ArgumentError]
+  /// naming [name]. Padding alone would emit a wider word that shifts every
+  /// field packed after it.
+  static String fromBigInt(BigInt value, {int? byteLength, String? name}) {
     var hexStr = value.toRadixString(16);
     if (byteLength != null) {
+      if (value.isNegative || value.bitLength > byteLength * 8) {
+        throw ArgumentError.value(
+          value,
+          name ?? 'value',
+          'must fit in uint${byteLength * 8} (0 <= value < 2^${byteLength * 8})',
+        );
+      }
       hexStr = hexStr.padLeft(byteLength * 2, '0');
     }
     return '0x$hexStr';
