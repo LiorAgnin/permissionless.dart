@@ -111,10 +111,7 @@ class CredentialNotifier extends Notifier<CredentialState> {
 
       return true;
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: _formatError(e),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: _formatError(e));
       return false;
     }
   }
@@ -165,5 +162,5 @@ class CredentialNotifier extends Notifier<CredentialState> {
 /// Provider for credential state management
 final credentialProvider =
     NotifierProvider<CredentialNotifier, CredentialState>(
-  CredentialNotifier.new,
-);
+      CredentialNotifier.new,
+    );

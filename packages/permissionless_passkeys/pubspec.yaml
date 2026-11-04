@@ -14,8 +14,8 @@ topics:
   - smart-accounts
 
 environment:
-  sdk: ">=3.5.0 <4.0.0"
-  flutter: ">=3.10.0"
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
 
 resolution: workspace
 
@@ -25,7 +25,6 @@ dependencies:
   # Core ERC-4337 package (sibling in monorepo)
   permissionless: ^0.4.1
   # PassKeySigner, P256 utilities (brings: passkeys, asn1lib, pointycastle)
-  # Using local fork with macOS/Windows platform support
   web3_signers: ^1.1.0
   # Ethereum types (EthereumAddress, keccak256, etc.)
   web3dart: ^3.0.3

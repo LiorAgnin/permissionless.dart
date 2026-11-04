@@ -165,7 +165,9 @@ void main() {
         );
 
         expect(
-            result.webauthn.authenticatorData, equals(testAuthenticatorData));
+          result.webauthn.authenticatorData,
+          equals(testAuthenticatorData),
+        );
         expect(result.webauthn.clientDataJSON, equals(testClientDataJSON));
         expect(result.webauthn.typeIndex, equals(testResponseTypeLocation));
       });

@@ -3,10 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 
 class CredentialCard extends StatelessWidget {
-  const CredentialCard({
-    super.key,
-    required this.credential,
-  });
+  const CredentialCard({super.key, required this.credential});
 
   final WebAuthnCredential credential;
 
@@ -40,18 +37,14 @@ class CredentialCard extends StatelessWidget {
                     children: [
                       Text(
                         'Passkey Credential',
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       Text(
                         'P-256 (secp256r1)',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -88,8 +81,8 @@ class CredentialCard extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 2),
         Container(
@@ -101,10 +94,7 @@ class CredentialCard extends StatelessWidget {
           ),
           child: Text(
             value,
-            style: const TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 13,
-            ),
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
           ),
         ),
       ],

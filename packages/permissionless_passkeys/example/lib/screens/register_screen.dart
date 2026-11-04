@@ -28,7 +28,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     // Clear any previous error
     ref.read(credentialProvider.notifier).clearError();
 
-    final success = await ref.read(credentialProvider.notifier).registerPasskey(
+    final success = await ref
+        .read(credentialProvider.notifier)
+        .registerPasskey(
           username: _usernameController.text.trim(),
           displayName: _displayNameController.text.trim(),
         );
@@ -51,9 +53,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final credentialState = ref.watch(credentialProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Register Passkey'),
-      ),
+      appBar: AppBar(title: const Text('Register Passkey')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
@@ -105,8 +105,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ],
                 const SizedBox(height: 24),
                 FilledButton.icon(
-                  onPressed:
-                      credentialState.isLoading ? null : _registerPasskey,
+                  onPressed: credentialState.isLoading
+                      ? null
+                      : _registerPasskey,
                   icon: credentialState.isLoading
                       ? const SizedBox(
                           width: 20,
