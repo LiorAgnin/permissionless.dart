@@ -21,7 +21,7 @@ dependencies:
   permissionless: ^0.5.0
 
   # Optional: WebAuthn/Passkeys support
-  permissionless_passkeys: ^0.1.2
+  permissionless_passkeys: ^0.1.3
 ```
 
 ### Basic Usage

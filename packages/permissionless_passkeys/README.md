@@ -25,7 +25,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  permissionless_passkeys: ^0.1.2
+  permissionless_passkeys: ^0.1.3
   permissionless: ^0.5.0  # Required peer dependency
 ```
 
