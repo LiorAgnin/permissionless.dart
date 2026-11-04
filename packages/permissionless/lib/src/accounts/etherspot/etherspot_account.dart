@@ -511,10 +511,9 @@ class EtherspotSmartAccount implements SmartAccount {
   }
 
   String _getInitCodeFromUserOp(UserOperationV07 userOp) {
-    if (userOp.factory == null || userOp.factoryData == null) {
-      return '0x';
-    }
-    return Hex.concat([userOp.factory!.hex, userOp.factoryData!]);
+    final factory = userOp.factory;
+    if (factory == null) return '0x';
+    return Hex.concat([factory.hex, userOp.factoryData ?? '0x']);
   }
 
   String _getPaymasterAndData(UserOperationV07 userOp) {

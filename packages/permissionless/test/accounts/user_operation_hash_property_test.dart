@@ -39,9 +39,6 @@ void main() {
           // counterexample found is a readable one.
           final op = _Op.random(rng, simple: i < runs ~/ 8, target: target);
           final chainId = _uint(rng, 64, simple: i < runs ~/ 8) + BigInt.one;
-          // A known finding is pinned by its own skipped test below; keep
-          // checking everything else this account signs.
-          if (target.knownFinding?.call(op) ?? false) continue;
           await _expectSignsEntryPointHash(
             target,
             op,
@@ -106,8 +103,6 @@ void main() {
           'factory set, factoryData null',
         );
       },
-      skip: 'Known finding: EtherspotSmartAccount._getInitCodeFromUserOp '
-          'drops the factory when factoryData is null.',
     );
   });
 
@@ -227,7 +222,6 @@ class _Target {
     this.delivery,
     this.signWith, {
     this.eip7702Delegate,
-    this.knownFinding,
   });
 
   final String name;
@@ -239,10 +233,6 @@ class _Target {
   /// EIP-7702 delegate of the sender, for accounts that may send the
   /// 0x7702 initCode marker.
   final Uint8List? eip7702Delegate;
-
-  /// Ops that hit a reported finding for this account; the property skips
-  /// them and a test under 'known findings' pins the counterexample.
-  final bool Function(_Op op)? knownFinding;
 
   Future<_Recorded> sign(_Op op, BigInt chainId) async {
     final owner = _RecordingOwner();
@@ -382,7 +372,6 @@ final List<_Target> _targets = [
       chainId: c,
       address: _addr(1),
     ).signUserOperation(op.toV07()),
-    knownFinding: (op) => op.factory != null && op.factoryData == null,
   ),
   _Target(
     'Kernel v0.2.2',

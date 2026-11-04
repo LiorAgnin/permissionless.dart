@@ -1226,11 +1226,10 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         keccak256(Uint8List.fromList(safeOpTypeString.codeUnits));
 
     // Compute initCode hash
-    var initCode = '0x';
-    if (userOp.factory != null && userOp.factoryData != null) {
-      initCode =
-          Hex.concat([userOp.factory!.hex, Hex.strip0x(userOp.factoryData!)]);
-    }
+    final factory = userOp.factory;
+    final initCode = factory == null
+        ? '0x'
+        : Hex.concat([factory.hex, Hex.strip0x(userOp.factoryData ?? '0x')]);
     final initCodeHash = keccak256(Hex.decode(initCode));
 
     // Compute callData hash
