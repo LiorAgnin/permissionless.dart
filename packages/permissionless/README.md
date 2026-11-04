@@ -53,7 +53,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  permissionless: ^0.4.2
+  permissionless: ^0.4.1
 ```
 
 Then run:
