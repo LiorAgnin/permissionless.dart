@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:web3dart/web3dart.dart' as crypto;
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' show EthPrivateKey;
 
 import 'address.dart';
 import 'hex.dart';
@@ -100,7 +100,7 @@ class Eip7702Authorization {
   /// This prevents replay attacks by ensuring each authorization is unique.
   final BigInt nonce;
 
-  /// The recovery id (v value) of the ECDSA signature.
+  /// The recovery id of the ECDSA signature: 27/28 or 0/1 (see [yParity]).
   final int v;
 
   /// The r component of the ECDSA signature.
@@ -133,9 +133,6 @@ class Eip7702Authorization {
   }) async {
     final key = EthPrivateKey.fromHex(privateKey);
 
-    // EIP-7702 authorization signing hash:
-    // keccak256(MAGIC || rlp([chain_id, address, nonce]))
-    // where MAGIC = 0x05
     final authHash = _computeAuthorizationHash(
       chainId: chainId,
       address: contractAddress,
@@ -160,100 +157,22 @@ class Eip7702Authorization {
     );
   }
 
-  /// Computes the authorization hash for signing.
-  ///
-  /// Format: keccak256(0x05 || rlp([chain_id, address, nonce]))
+  /// `keccak256(0x05 || rlp([chain_id, address, nonce]))` (EIP-7702 MAGIC).
   static List<int> _computeAuthorizationHash({
     required BigInt chainId,
     required EthereumAddress address,
     required BigInt nonce,
-  }) {
-    // RLP encode [chain_id, address, nonce]
-    // Each item must be individually RLP-encoded before passing to _rlpEncode
-    final rlpData = _rlpEncode([
-      _rlpEncodeBigInt(chainId),
-      _rlpEncodeBytes(Hex.decode(address.hex)), // Fixed: RLP encode address
-      _rlpEncodeBigInt(nonce),
-    ]);
+  }) =>
+      crypto.keccak256(
+        Uint8List.fromList([
+          0x05,
+          ...crypto.encode([chainId, Hex.decode(address.hex), nonce]),
+        ]),
+      );
 
-    // Prepend MAGIC byte (0x05 for EIP-7702)
-    final preImage = [0x05, ...rlpData];
-
-    return crypto.keccak256(Uint8List.fromList(preImage)).toList();
-  }
-
-  /// RLP encodes a byte array.
-  static List<int> _rlpEncodeBytes(List<int> bytes) {
-    if (bytes.isEmpty) {
-      return [0x80]; // Empty byte array
-    }
-
-    if (bytes.length == 1 && bytes[0] < 0x80) {
-      return bytes; // Single byte less than 0x80 is itself
-    } else if (bytes.length <= 55) {
-      return [0x80 + bytes.length, ...bytes];
-    } else {
-      final lengthBytes = _encodeLength(bytes.length);
-      return [0xb7 + lengthBytes.length, ...lengthBytes, ...bytes];
-    }
-  }
-
-  /// RLP encodes a list of already-encoded items.
-  static List<int> _rlpEncode(List<List<int>> items) {
-    final payload = <int>[];
-    for (final item in items) {
-      payload.addAll(item);
-    }
-
-    if (payload.length <= 55) {
-      return [0xc0 + payload.length, ...payload];
-    } else {
-      final lengthBytes = _encodeLength(payload.length);
-      return [0xf7 + lengthBytes.length, ...lengthBytes, ...payload];
-    }
-  }
-
-  /// RLP encodes a BigInt value.
-  static List<int> _rlpEncodeBigInt(BigInt value) {
-    if (value == BigInt.zero) {
-      return [0x80]; // Empty byte array
-    }
-
-    final bytes = _bigIntToBytes(value);
-
-    if (bytes.length == 1 && bytes[0] < 0x80) {
-      return bytes;
-    } else if (bytes.length <= 55) {
-      return [0x80 + bytes.length, ...bytes];
-    } else {
-      final lengthBytes = _encodeLength(bytes.length);
-      return [0xb7 + lengthBytes.length, ...lengthBytes, ...bytes];
-    }
-  }
-
-  /// Converts a BigInt to minimal bytes (no leading zeros).
-  static List<int> _bigIntToBytes(BigInt value) {
-    if (value == BigInt.zero) return [];
-
-    final hex = value.toRadixString(16);
-    final padded = hex.length.isOdd ? '0$hex' : hex;
-    final bytes = <int>[];
-    for (var i = 0; i < padded.length; i += 2) {
-      bytes.add(int.parse(padded.substring(i, i + 2), radix: 16));
-    }
-    return bytes;
-  }
-
-  /// Encodes a length as bytes.
-  static List<int> _encodeLength(int length) {
-    final bytes = <int>[];
-    var remaining = length;
-    while (remaining > 0) {
-      bytes.insert(0, remaining & 0xff);
-      remaining >>= 8;
-    }
-    return bytes;
-  }
+  /// The signature's y-parity (0 or 1), whether [v] holds the legacy 27/28
+  /// form (as [sign] produces) or the 0/1 recovery id wallets report.
+  int get yParity => v >= 27 ? v - 27 : v;
 
   /// Converts this authorization to JSON format for RPC calls.
   Map<String, dynamic> toJson() => {
@@ -272,18 +191,14 @@ class Eip7702Authorization {
   /// - address, chainId, nonce (hex-encoded)
   /// - r, s (32 bytes each, hex-encoded)
   /// - yParity (1 byte, hex-encoded)
-  Map<String, dynamic> toRpcFormat() {
-    final yParity = v - 27; // Convert v (27/28) to yParity (0/1)
-    return {
-      'chainId': Hex.fromBigInt(chainId),
-      'address': address.hex,
-      'nonce': Hex.fromBigInt(nonce),
-      'yParity': Hex.fromBigInt(BigInt.from(yParity), byteLength: 1),
-      // r and s: 32 bytes each (already padded in sign())
-      'r': r,
-      's': s,
-    };
-  }
+  Map<String, dynamic> toRpcFormat() => {
+        'chainId': Hex.fromBigInt(chainId),
+        'address': address.hex,
+        'nonce': Hex.fromBigInt(nonce),
+        'yParity': Hex.fromBigInt(BigInt.from(yParity), byteLength: 1),
+        'r': r,
+        's': s,
+      };
 
   @override
   String toString() =>
