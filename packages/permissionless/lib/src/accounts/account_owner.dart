@@ -37,7 +37,10 @@ abstract class AccountOwner {
 
   /// The type of this owner (e.g., 'local' for ECDSA, 'webAuthn' for passkeys).
   ///
-  /// Smart accounts use this to determine how to encode signatures.
+  /// Informational, mirroring viem's `account.type`: no account in this
+  /// library reads it. Accounts pick WebAuthn signature encoding by class, so
+  /// a passkey owner must extend `WebAuthnAccountOwner`; overriding [type]
+  /// alone still gets ECDSA encoding.
   String get type => OwnerType.local;
 
   /// The Ethereum address of this owner.
