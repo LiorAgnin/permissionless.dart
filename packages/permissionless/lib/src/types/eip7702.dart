@@ -139,9 +139,8 @@ class Eip7702Authorization {
       nonce: nonce,
     );
 
-    // Sign the authorization hash directly using the raw sign function.
-    // Note: signToEcSignature adds an extra keccak256 hash, which we don't want
-    // since authHash is already a keccak256 hash.
+    // Not signToEcSignature: it keccak-hashes again, and authHash already is
+    // the keccak256 digest that gets signed.
     final signature = crypto.sign(
       Uint8List.fromList(authHash),
       key.privateKey,

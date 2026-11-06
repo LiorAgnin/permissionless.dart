@@ -7,11 +7,12 @@ import 'package:convert/convert.dart';
 class Hex {
   Hex._();
 
-  /// Converts bytes to a hex string with '0x' prefix.
-  static String encode(List<int> bytes) => '0x${hex.encode(bytes)}';
+  /// Same as [fromBytes].
+  @Deprecated('Use Hex.fromBytes instead')
+  static String encode(List<int> bytes) => fromBytes(bytes);
 
   /// Converts bytes to a hex string with '0x' prefix.
-  static String fromBytes(Uint8List bytes) => '0x${hex.encode(bytes)}';
+  static String fromBytes(List<int> bytes) => '0x${hex.encode(bytes)}';
 
   /// Converts a hex string (with or without '0x' prefix) to bytes.
   static Uint8List decode(String hexString) {
