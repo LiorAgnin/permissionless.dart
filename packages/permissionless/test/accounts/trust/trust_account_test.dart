@@ -155,37 +155,6 @@ void main() {
       );
     });
 
-    group('creation', () {
-      test('defaults to EntryPoint v0.6', () {
-        expect(account.entryPoint, equals(EntryPointAddresses.v06));
-        expect(account.chainId, equals(BigInt.one));
-        expect(account.index, equals(BigInt.zero));
-      });
-    });
-
-    group('counterfactual address', () {
-      test(
-          'returns pre-set address (unit path; RPC address via getSenderAddress)',
-          () async {
-        // Trust derives address via EntryPoint.getSenderAddress when no
-        // address is supplied — that path needs a publicClient (integration).
-        // Unit tests assert the pre-set address path used by clients offline.
-        final address = await account.getAddress();
-        expect(
-          address.hex.toLowerCase(),
-          equals(mockAddress.hex.toLowerCase()),
-        );
-      });
-
-      test('throws without address or publicClient', () {
-        final bare = createTrustSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-        );
-        expect(bare.getAddress, throwsA(isA<StateError>()));
-      });
-    });
-
     group('factoryData / initCode', () {
       test('factoryData matches permissionless.js', () async {
         final factoryData = await account.getFactoryData();

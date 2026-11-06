@@ -86,9 +86,9 @@ void main() {
     });
   });
 
-  // Known findings (see the skill). Each test states the promise and pins
-  // the smallest counterexample; it is skipped so the quick preset stays
-  // green. `dart test --run-skipped` shows them failing.
+  // Regressions for findings this property surfaced (see the skill). Each
+  // test states the promise and pins the smallest counterexample. The
+  // Etherspot finding was fixed in #81 (c3f2469), so it runs unskipped.
   group('known findings', () {
     test(
       'Etherspot signs the v0.7 hash when factory is set and factoryData is '

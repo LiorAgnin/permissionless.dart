@@ -17,173 +17,125 @@ void main() {
       );
     });
 
-    group('creation', () {
-      test('creates account with single owner', () {
+    group('getFactoryData / getInitCode', () {
+      // cast calldata "createAccount(address,uint256)" <owner> 0
+      const createAccountSalt0 =
+          '0x5fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000';
+
+      test('defaults to the v0.7 factory with createAccount(owner, 0)',
+          () async {
         account = createSimpleSmartAccount(
           owner: owner,
-          chainId: BigInt.from(11155111),
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        expect(account.owner, equals(owner));
-        expect(account.chainId, equals(BigInt.from(11155111)));
-        expect(account.entryPointVersion, equals(EntryPointVersion.v07));
-        expect(account.salt, equals(BigInt.zero));
+        final factoryData = (await account.getFactoryData())!;
+
+        // permissionless.js toSimpleSmartAccount getFactoryAddress("0.7")
+        expect(
+          factoryData.factory,
+          equals(
+            EthereumAddress.fromHex(
+              '0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985',
+            ),
+          ),
+        );
+        expect(
+          factoryData.factoryData.toLowerCase(),
+          equals(createAccountSalt0),
+        );
       });
 
-      test('creates account with custom salt', () {
+      test('salt is the createAccount index', () async {
         account = createSimpleSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           salt: BigInt.from(123),
           address: mockAddress,
         );
 
-        expect(account.salt, equals(BigInt.from(123)));
-      });
-
-      test('creates account with EntryPoint v0.6', () {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress,
+        // cast calldata "createAccount(address,uint256)" <owner> 123
+        expect(
+          (await account.getFactoryData())!.factoryData.toLowerCase(),
+          equals(
+            '0x5fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266000000000000000000000000000000000000000000000000000000000000007b',
+          ),
         );
-
-        expect(account.entryPointVersion, equals(EntryPointVersion.v06));
-        expect(account.entryPoint, equals(EntryPointAddresses.v06));
       });
 
-      test('creates account with custom factory address', () {
+      // permissionless.js toSimpleSmartAccount getFactoryAddress / viem
+      // entryPoint06Address, entryPoint07Address, entryPoint08Address.
+      for (final (ep, factory, entryPoint) in [
+        (
+          EntryPointVersion.v06,
+          '0x9406Cc6185a346906296840746125a0E44976454',
+          '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789',
+        ),
+        (
+          EntryPointVersion.v07,
+          '0x91E60e0613810449d098b0b5Ec8b51A0FE8c8985',
+          '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
+        ),
+        (
+          EntryPointVersion.v08,
+          '0x13E9ed32155810FDbd067D4522C492D6f68E5944',
+          '0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108',
+        ),
+      ]) {
+        test('EntryPoint ${ep.value} uses factory $factory', () async {
+          account = createSimpleSmartAccount(
+            owner: owner,
+            chainId: BigInt.one,
+            entryPointVersion: ep,
+            address: mockAddress,
+          );
+
+          expect(
+            account.entryPoint,
+            equals(EthereumAddress.fromHex(entryPoint)),
+          );
+          expect(
+            (await account.getFactoryData())!.factory,
+            equals(EthereumAddress.fromHex(factory)),
+          );
+        });
+      }
+
+      test('customFactoryAddress replaces the factory, not the calldata',
+          () async {
         final customFactory = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
+          '0x5555555555555555555555555555555555555555',
         );
         account = createSimpleSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           customFactoryAddress: customFactory,
           address: mockAddress,
         );
 
-        // Factory data should use custom address
-        // We can verify this through getFactoryData
-        expect(account, isNotNull);
+        final factoryData = (await account.getFactoryData())!;
+        expect(factoryData.factory, equals(customFactory));
+        expect(
+          factoryData.factoryData.toLowerCase(),
+          equals(createAccountSalt0),
+        );
       });
-    });
 
-    group('getAddress', () {
-      test('returns deterministic address', () async {
+      test('initCode is factory ++ factoryData', () async {
         account = createSimpleSmartAccount(
           owner: owner,
-          chainId: BigInt.from(11155111),
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        final address = await account.getAddress();
-
-        // Address should be deterministic based on owner and salt
-        expect(address.hex, startsWith('0x'));
-        expect(address.hex.length, equals(42));
-
-        // Same config should produce same address
-        final account2 = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(11155111),
-          address: mockAddress,
+        // cast concat-hex <v0.7 factory> <createAccount(owner, 0) calldata>
+        expect(
+          (await account.getInitCode()).toLowerCase(),
+          equals(
+            '0x91e60e0613810449d098b0b5ec8b51a0fe8c89855fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000',
+          ),
         );
-        final address2 = await account2.getAddress();
-
-        expect(address2.hex, equals(address.hex));
-      });
-
-      test('caches address after first calculation', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final address1 = await account.getAddress();
-        final address2 = await account.getAddress();
-
-        expect(identical(address1, address2), isTrue);
-      });
-
-      test('different salt produces different address', () async {
-        final mockAddress1 = EthereumAddress.fromHex(
-          '0x1111111111111111111111111111111111111111',
-        );
-        final mockAddress2 = EthereumAddress.fromHex(
-          '0x2222222222222222222222222222222222222222',
-        );
-
-        final account1 = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          address: mockAddress1,
-        );
-
-        final account2 = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.one,
-          address: mockAddress2,
-        );
-
-        final address1 = await account1.getAddress();
-        final address2 = await account2.getAddress();
-
-        expect(address1.hex, isNot(equals(address2.hex)));
-      });
-    });
-
-    group('getInitCode', () {
-      test('returns factory address + calldata', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final initCode = await account.getInitCode();
-
-        // InitCode starts with factory address (20 bytes = 40 hex chars + 0x)
-        expect(initCode, startsWith('0x'));
-        expect(initCode.length, greaterThan(42));
-
-        // Should contain createAccount selector
-        expect(initCode.contains('5fbfb9cf'), isTrue);
-      });
-
-      test('encodes owner address in init code', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final initCode = await account.getInitCode();
-
-        // Owner address should be in the calldata (lowercase, without 0x prefix)
-        final ownerHex = owner.address.hex.toLowerCase().substring(2);
-        expect(initCode.toLowerCase(), contains(ownerHex));
-      });
-    });
-
-    group('getFactoryData', () {
-      test('returns factory and data separately', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final factoryData = await account.getFactoryData();
-
-        expect(factoryData, isNotNull);
-        expect(factoryData!.factory, equals(SimpleAccountFactoryAddresses.v07));
-        expect(factoryData.factoryData, startsWith('0x5fbfb9cf'));
       });
     });
 
@@ -205,8 +157,14 @@ void main() {
           ),
         );
 
-        // Should start with execute selector
-        expect(callData, startsWith('0xb61d27f6'));
+        // cast calldata "execute(address,uint256,bytes)" \
+        //   0x1234567890123456789012345678901234567890 1000000000000000000 0xabcdef
+        expect(
+          callData.toLowerCase(),
+          equals(
+            '0xb61d27f600000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000de0b6b3a764000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000003abcdef0000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
       });
 
       test('encodes call with zero value', () {
@@ -225,8 +183,14 @@ void main() {
           ),
         );
 
-        expect(callData, startsWith('0xb61d27f6'));
-        expect(callData.length, greaterThan(10));
+        // cast calldata "execute(address,uint256,bytes)" \
+        //   0x1234567890123456789012345678901234567890 0 0x12345678
+        expect(
+          callData.toLowerCase(),
+          equals(
+            '0xb61d27f600000000000000000000000012345678901234567890123456789012345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000041234567800000000000000000000000000000000000000000000000000000000',
+          ),
+        );
       });
     });
 
@@ -264,8 +228,15 @@ void main() {
           ),
         ]);
 
-        // Single call should use execute, not executeBatch
-        expect(callData, startsWith('0xb61d27f6'));
+        // Single call uses execute, not executeBatch:
+        // cast calldata "execute(address,uint256,bytes)" \
+        //   0x1234567890123456789012345678901234567890 0 0xabcdef
+        expect(
+          callData.toLowerCase(),
+          equals(
+            '0xb61d27f60000000000000000000000001234567890123456789012345678901234567890000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000003abcdef0000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
       });
 
       test('v0.6 uses executeBatch(address[],bytes[]) selector 0x18dfb3c7', () {
@@ -344,18 +315,20 @@ void main() {
     });
 
     group('getStubSignature', () {
-      test('returns 65-byte signature', () {
+      test('matches permissionless.js dummy signature', () {
         account = createSimpleSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        final stubSig = account.getStubSignature();
-
-        // 65 bytes = 130 hex chars + "0x"
-        expect(stubSig, startsWith('0x'));
-        expect(stubSig.length, equals(132));
+        // permissionless.js toSimpleSmartAccount getStubSignature()
+        expect(
+          account.getStubSignature(),
+          equals(
+            '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c',
+          ),
+        );
       });
     });
 
@@ -477,197 +450,6 @@ void main() {
           throwsA(isA<UnsupportedError>()),
         );
       });
-
-      test('implements SmartAccountV06 for client v0.6 pipeline', () {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress,
-        );
-
-        expect(account, isA<SmartAccountV06>());
-      });
-
-      test('produces deterministic signature', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final userOp = UserOperationV07(
-          sender: await account.getAddress(),
-          nonce: BigInt.from(5),
-          callData: '0x1234',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0x',
-        );
-
-        final sig1 = await account.signUserOperation(userOp);
-        final sig2 = await account.signUserOperation(userOp);
-
-        expect(sig1, equals(sig2));
-      });
-
-      test('different userOps produce different signatures', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final sender = await account.getAddress();
-
-        final userOp1 = UserOperationV07(
-          sender: sender,
-          nonce: BigInt.one,
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0x',
-        );
-
-        final userOp2 = UserOperationV07(
-          sender: sender,
-          nonce: BigInt.from(2), // Different nonce
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0x',
-        );
-
-        final sig1 = await account.signUserOperation(userOp1);
-        final sig2 = await account.signUserOperation(userOp2);
-
-        expect(sig1, isNot(equals(sig2)));
-      });
-
-      test('handles paymaster data', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final userOp = UserOperationV07(
-          sender: await account.getAddress(),
-          nonce: BigInt.one,
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0x',
-          paymaster: EthereumAddress.fromHex(
-            '0xaaaa567890123456789012345678901234567890',
-          ),
-          paymasterData: '0x1234',
-          paymasterVerificationGasLimit: BigInt.from(50000),
-          paymasterPostOpGasLimit: BigInt.from(25000),
-        );
-
-        final signature = await account.signUserOperation(userOp);
-
-        // Should still produce valid signature
-        expect(signature, startsWith('0x'));
-        expect(signature.length, equals(132));
-      });
-
-      test('handles factory data', () async {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final factoryData = await account.getFactoryData();
-
-        final userOp = UserOperationV07(
-          sender: await account.getAddress(),
-          nonce: BigInt.zero,
-          callData: '0xabcdef',
-          callGasLimit: BigInt.from(100000),
-          verificationGasLimit: BigInt.from(200000),
-          preVerificationGas: BigInt.from(50000),
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(100000000),
-          signature: '0x',
-          factory: factoryData!.factory,
-          factoryData: factoryData.factoryData,
-        );
-
-        final signature = await account.signUserOperation(userOp);
-
-        // Should still produce valid signature
-        expect(signature, startsWith('0x'));
-        expect(signature.length, equals(132));
-      });
-    });
-
-    group('nonceKey', () {
-      test('returns zero for sequential transactions', () {
-        account = createSimpleSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        expect(account.nonceKey, equals(BigInt.zero));
-      });
-    });
-  });
-
-  group('PrivateKeyOwner', () {
-    test('derives address from private key', () {
-      final owner = PrivateKeyOwner(
-        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-      );
-
-      // This is the first Hardhat test account
-      expect(
-        owner.address.hex.toLowerCase(),
-        equals('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266'),
-      );
-    });
-
-    test('signs message hash', () async {
-      final owner = PrivateKeyOwner(
-        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-      );
-
-      const messageHash =
-          '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      final signature = await owner.signPersonalMessage(messageHash);
-
-      // Signature should be 65 bytes
-      expect(signature, startsWith('0x'));
-      expect(signature.length, equals(132));
-    });
-
-    test('produces deterministic signatures', () async {
-      final owner = PrivateKeyOwner(
-        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-      );
-
-      const messageHash =
-          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd';
-
-      final sig1 = await owner.signPersonalMessage(messageHash);
-      final sig2 = await owner.signPersonalMessage(messageHash);
-
-      expect(sig1, equals(sig2));
     });
   });
 

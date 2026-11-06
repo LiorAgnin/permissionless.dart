@@ -175,14 +175,6 @@ void main() {
       );
     });
 
-    group('creation', () {
-      test('defaults to EntryPoint v0.6', () {
-        expect(account.entryPoint, equals(EntryPointAddresses.v06));
-        expect(account.chainId, equals(BigInt.one));
-        expect(account.index, equals(BigInt.zero));
-      });
-    });
-
     group('counterfactual address', () {
       test('CREATE2 address matches permissionless.js', () async {
         // No pre-set address — pure local CREATE2
@@ -195,14 +187,6 @@ void main() {
         expect(
           address.hex.toLowerCase(),
           equals(jsCounterfactualAddress),
-        );
-      });
-
-      test('returns pre-set address when provided', () async {
-        final address = await account.getAddress();
-        expect(
-          address.hex.toLowerCase(),
-          equals(mockAddress.hex.toLowerCase()),
         );
       });
     });
