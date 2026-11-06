@@ -113,27 +113,33 @@ void main() {
         expect(capturedRequests.single['params'], equals([null]));
       });
 
-      test('rejects invalid registration response shape', () async {
+      test('rejects an unknown attestation value', () async {
         final mock = createMockClient(
-          (_) => {
-            'rp': {'id': 'example.com', 'name': 'Example'},
-            'user': {
-              'id': userIdB64(),
-              'name': 'alice',
-              'displayName': 'Alice',
-            },
-            'challenge': challengeB64(),
-            // missing authenticatorSelection / bad attestation
-            'attestation': 'invalid',
-          },
+          (_) => {...validStartRegistrationResult(), 'attestation': 'invalid'},
         );
         final client = createPasskeyServerClient(
           url: 'http://localhost:3000',
           httpClient: mock,
         );
 
-        expect(
-          client.startRegistration,
+        await expectLater(
+          client.startRegistration(),
+          throwsA(isA<FormatException>()),
+        );
+      });
+
+      test('rejects a response without authenticatorSelection', () async {
+        final mock = createMockClient(
+          (_) =>
+              validStartRegistrationResult()..remove('authenticatorSelection'),
+        );
+        final client = createPasskeyServerClient(
+          url: 'http://localhost:3000',
+          httpClient: mock,
+        );
+
+        await expectLater(
+          client.startRegistration(),
           throwsA(isA<FormatException>()),
         );
       });
@@ -165,7 +171,6 @@ void main() {
         expect(options.timeout, 30000);
         // permissionless.js: toHex(Base64.toBytes(challenge))
         expect(options.challenge, Hex.fromBytes(challengeBytes()));
-        expect(options.challenge.startsWith('0x'), isTrue);
       });
     });
 
@@ -203,7 +208,10 @@ void main() {
         );
         expect(credentials, hasLength(2));
         expect(credentials[0].id, 'cred-1');
-        expect(credentials[0].publicKey.startsWith('0x'), isTrue);
+        expect(
+          credentials[0].publicKey,
+          '0x04aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        );
         expect(credentials[1].id, 'cred-2');
       });
 
@@ -240,11 +248,15 @@ void main() {
 
     group('verifyRegistration', () {
       test('encodes credential payload matching JS base64 rules', () async {
-        final rawId = Uint8List.fromList([1, 2, 3, 4, 5]);
+        // Bytes chosen so standard and url alphabets differ (+/ vs -_) and
+        // every field needs padding, so each field's alphabet and padding
+        // choice is observable. Expected strings: ox Base64.fromBytes with
+        // the options permissionless.js verifyRegistration passes.
+        final rawId = Uint8List.fromList([0xfb, 0xff, 0xfe, 0x01]);
         final clientDataJSON =
-            Uint8List.fromList(utf8.encode('{"type":"webauthn.create"}'));
-        final attestationObject = Uint8List.fromList([10, 20, 30, 40, 50]);
-        final authenticatorData = Uint8List.fromList([9, 8, 7]);
+            Uint8List.fromList([0xfa, 0xff, 0xbf, 0x7b, 0x22]);
+        final attestationObject = Uint8List.fromList([0xf8, 0x3f, 0xff, 0x10]);
+        final authenticatorData = Uint8List.fromList([0xfb, 0xef, 0xbe, 0x02]);
 
         final mock = createMockClient(
           (_) => {
@@ -284,8 +296,8 @@ void main() {
 
         final body = params[0] as Map<String, dynamic>;
         expect(body['id'], 'cred-id-1');
-        // rawId: base64url, no pad
-        expect(body['rawId'], base64Url.encode(rawId).replaceAll('=', ''));
+        // rawId: { pad: false, url: true }
+        expect(body['rawId'], '-__-AQ');
         expect(body['authenticatorAttachment'], 'platform');
         expect(body['type'], 'public-key');
         expect(body['clientExtensionResults'], {
@@ -293,15 +305,12 @@ void main() {
         });
 
         final response = body['response'] as Map<String, dynamic>;
-        // clientDataJSON: standard base64 (pad true, url false)
-        expect(response['clientDataJSON'], base64Encode(clientDataJSON));
-        // attestationObject: base64url with pad
-        expect(
-          response['attestationObject'],
-          base64Url.encode(attestationObject),
-        );
-        // authenticatorData: standard base64
-        expect(response['authenticatorData'], base64Encode(authenticatorData));
+        // clientDataJSON: defaults (standard alphabet, padded)
+        expect(response['clientDataJSON'], '+v+/eyI=');
+        // attestationObject: { url: true } (padded)
+        expect(response['attestationObject'], '-D__EA==');
+        // authenticatorData: defaults
+        expect(response['authenticatorData'], '++++Ag==');
         expect(response['transports'], ['internal']);
         expect(response['publicKeyAlgorithm'], -7);
 
@@ -346,12 +355,15 @@ void main() {
 
     group('verifyAuthentication', () {
       test('encodes assertion payload matching JS base64url rules', () async {
-        final rawId = Uint8List.fromList([1, 2, 3, 4]);
+        // Same idea as verifyRegistration: +/ vs -_ and padding observable.
+        // Expected strings: ox Base64.fromBytes with the options
+        // permissionless.js verifyAuthentication passes.
+        final rawId = Uint8List.fromList([0xfb, 0xff, 0xfe, 0x01]);
         final clientDataJSON =
-            Uint8List.fromList(utf8.encode('{"type":"webauthn.get"}'));
-        final authenticatorData = Uint8List.fromList([5, 6, 7, 8]);
-        final signature = Uint8List.fromList([9, 10, 11]);
-        final userHandle = Uint8List.fromList([12, 13]);
+            Uint8List.fromList([0xfa, 0xff, 0xbf, 0x7b, 0x22]);
+        final authenticatorData = Uint8List.fromList([0xfb, 0xef, 0xbe, 0x02]);
+        final signature = Uint8List.fromList([0xff, 0xfe, 0xfd, 0xfc, 0xfb]);
+        final userHandle = Uint8List.fromList([0xfb, 0xff]);
 
         final mock = createMockClient(
           (_) => {
@@ -386,28 +398,16 @@ void main() {
         expect(params, hasLength(2));
 
         final body = params[0] as Map<String, dynamic>;
-        expect(body['rawId'], base64Url.encode(rawId).replaceAll('=', ''));
+        expect(body['rawId'], '-__-AQ');
         expect(body['type'], 'public-key');
 
         final response = body['response'] as Map<String, dynamic>;
-        // clientDataJSON / signature / userHandle: base64url no pad
-        expect(
-          response['clientDataJSON'],
-          base64Url.encode(clientDataJSON).replaceAll('=', ''),
-        );
-        // authenticatorData: base64url with pad (url: true only)
-        expect(
-          response['authenticatorData'],
-          base64Url.encode(authenticatorData),
-        );
-        expect(
-          response['signature'],
-          base64Url.encode(signature).replaceAll('=', ''),
-        );
-        expect(
-          response['userHandle'],
-          base64Url.encode(userHandle).replaceAll('=', ''),
-        );
+        // clientDataJSON / signature / userHandle: { pad: false, url: true }
+        expect(response['clientDataJSON'], '-v-_eyI');
+        // authenticatorData: { url: true } (padded)
+        expect(response['authenticatorData'], '----Ag==');
+        expect(response['signature'], '__79_Ps');
+        expect(response['userHandle'], '-_8');
 
         expect(params[1], {'uuid': 'session-uuid-1'});
         expect(result.success, isTrue);
