@@ -6,6 +6,12 @@ import '../types/user_operation.dart';
 import 'encoding.dart';
 import 'state_override.dart';
 
+const String _approveSignature = 'approve(address,uint256)';
+const String _allowanceSignature = 'allowance(address,address)';
+const String _balanceOfSignature = 'balanceOf(address)';
+const String _transferSignature = 'transfer(address,uint256)';
+const String _transferFromSignature = 'transferFrom(address,address,uint256)';
+
 /// ERC-20 function selectors for common operations.
 ///
 /// These are the first 4 bytes of the keccak256 hash of the function signature.
@@ -13,29 +19,23 @@ class Erc20Selectors {
   Erc20Selectors._();
 
   /// approve(address spender, uint256 amount)
-  static final String approve = AbiEncoder.functionSelector(
-    'approve(address,uint256)',
-  );
+  static final String approve = AbiEncoder.functionSelector(_approveSignature);
 
   /// allowance(address owner, address spender)
-  static final String allowance = AbiEncoder.functionSelector(
-    'allowance(address,address)',
-  );
+  static final String allowance =
+      AbiEncoder.functionSelector(_allowanceSignature);
 
   /// balanceOf(address account)
-  static final String balanceOf = AbiEncoder.functionSelector(
-    'balanceOf(address)',
-  );
+  static final String balanceOf =
+      AbiEncoder.functionSelector(_balanceOfSignature);
 
   /// transfer(address to, uint256 amount)
-  static final String transfer = AbiEncoder.functionSelector(
-    'transfer(address,uint256)',
-  );
+  static final String transfer =
+      AbiEncoder.functionSelector(_transferSignature);
 
   /// transferFrom(address from, address to, uint256 amount)
-  static final String transferFrom = AbiEncoder.functionSelector(
-    'transferFrom(address,address,uint256)',
-  );
+  static final String transferFrom =
+      AbiEncoder.functionSelector(_transferFromSignature);
 }
 
 /// Maximum uint256 value for unlimited token approvals.
@@ -66,18 +66,11 @@ Call encodeErc20Approve({
   required EthereumAddress token,
   required EthereumAddress spender,
   required BigInt amount,
-}) {
-  final callData = Hex.concat([
-    Erc20Selectors.approve,
-    AbiEncoder.encodeAddress(spender),
-    AbiEncoder.encodeUint256(amount),
-  ]);
-
-  return Call(
-    to: token,
-    data: callData,
-  );
-}
+}) =>
+    Call(
+      to: token,
+      data: AbiEncoder.encodeFunctionData(_approveSignature, [spender, amount]),
+    );
 
 /// Encodes an ERC-20 transfer(to, amount) call.
 ///
@@ -96,18 +89,11 @@ Call encodeErc20Transfer({
   required EthereumAddress token,
   required EthereumAddress to,
   required BigInt amount,
-}) {
-  final callData = Hex.concat([
-    Erc20Selectors.transfer,
-    AbiEncoder.encodeAddress(to),
-    AbiEncoder.encodeUint256(amount),
-  ]);
-
-  return Call(
-    to: token,
-    data: callData,
-  );
-}
+}) =>
+    Call(
+      to: token,
+      data: AbiEncoder.encodeFunctionData(_transferSignature, [to, amount]),
+    );
 
 /// Encodes an ERC-20 allowance(owner, spender) call for eth_call.
 ///
@@ -132,11 +118,7 @@ String encodeErc20AllowanceCall({
   required EthereumAddress owner,
   required EthereumAddress spender,
 }) =>
-    Hex.concat([
-      Erc20Selectors.allowance,
-      AbiEncoder.encodeAddress(owner),
-      AbiEncoder.encodeAddress(spender),
-    ]);
+    AbiEncoder.encodeFunctionData(_allowanceSignature, [owner, spender]);
 
 /// Encodes an ERC-20 balanceOf(account) call for eth_call.
 ///
@@ -155,10 +137,7 @@ String encodeErc20AllowanceCall({
 String encodeErc20BalanceOfCall({
   required EthereumAddress account,
 }) =>
-    Hex.concat([
-      Erc20Selectors.balanceOf,
-      AbiEncoder.encodeAddress(account),
-    ]);
+    AbiEncoder.encodeFunctionData(_balanceOfSignature, [account]);
 
 /// Decodes a uint256 result from an eth_call response.
 ///
