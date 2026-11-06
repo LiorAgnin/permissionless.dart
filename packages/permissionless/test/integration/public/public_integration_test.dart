@@ -34,16 +34,13 @@ void main() {
         );
 
         test(
-          'getBalance returns balance for zero address',
+          'getBalance returns a funded contract balance',
           () async {
-            // Zero address should return a BigInt (possibly zero)
-            final balance = await client.getBalance(
-              EthereumAddress.fromHex(
-                '0x0000000000000000000000000000000000000000',
-              ),
-            );
+            // EntryPoint v0.7 holds paymaster/account deposits on every
+            // supported testnet, so a parse that loses the value shows as 0.
+            final balance = await client.getBalance(EntryPointAddresses.v07);
 
-            expect(balance, isA<BigInt>());
+            expect(balance, greaterThan(BigInt.zero));
           },
           timeout: const Timeout(TestTimeouts.shortNetwork),
         );

@@ -153,9 +153,17 @@ void main() {
 
               final factoryData = await account.getFactoryData();
 
-              expect(factoryData, isNotNull);
-              expect(factoryData!.factory.hex, startsWith('0x'));
-              expect(factoryData.factoryData, startsWith('0x'));
+              // SafeProxyFactory 1.4.1 (permissionless.js safe constants);
+              // `cast sig "createProxyWithNonce(address,bytes,uint256)"`.
+              expect(
+                factoryData!.factory,
+                equals(
+                  EthereumAddress.fromHex(
+                    '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+                  ),
+                ),
+              );
+              expect(factoryData.factoryData, startsWith('0x1688f0b9'));
 
               // Verify factory is deployed
               final isDeployed = await client.isDeployed(factoryData.factory);
@@ -289,12 +297,12 @@ void main() {
 
               final factoryData = await account.getFactoryData();
 
-              expect(factoryData, isNotNull);
               expect(
                 factoryData!.factory.hex.toLowerCase(),
                 equals(SimpleAccountFactoryAddresses.v07.hex.toLowerCase()),
               );
-              expect(factoryData.factoryData, startsWith('0x'));
+              // `cast sig "createAccount(address,uint256)"` = 0x5fbfb9cf
+              expect(factoryData.factoryData, startsWith('0x5fbfb9cf'));
             } finally {
               client.close();
             }
