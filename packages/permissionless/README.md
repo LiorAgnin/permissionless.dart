@@ -20,7 +20,7 @@ Build account abstraction applications in Dart with support for multiple smart a
 | **Etherspot**   | Etherspot      | v0.7             | Internal** | ModularEtherspotWallet           |
 | **Biconomy**    | Biconomy       | v0.6             | No         | *Deprecated - use Nexus*         |
 | **Simple 7702** | eth-infinitism | v0.8             | No         | EOA delegated via EIP-7702***    |
-| **Kernel 7702** | ZeroDev        | v0.7             | v0.3.3+    | EOA delegated via EIP-7702***    |
+| **Kernel 7702** | ZeroDev        | v0.7             | v0.3.3     | EOA delegated via EIP-7702***    |
 
 \* Safe requires `erc7579LaunchpadAddress` configuration to enable ERC-7579 module management.
 \** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.
@@ -64,6 +64,25 @@ Then run:
 ```bash
 dart pub get
 ```
+
+### Upgrading from 0.5.x
+
+Nothing exported was removed or renamed in 0.6.0, but some behaviour changed:
+
+- **Counterfactual addresses** change for a Safe in ERC-7579 mode with a
+  WebAuthn owner, and for a Safe v1.5.0 built without a `publicClient`. Both
+  old addresses were wrong.
+- **EntryPoint v0.6 with a paymaster** now uses ERC-7677
+  (`pm_getPaymasterStubData` / `pm_getPaymasterData`) instead of
+  `pm_sponsorUserOperation`.
+- **WebAuthn accounts** no longer get a 900,000 verification-gas floor. Pass
+  `verificationGasLimit` or custom `gasMultipliers` if you need a minimum.
+- **Invalid account configs** throw `ArgumentError` when you create the
+  account, and the top-level ERC-7579 queries and ERC-20 reads throw
+  `StateError` when the call returns `0x` (for example, an undeployed account).
+
+The [CHANGELOG](CHANGELOG.md) lists every change and the deprecated methods to
+move off.
 
 ### Upgrading from 0.3.x
 
@@ -172,7 +191,7 @@ final account = createSafeSmartAccount(
 ZeroDev's modular smart account with plugin support:
 
 ```dart
-final owner = PrivateKeyKernelOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createKernelSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -190,7 +209,7 @@ final account = createKernelSmartAccount(
 Biconomy's next-generation ERC-7579 modular account:
 
 ```dart
-final owner = PrivateKeyNexusAccountOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createNexusSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -208,11 +227,13 @@ final account = createNexusSmartAccount(
 Alchemy's gas-efficient smart account:
 
 ```dart
-final owner = PrivateKeyLightAccountOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createLightSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
-  version: LightAccountVersion.v200,  // or v110 for EP v0.6
+  version: LightAccountVersion.v200,  // EP v0.7, the default
+  // For v1.1.0, also pass entryPointVersion: EntryPointVersion.v06.
+  // Other version/EntryPoint pairs throw ArgumentError.
 );
 ```
 
@@ -226,7 +247,7 @@ final account = createLightSmartAccount(
 Minimal reference implementation from eth-infinitism:
 
 ```dart
-final owner = PrivateKeySimpleAccountOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createSimpleSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -244,7 +265,7 @@ final account = createSimpleSmartAccount(
 Thirdweb SDK smart account:
 
 ```dart
-final owner = PrivateKeyThirdwebAccountOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createThirdwebSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -261,7 +282,7 @@ final account = createThirdwebSmartAccount(
 Trust Wallet's diamond-based smart account:
 
 ```dart
-final owner = PrivateKeyTrustAccountOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createTrustSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -278,7 +299,7 @@ final account = createTrustSmartAccount(
 Etherspot's ModularEtherspotWallet:
 
 ```dart
-final owner = PrivateKeyEtherspotOwner('0x...');
+final owner = PrivateKeyOwner('0x...');
 final account = createEtherspotSmartAccount(
   owner: owner,
   chainId: BigInt.from(1),
@@ -311,8 +332,8 @@ final gasEstimate = await bundler.estimateUserOperationGas(userOp);
 // Send a UserOperation
 final hash = await bundler.sendUserOperation(userOp);
 
-// Get UserOperation receipt
-final receipt = await bundler.getUserOperationReceipt(hash);
+// Get UserOperation receipt (null while pending)
+final maybeReceipt = await bundler.getUserOperationReceipt(hash);
 
 // Wait for receipt with polling
 final receipt = await bundler.waitForUserOperationReceipt(hash);
@@ -368,7 +389,7 @@ final preparedOp = await client.prepareUserOperation(
 final signedOp = await client.signUserOperation(preparedOp);
 
 // Send a prepared UserOperation
-final hash = await client.sendPreparedUserOperation(signedOp);
+final preparedHash = await client.sendPreparedUserOperation(signedOp);
 
 // Send in one call (prepare + sign + send)
 final hash = await client.sendUserOperation(
@@ -422,8 +443,8 @@ final chainId = await publicClient.getChainId();
 
 // Get account nonce (from EntryPoint)
 final nonce = await publicClient.getAccountNonce(
-  sender: address,
-  entryPoint: EntryPointAddresses.v07,
+  address,
+  EntryPointAddresses.v07,
 );
 
 // Make a contract call
@@ -431,9 +452,9 @@ final result = await publicClient.call(
   Call(to: contractAddress, data: callData),
 );
 
-// Deployless call against an undeployed (counterfactual) account —
-// deploys via the factory inside eth_call, then executes the call
-final result = await publicClient.call(
+// Deployless call against an undeployed (counterfactual) account. It
+// deploys via the factory inside eth_call, then executes the call.
+final accountResult = await publicClient.call(
   Call(to: accountAddress, data: callData),
   factory: factoryAddress,
   factoryData: factoryData,
@@ -478,23 +499,25 @@ For ERC-7579 compliant accounts (Kernel v0.3.x, Safe 7579, Nexus):
 
 ```dart
 // Install a module
-final installCallData = encodeInstallModule(
+final installCallData = encode7579InstallModule(
   moduleType: Erc7579ModuleType.validator,
   module: moduleAddress,
   initData: '0x',
 );
 
 // Uninstall a module
-final uninstallCallData = encodeUninstallModule(
+final uninstallCallData = encode7579UninstallModule(
   moduleType: Erc7579ModuleType.executor,
   module: moduleAddress,
   deInitData: '0x',
 );
 
-// Check if module is installed
-final isInstalled = await supportsModule(
-  client: smartAccountClient,
-  moduleType: Erc7579ModuleType.validator,
+// Check if module is installed. The SmartAccountClient method also works
+// before the account is deployed (it retries through the factory); the
+// top-level isModuleInstalled throws StateError for an undeployed account.
+final isInstalled = await smartAccountClient.isModuleInstalled(
+  type: Erc7579ModuleType.validator,
+  address: moduleAddress,
 );
 ```
 
@@ -522,18 +545,14 @@ final typedData = TypedData(
   primaryType: 'Message',
   message: {'content': 'Hello'},
 );
-final signature = await account.signTypedData(typedData);
+final typedSignature = await account.signTypedData(typedData);
 ```
 
 ## Gas Utilities
 
 ```dart
-// Calculate total gas limit
-final totalGas = totalGasLimit(
-  callGasLimit: estimates.callGasLimit,
-  verificationGasLimit: estimates.verificationGasLimit,
-  preVerificationGas: estimates.preVerificationGas,
-);
+// Total gas limit of a UserOperationGasEstimate (includes paymaster gas)
+final totalGas = estimates.totalGasLimit;
 
 // Get required prefund
 final prefund = getRequiredPrefund(userOp);
@@ -561,12 +580,12 @@ print('Max cost: ${result.maxCostInToken} tokens');
 print('Approval injected: ${result.approvalInjected}');
 
 // Sign and send. For an EIP-7702 account whose delegation is not yet
-// active, result.authorization is non-null and the delegation is installed
-// by this same operation — one code path covers both cases.
+// active, result.authorization is non-null and this same operation installs
+// the delegation. Otherwise it is null, so one code path covers both cases.
 final signedOp = await client.signUserOperation(result.userOperation);
-final hash = await client.sendPreparedUserOperationWithAuth(
+final hash = await client.sendPreparedUserOperation(
   signedOp,
-  result.authorization,
+  authorization: result.authorization,
 );
 ```
 
@@ -596,29 +615,45 @@ final allowanceOverride = erc20AllowanceOverride(
 
 ## EntryPoint Versions
 
-| Version | Address         | Accounts                                                                            |
-| ------- | --------------- | ----------------------------------------------------------------------------------- |
-| v0.6    | `0x5FF1...2789` | Safe v1.4.1, Kernel v0.2.4, Light v1.1.0, Trust                                     |
-| v0.7    | `0x0000...0070` | Safe v1.4.1/v1.5.0, Kernel v0.3.1, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot |
+| Version | Address         | Accounts                                                                                         |
+| ------- | --------------- | ------------------------------------------------------------------------------------------------ |
+| v0.6    | `0x5FF1...2789` | Safe v1.4.1, Kernel v0.2.x, Light v1.1.0, Simple, Thirdweb, Trust, Biconomy                      |
+| v0.7    | `0x0000...a032` | Safe v1.4.1/v1.5.0, Kernel v0.3.x, Kernel 7702, Nexus, Light v2.0.0, Simple, Thirdweb, Etherspot |
+| v0.8    | `0x4337...f108` | Simple, Simple 7702                                                                              |
+
+The full addresses are `EntryPointAddresses.v06`, `.v07` and `.v08`.
 
 ## Examples
 
 See the [example/](example/) directory for complete working examples:
 
-| Example                        | Description                |
-| ------------------------------ | -------------------------- |
-| `safe_example.dart`            | Safe multi-sig account     |
-| `kernel_example.dart`          | Kernel v0.2.4 and v0.3.1   |
-| `nexus_example.dart`           | Biconomy Nexus (ERC-7579)  |
-| `light_example.dart`           | Alchemy Light Account      |
-| `simple_example.dart`          | Minimal reference account  |
-| `thirdweb_example.dart`        | Thirdweb SDK account       |
-| `trust_example.dart`           | Trust Wallet Barz          |
-| `etherspot_example.dart`       | Etherspot modular account  |
-| `erc7579_modules_example.dart` | ERC-7579 module management |
-| `erc20_paymaster_example.dart` | Pay gas with ERC-20 tokens |
+| Example                         | Description                                    |
+| ------------------------------- | ---------------------------------------------- |
+| `safe_example.dart`             | Safe v1.4.1 multi-sig account                  |
+| `safe_7579_example.dart`        | Safe with ERC-7579 modules                     |
+| `safe_webauthn_example.dart`    | Safe with a WebAuthn owner (prepare only)      |
+| `kernel_example.dart`           | Kernel v0.3.1                                  |
+| `kernel_webauthn_example.dart`  | Kernel with a WebAuthn owner (prepare only)    |
+| `nexus_example.dart`            | Biconomy Nexus (ERC-7579)                      |
+| `light_example.dart`            | Alchemy Light Account                          |
+| `simple_example.dart`           | Minimal reference account                      |
+| `thirdweb_example.dart`         | Thirdweb SDK account                           |
+| `trust_example.dart`            | Trust Wallet Barz                              |
+| `etherspot_example.dart`        | Etherspot modular account                      |
+| `biconomy_example.dart`         | Legacy Biconomy account                        |
+| `eip7702_simple_example.dart`   | EIP-7702 Simple account                        |
+| `eip7702_kernel_example.dart`   | EIP-7702 Kernel account                        |
+| `erc20_paymaster_example.dart`  | Pay gas with ERC-20 tokens                     |
 
-Run an example:
+Safe, Kernel, Light, Simple and Thirdweb also have one file per version
+(for example `kernel_v024_example.dart`, `simple_ep08_example.dart`) and an
+`*_all_versions_example.dart` that runs every version.
+
+Most examples send real UserOperations on a testnet. The two WebAuthn
+examples stop before signing, since that needs a real authenticator (see
+`permissionless_passkeys`). All of them read
+`PIMLICO_API_KEY` (required) and `TEST_PRIVATE_KEY` from the environment or
+from a `.env` file in this package or the repo root. Run one:
 
 ```bash
 dart run example/safe_example.dart
@@ -636,7 +671,14 @@ Then open `doc/api/index.html` in your browser.
 
 ## Testing
 
-Run all tests:
+Run the tests that need no network:
+
+```bash
+dart test -P quick
+```
+
+Run all tests, including the `integration` and `funded` ones that call live
+bundlers:
 
 ```bash
 dart test
@@ -645,7 +687,7 @@ dart test
 Run specific tests:
 
 ```bash
-dart test test/accounts/safe_test.dart
+dart test test/accounts/safe/safe_account_test.dart
 ```
 
 ## Contributing
