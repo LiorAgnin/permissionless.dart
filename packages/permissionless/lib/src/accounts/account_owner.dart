@@ -67,8 +67,8 @@ abstract class AccountOwner {
 ///
 /// Example:
 /// ```dart
-/// final owner = PrivateKeyOwner('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
-/// print(owner.address); // 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+/// final owner = PrivateKeyOwner('0x<your-private-key>');
+/// print(owner.address); // the EOA address derived from the key
 ///
 /// // For SimpleAccount, Nexus, etc.
 /// final sig = await owner.signPersonalMessage(userOpHash);

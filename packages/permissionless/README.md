@@ -108,10 +108,9 @@ they now byte-match permissionless.js. See the
 import 'package:permissionless/permissionless.dart';
 
 void main() async {
-  // 1. Create an owner from a private key
-  final owner = PrivateKeyOwner(
-    '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-  );
+  // 1. Create an owner from a private key (your own key; never a published
+  //    test key such as Hardhat/Anvil account 0 on a live network)
+  final owner = PrivateKeyOwner('0x<your-private-key>');
 
   // 2. Create a Safe smart account
   final account = createSafeSmartAccount(
