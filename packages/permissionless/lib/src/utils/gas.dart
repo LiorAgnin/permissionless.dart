@@ -1,6 +1,4 @@
 import '../clients/bundler/types.dart';
-import '../clients/pimlico/pimlico_client.dart';
-import '../clients/public/public_client.dart';
 import '../types/address.dart';
 import '../types/user_operation.dart';
 
@@ -258,66 +256,6 @@ class GasCostEstimate {
   @override
   String toString() =>
       'GasCostEstimate(totalGas: $totalGasLimit, maxCost: $maxGasCost)';
-}
-
-/// Gets fee estimates from a public client.
-///
-/// Combines gasPrice and maxPriorityFeePerGas into a FeeEstimate.
-/// Applies an optional multiplier for safety.
-///
-/// Example:
-/// ```dart
-/// final fees = await estimateFees(publicClient, multiplier: 1.2);
-/// ```
-Future<FeeEstimate> estimateFees(
-  PublicClient public, {
-  double multiplier = 1.1,
-}) async {
-  final feeData = await public.getFeeData();
-
-  var maxFeePerGas = feeData.gasPrice;
-  var maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? feeData.gasPrice;
-
-  // Apply multiplier
-  if (multiplier != 1.0) {
-    maxFeePerGas = _applyMultiplier(maxFeePerGas, multiplier);
-    maxPriorityFeePerGas = _applyMultiplier(maxPriorityFeePerGas, multiplier);
-  }
-
-  return FeeEstimate(
-    maxFeePerGas: maxFeePerGas,
-    maxPriorityFeePerGas: maxPriorityFeePerGas,
-  );
-}
-
-/// Gets fee estimates from a Pimlico client.
-///
-/// Uses Pimlico's gas price oracle for more accurate estimates.
-/// Supports speed tiers (slow, standard, fast).
-///
-/// Example:
-/// ```dart
-/// final fees = await estimateFeesFromPimlico(
-///   pimlicoClient,
-///   speed: GasSpeed.fast,
-/// );
-/// ```
-Future<FeeEstimate> estimateFeesFromPimlico(
-  PimlicoClient pimlico, {
-  GasSpeed speed = GasSpeed.standard,
-}) async {
-  final gasPrices = await pimlico.getUserOperationGasPrice();
-
-  final price = switch (speed) {
-    GasSpeed.slow => gasPrices.slow,
-    GasSpeed.standard => gasPrices.standard,
-    GasSpeed.fast => gasPrices.fast,
-  };
-
-  return FeeEstimate(
-    maxFeePerGas: price.maxFeePerGas,
-    maxPriorityFeePerGas: price.maxPriorityFeePerGas,
-  );
 }
 
 /// Applies a multiplier to a BigInt value.
