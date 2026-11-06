@@ -932,10 +932,12 @@ void main() {
       );
     });
 
-    test('stub uses the static chain list before anything is signed', () {
+    // The first user operation is estimated before anything is signed. The
+    // stub must cover the Solidity-verifier path the account may submit.
+    test('stub estimates the Solidity verifier before any signature', () {
       expect(
         account().getStubSignature(),
-        getDummyKernelWebAuthnSignature(usePrecompiled: true),
+        getDummyKernelWebAuthnSignature(usePrecompiled: false),
       );
     });
   });

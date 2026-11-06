@@ -130,10 +130,6 @@ class KernelSmartAccount implements SmartAccountV06 {
   final KernelAddresses _addresses;
   EthereumAddress? _cachedAddress;
 
-  /// The P256 precompile flag of the last WebAuthn signature, so the stub
-  /// signature estimates gas on the encoding that will be submitted.
-  bool? _lastUsePrecompiled;
-
   /// Returns the entry point version for this account.
   EntryPointVersion get entryPointVersion =>
       _config.version.isV2 ? EntryPointVersion.v06 : EntryPointVersion.v07;
@@ -323,24 +319,21 @@ class KernelSmartAccount implements SmartAccountV06 {
   /// available, else uses the static chain list.
   Future<bool> _shouldUsePrecompile() async {
     final publicClient = _config.publicClient;
-    return _lastUsePrecompiled = publicClient != null
+    return publicClient != null
         ? await isRip7212Supported(publicClient)
         : shouldUseP256Precompile(chainId: chainId);
   }
 
-  /// For WebAuthn owners the precompile flag follows the last signature;
-  /// before the first one (this method cannot probe the chain) it comes
-  /// from the static chain list.
+  /// The WebAuthn stub encodes `usePrecompiled: false`: the Solidity P256
+  /// verifier is the costlier path, so the estimate covers either encoding
+  /// [signUserOperation] may submit (permissionless.js always sends false).
   @override
   String getStubSignature() {
     if (_config.version.isV2) {
       return Hex.concat([kernelV2RootMode, ecdsaStubSignature]);
     }
     if (_isWebAuthn) {
-      return getDummyKernelWebAuthnSignature(
-        usePrecompiled:
-            _lastUsePrecompiled ?? shouldUseP256Precompile(chainId: chainId),
-      );
+      return getDummyKernelWebAuthnSignature();
     }
     return ecdsaStubSignature;
   }

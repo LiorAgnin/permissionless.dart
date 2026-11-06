@@ -55,8 +55,9 @@ String encodeKernelWebAuthnSignature(
 /// This returns a properly formatted but invalid signature with the correct
 /// byte length for bundler gas estimation.
 ///
-/// [usePrecompiled] - Whether to use RIP-7212 P256 precompile. Set based on
-/// chain support using `shouldUseP256Precompile` or `isRip7212Supported`.
+/// Keep [usePrecompiled] false for estimation unless the account will
+/// definitely sign with the RIP-7212 precompile: the Solidity verifier costs
+/// more gas, so a `false` stub covers both encodings.
 String getDummyKernelWebAuthnSignature({bool usePrecompiled = false}) =>
     encodeKernelWebAuthnSignature(
       P256SignatureData(
