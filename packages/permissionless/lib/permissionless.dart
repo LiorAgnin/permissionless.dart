@@ -1,7 +1,9 @@
 /// Dart implementation of permissionless.js for ERC-4337 smart accounts.
 ///
 /// This library provides tools for creating and managing ERC-4337 smart
-/// accounts, starting with Safe account support.
+/// accounts (Safe, Kernel, Nexus, Light, Simple, Thirdweb, Trust, Etherspot,
+/// Biconomy, and EIP-7702 Simple and Kernel), and the bundler, paymaster and
+/// public clients that send their UserOperations.
 ///
 /// Example:
 /// ```dart
