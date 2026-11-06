@@ -361,22 +361,11 @@ class Eip7702KernelSmartAccount
     ]);
   }
 
-  /// Checks if the account is deployed (delegated) before EIP-1271 signing.
-  ///
-  /// EIP-7702 accounts are not EIP-1271 compliant before delegation because
-  /// the EOA has no code to execute `isValidSignature`.
-  Future<void> _ensureDeployedForEip1271() async {
-    if (_config.publicClient == null) return;
-
-    final address = await getAddress();
-    final isDeployed = await _config.publicClient!.isDeployed(address);
-    if (!isDeployed) {
-      throw StateError(
-        'Kernel with EIP-7702 is not EIP-1271 compliant before delegation. '
-        'Submit a UserOperation with the EIP-7702 authorization first.',
+  Future<void> _ensureDeployedForEip1271() => ensureEip7702Delegated(
+        accountName: 'Kernel with EIP-7702',
+        publicClient: _config.publicClient,
+        address: getAddress,
       );
-    }
-  }
 }
 
 /// Adapts [Eip7702KernelOwner] to [AccountOwner]: [signRawHash] is the

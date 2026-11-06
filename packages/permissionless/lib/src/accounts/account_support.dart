@@ -68,3 +68,24 @@ void checkUserOperationLayout({
       );
   }
 }
+
+/// Throws [StateError] when the EIP-7702 account at [address] has no code
+/// yet: before its delegation is on chain the EOA can't run ERC-1271
+/// `isValidSignature`, so a message signature would not verify.
+///
+/// Without a [publicClient] the check is skipped and signing proceeds
+/// unchecked, so offline signers keep working; such a signature verifies
+/// only once the delegation is active.
+Future<void> ensureEip7702Delegated({
+  required String accountName,
+  required PublicClient? publicClient,
+  required Future<EthereumAddress> Function() address,
+}) async {
+  if (publicClient == null) return;
+  if (!await publicClient.isDeployed(await address())) {
+    throw StateError(
+      '$accountName is not EIP-1271 compliant before delegation. '
+      'Submit a UserOperation with the EIP-7702 authorization first.',
+    );
+  }
+}

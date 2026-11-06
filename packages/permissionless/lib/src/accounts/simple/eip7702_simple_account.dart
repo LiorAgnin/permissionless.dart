@@ -315,22 +315,11 @@ class Eip7702SimpleSmartAccount
     return _config.owner.signTypedData(typedData);
   }
 
-  /// Checks if the account is deployed (delegated) before EIP-1271 signing.
-  ///
-  /// EIP-7702 accounts are not EIP-1271 compliant before delegation because
-  /// the EOA has no code to execute `isValidSignature`.
-  Future<void> _ensureDeployedForEip1271() async {
-    if (_config.publicClient == null) return;
-
-    final address = await getAddress();
-    final isDeployed = await _config.publicClient!.isDeployed(address);
-    if (!isDeployed) {
-      throw StateError(
-        'EIP-7702 Simple account is not EIP-1271 compliant before delegation. '
-        'Submit a UserOperation with the EIP-7702 authorization first.',
+  Future<void> _ensureDeployedForEip1271() => ensureEip7702Delegated(
+        accountName: 'EIP-7702 Simple account',
+        publicClient: _config.publicClient,
+        address: getAddress,
       );
-    }
-  }
 }
 
 /// Creates an EIP-7702 Simple smart account.
