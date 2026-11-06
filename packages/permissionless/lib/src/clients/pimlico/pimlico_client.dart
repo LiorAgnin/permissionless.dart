@@ -146,6 +146,10 @@ class PimlicoClient extends BundlerClient {
   /// - [PimlicoTokenQuote.exchangeRate]: Token/ETH exchange rate
   /// - [PimlicoTokenQuote.postOpGas]: Additional gas for token transfer (~75k)
   ///
+  /// The quotes are for the ERC-20 paymaster of [entryPoint], which defaults
+  /// to [BundlerClient.entryPoint]. Pass the account's EntryPoint when it
+  /// differs (permissionless.js takes `entryPointAddress` per call).
+  ///
   /// Example:
   /// ```dart
   /// final quotes = await pimlico.getTokenQuotes([usdcAddress, daiAddress]);
@@ -154,14 +158,15 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoTokenQuote>> getTokenQuotes(
-    List<EthereumAddress> tokens,
-  ) async {
+    List<EthereumAddress> tokens, {
+    EthereumAddress? entryPoint,
+  }) async {
     final chain = await chainId();
     final result = await rpcClient.call(
       'pimlico_getTokenQuotes',
       [
         {'tokens': tokens.map((t) => t.hex).toList()},
-        entryPoint.hex,
+        (entryPoint ?? this.entryPoint).hex,
         Hex.fromBigInt(chain),
       ],
     );
@@ -200,7 +205,9 @@ class PimlicoClient extends BundlerClient {
   /// permissionless.js `estimateErc20PaymasterCost` (no dedicated RPC).
   ///
   /// [userOperation] is the UserOperation to estimate cost for (v0.6 or v0.7).
-  /// [token] is the ERC-20 token to pay gas with.
+  /// [token] is the ERC-20 token to pay gas with. [entryPoint] is the
+  /// EntryPoint whose paymaster quotes the token; it defaults to
+  /// [BundlerClient.entryPoint].
   ///
   /// Example:
   /// ```dart
@@ -215,15 +222,12 @@ class PimlicoClient extends BundlerClient {
   Future<PimlicoErc20PaymasterCost> estimateErc20PaymasterCost({
     required UserOperation userOperation,
     required EthereumAddress token,
+    EthereumAddress? entryPoint,
   }) async {
-    final quotes = await getTokenQuotes([token]);
-    if (quotes.isEmpty) {
-      throw ArgumentError(
-        'Token $token is not supported by the Pimlico ERC-20 paymaster',
-      );
-    }
-
-    final quote = quotes.first;
+    final quote = tokenQuoteFor(
+      token,
+      await getTokenQuotes([token], entryPoint: entryPoint),
+    );
     final maxCostInWei =
         erc20PaymasterMaxCostInWei(userOperation, quote.postOpGas);
     final costInToken = weiToTokenUnits(maxCostInWei, quote.exchangeRate);
@@ -253,6 +257,7 @@ class PimlicoClient extends BundlerClient {
   /// [userOperation] is the UserOperation to validate against policies
   /// (v0.6 or v0.7).
   /// [sponsorshipPolicyIds] is a list of policy IDs to check.
+  /// [entryPoint] defaults to [BundlerClient.entryPoint].
   ///
   /// Returns a list of valid policies with their metadata.
   /// Invalid policies are not included in the response.
@@ -271,6 +276,7 @@ class PimlicoClient extends BundlerClient {
   Future<List<PimlicoSponsorshipPolicy>> validateSponsorshipPolicies({
     required UserOperation userOperation,
     required List<String> sponsorshipPolicyIds,
+    EthereumAddress? entryPoint,
   }) async {
     if (sponsorshipPolicyIds.isEmpty) {
       return [];
@@ -280,7 +286,7 @@ class PimlicoClient extends BundlerClient {
       'pm_validateSponsorshipPolicies',
       [
         userOperation.toJson(),
-        entryPoint.hex,
+        (entryPoint ?? this.entryPoint).hex,
         sponsorshipPolicyIds,
       ],
     );

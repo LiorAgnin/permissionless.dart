@@ -521,6 +521,36 @@ void main() {
       expect(params[2], equals('0xaa36a7'));
     });
 
+    test('a per-call entryPoint overrides the client default', () async {
+      final token = EthereumAddress.fromHex(
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+      );
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v07,
+        httpClient: createMockClient(),
+      );
+
+      await client.estimateErc20PaymasterCost(
+        userOperation: sampleV07(),
+        token: token,
+        entryPoint: EntryPointAddresses.v08,
+      );
+      await client.getTokenQuotes(
+        [token],
+        entryPoint: EntryPointAddresses.v06,
+      );
+
+      final sent = capturedRequests
+          .where((r) => r['method'] == 'pimlico_getTokenQuotes')
+          .map((r) => (r['params'] as List<dynamic>)[1])
+          .toList();
+      expect(
+        sent,
+        equals([EntryPointAddresses.v08.hex, EntryPointAddresses.v06.hex]),
+      );
+    });
+
     test('supports UserOperationV06 prefund formula', () async {
       final token = EthereumAddress.fromHex(
         '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
@@ -750,6 +780,23 @@ void main() {
       );
       expect(params[1], equals(EntryPointAddresses.v07.hex));
       expect(params[2], equals(['sp_test_1', 'sp_test_2']));
+    });
+
+    test('a per-call entryPoint overrides the client default', () async {
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v07,
+        httpClient: createMockClient((_) => <dynamic>[]),
+      );
+
+      await client.validateSponsorshipPolicies(
+        userOperation: sampleV07(),
+        sponsorshipPolicyIds: ['sp_test_1'],
+        entryPoint: EntryPointAddresses.v08,
+      );
+
+      final params = capturedRequests.single['params'] as List<dynamic>;
+      expect(params[1], equals(EntryPointAddresses.v08.hex));
     });
 
     test('supports UserOperationV06 payload shape', () async {
