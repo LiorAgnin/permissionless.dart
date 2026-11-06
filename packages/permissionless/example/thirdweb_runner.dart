@@ -104,6 +104,10 @@ ThirdwebVariant? parseThirdwebVariant(String raw) {
 }
 
 /// Run a sponsored (or self-funded) self-ping UserOp for [variant].
+///
+/// Network, bundler and account errors come back as a failed [ThirdwebRunResult]
+/// instead of being thrown, so multi-variant runners can continue. A missing
+/// setting in [ExampleConfig.load] still throws.
 Future<ThirdwebRunResult> runThirdwebVariant({
   required ThirdwebVariant variant,
   bool selfFunded = false,
@@ -140,13 +144,6 @@ Future<ThirdwebRunResult> runThirdwebVariant({
   log('Factory: ${variant.factoryAddress.checksummed}');
   log('Salt: ${variant.salt}');
 
-  final accountAddress = await account.getAddress();
-  final isDeployed = await publicClient.isDeployed(accountAddress);
-  log(
-    'Account: ${accountAddress.checksummed} '
-    '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
-  );
-
   final bundler = createBundlerClient(url: pimlicoUrl, entryPoint: ep);
   final pimlico = createPimlicoClient(url: pimlicoUrl, entryPoint: ep);
   final paymaster = selfFunded ? null : createPaymasterClient(url: pimlicoUrl);
@@ -159,6 +156,13 @@ Future<ThirdwebRunResult> runThirdwebVariant({
   );
 
   try {
+    final accountAddress = await account.getAddress();
+    final isDeployed = await publicClient.isDeployed(accountAddress);
+    log(
+      'Account: ${accountAddress.checksummed} '
+      '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
+    );
+
     log('\n--- Account Status ---');
     final gasPrices = await pimlico.getUserOperationGasPrice();
     log('Gas prices - Fast: ${gasPrices.fast.maxFeePerGas} wei');
