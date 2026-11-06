@@ -18,10 +18,10 @@ Add the packages you need to your `pubspec.yaml`:
 ```yaml
 dependencies:
   # Core ERC-4337 functionality
-  permissionless: ^0.5.0
+  permissionless: ^0.6.0
 
   # Optional: WebAuthn/Passkeys support
-  permissionless_passkeys: ^0.1.3
+  permissionless_passkeys: ^0.2.0
 ```
 
 ### Basic Usage

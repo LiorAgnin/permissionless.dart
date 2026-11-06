@@ -5,11 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-<!-- Before release: this version calls hashMessageBytes, which permissionless
-0.5.0 does not have. Raise the permissionless constraint in pubspec.yaml to
-the release that ships #90 and add the usual "Bumped permissionless" line. -->
+## [0.2.0] - 2026-11-06
 
 This release removes the package's own signature encoders, which is a breaking
 change, and fixes several WebAuthn signing bugs
@@ -54,6 +50,9 @@ change, and fixes several WebAuthn signing bugs
 
 ### Changed
 
+- Bumped `permissionless` dependency constraint to `^0.6.0` (was `^0.5.0`).
+  This release calls `hashMessageBytes`, which is new in permissionless 0.6.0.
+  See its [changelog](https://pub.dev/packages/permissionless/changelog).
 - **`WebAuthnSignMetadata.challengeIndex` is the offset of the `"challenge"`
   key** in `clientDataJSON`, as in ox's `WebAuthnP256.sign` (viem) and on-chain
   WebAuthn verifiers. It used to be the offset of the challenge *value*, so a
