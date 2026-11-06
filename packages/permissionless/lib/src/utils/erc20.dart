@@ -270,9 +270,10 @@ List<StateOverride> erc20AllowanceOverride({
 ///   balance: BigInt.from(1000000000), // 1000 USDC
 /// );
 ///
-/// final result = await publicClient.call(
-///   Call(to: usdcAddress, data: encodeErc20BalanceOfCall(account: accountAddress)),
-///   stateOverride: stateOverridesToJson(override),
+/// // Gas estimation sees the overridden balance.
+/// final userOp = await client.prepareUserOperation(
+///   calls: calls,
+///   stateOverride: override,
 /// );
 /// ```
 List<StateOverride> erc20BalanceOverride({
