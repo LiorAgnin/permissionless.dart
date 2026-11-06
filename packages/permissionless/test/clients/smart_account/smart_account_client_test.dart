@@ -1258,5 +1258,80 @@ void main() {
         EntryPointAddresses.v06.hex,
       );
     });
+
+    test('a deploying op uses encodeCallsForDeployment like v0.7', () async {
+      MockClient rpc(Object? Function(String method) result) =>
+          MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': result(body['method'] as String),
+              }),
+              200,
+            );
+          });
+      final account = createSafeSmartAccount(
+        owners: [
+          PrivateKeyOwner(
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+          ),
+        ],
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: rpc(
+            (_) => {
+              'preVerificationGas': '0x5208',
+              'verificationGasLimit': '0x186a0',
+              'callGasLimit': '0x186a0',
+            },
+          ),
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_getCode' => '0x',
+                'eth_call' => '0x${'0' * 64}',
+                _ => null,
+              },
+            ),
+          ),
+        ),
+      );
+      final calls = [
+        Call(
+          to: EthereumAddress.fromHex(
+            '0x2222222222222222222222222222222222222222',
+          ),
+          value: BigInt.one,
+        ),
+      ];
+
+      final userOp = await client.prepareUserOperationV06(
+        calls: calls,
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      expect(userOp.initCode, isNot('0x'));
+      expect(
+        account.encodeCallsForDeployment(calls),
+        isNot(account.encodeCalls(calls)),
+      );
+      expect(userOp.callData, account.encodeCallsForDeployment(calls));
+    });
   });
 }

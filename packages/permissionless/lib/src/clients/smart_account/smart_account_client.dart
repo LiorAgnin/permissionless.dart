@@ -677,7 +677,12 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
     );
 
-    final resolvedCallData = callData ?? account.encodeCalls(calls!);
+    final resolvedCallData = callData ??
+        encodeUserOperationCalls(
+          account,
+          calls!,
+          deploysAccount: resolvedInitCode != '0x',
+        );
 
     // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV06(
