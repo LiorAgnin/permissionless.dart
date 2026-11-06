@@ -673,15 +673,8 @@ class SafeSmartAccount
   /// Creates an EIP-712 signature over the v0.7 SafeOp typehash for
   /// `userOp.sender`. For v0.6 accounts, use [signUserOperationV06] instead.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    if (_config.entryPointVersion == EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'Safe account configured for EntryPoint v0.6. '
-        'Use signUserOperationV06 instead.',
-      );
-    }
-    return _signSafeOpHash(_safeOpHashV07(userOp));
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
@@ -689,14 +682,21 @@ class SafeSmartAccount
   /// (uint256 gas fields, callGasLimit before verificationGasLimit),
   /// matching permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
-    return _signSafeOpHash(_safeOpHashV06(userOp));
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
+
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Safe',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
+    );
+    return _signSafeOpHash(
+      switch (userOp) {
+        final UserOperationV06 op => _safeOpHashV06(op),
+        final UserOperationV07 op => _safeOpHashV07(op),
+      },
+    );
   }
 
   /// Signs a SafeOp hash with all owners and packs validAfter/validUntil.

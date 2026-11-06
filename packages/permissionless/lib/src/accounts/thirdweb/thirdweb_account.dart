@@ -215,43 +215,29 @@ class ThirdwebSmartAccount
   ///
   /// For v0.6 accounts, use [signUserOperationV06] instead.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    if (_config.entryPointVersion == EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'Thirdweb account configured for EntryPoint v0.6. '
-        'Use signUserOperationV06 instead.',
-      );
-    }
-
-    return _config.owner.signPersonalMessage(
-      getUserOperationHash(
-        userOperation: userOp,
-        entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v07,
-        chainId: _config.chainId,
-      ),
-    );
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
   /// Uses the v0.6 userOpHash layout (unpacked gas fields) and EIP-191
   /// personal-sign, matching permissionless.js / viem.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
 
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Thirdweb',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
+    );
     return _config.owner.signPersonalMessage(
       getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
-        chainId: _config.chainId,
+        entryPointVersion: entryPointVersion,
+        chainId: chainId,
       ),
     );
   }
