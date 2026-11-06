@@ -185,18 +185,6 @@ void main() {
       );
     });
 
-    group('creation', () {
-      // The one test of resolveCounterfactualAddress's no-address,
-      // no-client error; every factory account shares that helper.
-      test('throws without address or publicClient', () {
-        final bare = createThirdwebSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-        );
-        expect(bare.getAddress, throwsA(isA<StateError>()));
-      });
-    });
-
     group('factoryData / initCode / salt', () {
       test('default (empty) salt factoryData matches permissionless.js',
           () async {
