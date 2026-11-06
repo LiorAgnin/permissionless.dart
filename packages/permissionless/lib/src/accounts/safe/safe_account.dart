@@ -252,6 +252,22 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       .cast<WebAuthnAccountOwner>()
       .toList();
 
+  /// The address that signs for [owner] in the Safe owner list.
+  ///
+  /// WebAuthn owners sign through the shared signer contract, so they appear
+  /// as its address.
+  EthereumAddress _signerAddress(AccountOwner owner) {
+    if (!isWebAuthnAccount(owner)) return owner.address;
+    final sharedSigner = _addresses.webAuthnSharedSignerAddress;
+    if (sharedSigner == null) {
+      throw StateError(
+        'WebAuthn owners require webAuthnSharedSignerAddress. '
+        'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
+      );
+    }
+    return sharedSigner;
+  }
+
   /// The Safe 4337 module address.
   ///
   /// In ERC-7579 mode, this returns the Safe7579 module address.
@@ -419,19 +435,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   String _getStandardInitializer() {
     // Build owner addresses list
     // For WebAuthn owners, use the shared signer address instead of owner.address
-    final ownerAddresses = _config.owners.map((o) {
-      if (isWebAuthnAccount(o)) {
-        final sharedSigner = _addresses.webAuthnSharedSignerAddress;
-        if (sharedSigner == null) {
-          throw StateError(
-            'WebAuthn owners require webAuthnSharedSignerAddress. '
-            'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
-          );
-        }
-        return sharedSigner;
-      }
-      return o.address;
-    }).toList();
+    final ownerAddresses = _config.owners.map(_signerAddress).toList();
 
     // Build MultiSend calls
     final multiSendCalls = <MultiSendCall>[
@@ -446,7 +450,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
 
     // 2. Configure WebAuthn shared signer for each WebAuthn owner
     if (_hasWebAuthnOwner) {
-      final sharedSignerAddress = _addresses.webAuthnSharedSignerAddress!;
+      final sharedSignerAddress = _signerAddress(_webAuthnOwners.first);
       final p256Verifier = _addresses.safeP256VerifierAddress;
       if (p256Verifier == null) {
         throw StateError(
@@ -861,22 +865,14 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
 
     // Sort owners by their "effective" address (shared signer for WebAuthn)
     final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
+      ..sort((a, b) => _signerAddress(a).compareTo(_signerAddress(b)));
 
     for (final owner in sortedOwners) {
       if (isWebAuthnAccount(owner)) {
         // WebAuthn stub: contract signature (dynamic)
         signatureEntries.add(
           _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
+            signer: _signerAddress(owner),
             data: getDummySafeWebAuthnSignature(),
             isDynamic: true,
           ),
@@ -947,15 +943,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
 
     // Sort owners by their "effective" address (shared signer for WebAuthn)
     final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
+      ..sort((a, b) => _signerAddress(a).compareTo(_signerAddress(b)));
 
     for (final owner in sortedOwners) {
       if (isWebAuthnAccount(owner)) {
@@ -965,7 +953,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         final encoded = encodeSafeWebAuthnSignature(sigData);
         signatureEntries.add(
           _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
+            signer: _signerAddress(owner),
             data: encoded,
             isDynamic: true,
           ),
@@ -1077,15 +1065,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     final signatureEntries = <_SignatureEntry>[];
 
     final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
+      ..sort((a, b) => _signerAddress(a).compareTo(_signerAddress(b)));
 
     for (final owner in sortedOwners) {
       if (isWebAuthnAccount(owner)) {
@@ -1094,7 +1074,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         final encoded = encodeSafeWebAuthnSignature(sigData);
         signatureEntries.add(
           _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
+            signer: _signerAddress(owner),
             data: encoded,
             isDynamic: true,
           ),
