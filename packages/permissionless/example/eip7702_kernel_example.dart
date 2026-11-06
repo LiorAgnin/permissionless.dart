@@ -221,8 +221,9 @@ void main(List<String> args) async {
   // 7. Sign and Send
   // ================================================================
   //
-  // sendPreparedUserOperationWithAuth includes the EIP-7702 authorization
-  // list when first-time delegation is required.
+  // Pass prepared.authorization to sendPreparedUserOperation: it is non-null
+  // only when first-time delegation is required, and the bundler receives it
+  // as the op's `eip7702Auth`.
 
   print('\n--- Signing and Sending ---');
 
@@ -231,9 +232,9 @@ void main(List<String> args) async {
 
   String hash;
   try {
-    hash = await smartAccountClient.sendPreparedUserOperationWithAuth(
+    hash = await smartAccountClient.sendPreparedUserOperation(
       signedOp,
-      prepared.authorization,
+      authorization: prepared.authorization,
     );
     print('UserOperation hash: $hash');
   } on BundlerRpcError catch (e) {
