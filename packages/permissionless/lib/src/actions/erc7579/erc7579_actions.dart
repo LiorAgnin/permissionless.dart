@@ -292,11 +292,12 @@ extension Erc7579Actions on SmartAccountClient {
   /// Each mode can also have different error handling behavior
   /// (revert on error vs try/continue).
   ///
+  /// [publicClient] defaults to this client's [SmartAccountClient.publicClient].
+  ///
   /// Example:
   /// ```dart
   /// // Check if batch calls with try mode (execType 0x01) are supported
   /// final supportsBatchTry = await client.supportsExecutionMode(
-  ///   publicClient: publicClient,
   ///   mode: ExecutionMode(
   ///     type: Erc7579CallKind.batchCall,
   ///     revertOnError: true, // JS polarity → execType 0x01
@@ -308,7 +309,7 @@ extension Erc7579Actions on SmartAccountClient {
   /// }
   /// ```
   Future<bool> supportsExecutionMode({
-    required PublicClient publicClient,
+    PublicClient? publicClient,
     required ExecutionMode mode,
   }) async {
     final result = await _erc7579ReadCall(
@@ -326,15 +327,16 @@ extension Erc7579Actions on SmartAccountClient {
   /// - Fallback handler modules
   /// - Hook modules
   ///
+  /// [publicClient] defaults to this client's [SmartAccountClient.publicClient].
+  ///
   /// Example:
   /// ```dart
   /// final supportsHooks = await client.supportsModule(
-  ///   publicClient: publicClient,
   ///   moduleType: Erc7579ModuleType.hook,
   /// );
   /// ```
   Future<bool> supportsModule({
-    required PublicClient publicClient,
+    PublicClient? publicClient,
     required Erc7579ModuleType moduleType,
   }) async {
     final result = await _erc7579ReadCall(
@@ -349,16 +351,17 @@ extension Erc7579Actions on SmartAccountClient {
   /// Returns true if the module of the specified type and address
   /// is currently installed.
   ///
+  /// [publicClient] defaults to this client's [SmartAccountClient.publicClient].
+  ///
   /// Example:
   /// ```dart
   /// final isInstalled = await client.isModuleInstalled(
-  ///   publicClient: publicClient,
   ///   type: Erc7579ModuleType.validator,
   ///   address: ecdsaValidatorAddress,
   /// );
   /// ```
   Future<bool> isModuleInstalled({
-    required PublicClient publicClient,
+    PublicClient? publicClient,
     required Erc7579ModuleType type,
     required EthereumAddress address,
     String additionalContext = '0x',
@@ -379,13 +382,15 @@ extension Erc7579Actions on SmartAccountClient {
   /// Returns a string in the format "vendorname.accountname.semver",
   /// e.g., "kernel.advanced.0.3.1" or "safe.default.1.5.0".
   ///
+  /// [publicClient] defaults to this client's [SmartAccountClient.publicClient].
+  ///
   /// Example:
   /// ```dart
-  /// final accountId = await client.getAccountId(publicClient: publicClient);
+  /// final accountId = await client.getAccountId();
   /// print('Account type: $accountId');
   /// ```
   Future<String> getAccountId({
-    required PublicClient publicClient,
+    PublicClient? publicClient,
   }) async {
     final result = await _erc7579ReadCall(
       publicClient: publicClient,
@@ -403,15 +408,16 @@ extension Erc7579Actions on SmartAccountClient {
   ///    via deployless call (`factory` + `factoryData`)
   /// 3. Propagate errors (no silent `false` / `''` swallowing)
   Future<String> _erc7579ReadCall({
-    required PublicClient publicClient,
+    PublicClient? publicClient,
     required String data,
   }) async {
+    final reader = publicClient ?? this.publicClient;
     final accountAddress = await getAddress();
     final call = Call(to: accountAddress, data: data);
 
     Object? firstError;
     try {
-      final result = await publicClient.call(call);
+      final result = await reader.call(call);
       // Empty return from eth_call to an undeployed address is not always an
       // RPC error — many nodes succeed with "0x". Treat that like a failed
       // read so the factory fallback can run (matches viem readContract
@@ -429,7 +435,7 @@ extension Erc7579Actions on SmartAccountClient {
       Error.throwWithStackTrace(firstError, StackTrace.current);
     }
 
-    final result = await publicClient.call(
+    final result = await reader.call(
       call,
       factory: factoryArgs.factory,
       factoryData: factoryArgs.factoryData,

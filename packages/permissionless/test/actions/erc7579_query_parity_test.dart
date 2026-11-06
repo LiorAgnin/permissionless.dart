@@ -250,6 +250,48 @@ void main() {
       );
     });
 
+    test('queries default to the client publicClient', () async {
+      final txs = <Map<String, dynamic>>[];
+      final client = createSmartAccountClient(
+        account: createSafeSmartAccount(
+          owners: [PrivateKeyOwner(testPrivateKey)],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        ),
+        bundler: createBundlerClient(
+          url: 'http://localhost:4337',
+          entryPoint: EntryPointAddresses.v07,
+        ),
+        publicClient: publicClientFromHandler((body) {
+          final tx =
+              (body['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+          txs.add(tx);
+          return tx['data'] == '0x9cfd7cff' ? accountIdResult : boolTrue;
+        }),
+      );
+
+      expect(
+        await client.supportsModule(moduleType: Erc7579ModuleType.validator),
+        isTrue,
+      );
+      expect(
+        await client.supportsExecutionMode(
+          mode: const ExecutionMode(type: Erc7579CallKind.call),
+        ),
+        isTrue,
+      );
+      expect(
+        await client.isModuleInstalled(
+          type: Erc7579ModuleType.validator,
+          address: moduleAddress,
+        ),
+        isTrue,
+      );
+      expect(await client.getAccountId(), equals('kernel.advanced.0.3.1'));
+      expect(txs, hasLength(4));
+      expect(txs.every((tx) => tx['to'] == mockAddress.hex), isTrue);
+    });
+
     test('propagates error when direct and factory fallback both fail',
         () async {
       final client = createClient();
