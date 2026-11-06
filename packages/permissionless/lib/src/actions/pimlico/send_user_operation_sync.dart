@@ -9,7 +9,7 @@ import '../../constants/entry_point.dart';
 import '../../errors/errors.dart';
 import '../../types/address.dart';
 import '../../types/user_operation.dart';
-import '../../utils/erc20.dart';
+import '../../utils/state_override.dart';
 import '../../utils/user_operation_hash.dart';
 
 /// What happened when [PimlicoActions.sendUserOperationSync] failed.

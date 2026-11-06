@@ -17,6 +17,7 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/user_operation.dart';
 import '../../utils/erc20.dart';
+import '../../utils/state_override.dart';
 
 /// Mainnet USDT address - requires special handling (reset to 0 before approve).
 final EthereumAddress _mainnetUsdtAddress =

@@ -67,6 +67,7 @@ export 'src/utils/multisend.dart';
 export 'src/utils/packed_user_operation.dart';
 export 'src/utils/rip7212.dart';
 export 'src/utils/sort_addresses.dart';
+export 'src/utils/state_override.dart';
 export 'src/utils/units.dart';
 export 'src/utils/user_operation_hash.dart';
 export 'src/utils/webauthn_encoding.dart';

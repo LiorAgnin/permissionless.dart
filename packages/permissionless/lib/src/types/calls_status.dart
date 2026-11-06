@@ -1,6 +1,5 @@
 import '../utils/parsing.dart';
 
-
 /// Status of a batch call operation (ERC-5792).
 enum CallsStatusType {
   /// The operation is still being processed.

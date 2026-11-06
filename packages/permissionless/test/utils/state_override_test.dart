@@ -430,6 +430,35 @@ void main() {
       final tokenOverride = json[token.hex] as Map<String, dynamic>;
       expect(tokenOverride.containsKey('stateDiff'), isTrue);
     });
+
+    test('keeps every slot when two overrides target the same token', () {
+      final token =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final owner =
+          EthereumAddress.fromHex('0x1111111111111111111111111111111111111111');
+      final spender =
+          EthereumAddress.fromHex('0x2222222222222222222222222222222222222222');
+
+      final balance = erc20BalanceOverride(
+        token: token,
+        owner: owner,
+        slot: BigInt.zero,
+      );
+      final allowance = erc20AllowanceOverride(
+        token: token,
+        owner: owner,
+        spender: spender,
+        slot: BigInt.one,
+      );
+
+      final json = stateOverridesToJson([...balance, ...allowance]);
+      final slots = (json[token.hex] as Map<String, dynamic>)['stateDiff']
+          as Map<String, String>;
+      expect(slots.keys, {
+        balance.single.stateDiff!.single.slot,
+        allowance.single.stateDiff!.single.slot,
+      });
+    });
   });
 
   group('StateOverride', () {
