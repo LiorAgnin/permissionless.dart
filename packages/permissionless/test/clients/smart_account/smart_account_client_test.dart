@@ -1679,7 +1679,7 @@ void main() {
   });
 
   group('sendUserOperationV06AndWait', () {
-    test('forwards a caller signature to the send', () async {
+    test('forwards a caller signature and stateOverride', () async {
       final bundlerRequests = <Map<String, dynamic>>[];
       MockClient rpc(Object? Function(String method) result) =>
           MockClient((request) async {
@@ -1772,6 +1772,133 @@ void main() {
         (r) => r['method'] == 'eth_sendUserOperation',
       )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
       expect(sentOp['signature'], equals('0xabcd'));
+
+      bundlerRequests.clear();
+      await client.sendUserOperationV06AndWait(
+        callData: '0xdeadbeef',
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        signature: '0xabcd',
+        pollingInterval: Duration.zero,
+        stateOverride: [
+          StateOverride(
+            address: EthereumAddress.fromHex(
+              '0x3333333333333333333333333333333333333333',
+            ),
+            balance: BigInt.from(100),
+          ),
+        ],
+      );
+
+      // eth_estimateUserOperationGas [userOp, entryPoint, stateOverride];
+      // 100 = 0x64.
+      final estimateParams = bundlerRequests.singleWhere(
+        (r) => r['method'] == 'eth_estimateUserOperationGas',
+      )['params'] as List<dynamic>;
+      expect(estimateParams[2], {
+        '0x3333333333333333333333333333333333333333': {'balance': '0x64'},
+      });
+    });
+
+    test('forwards gas limits and initCode to the send', () async {
+      final bundlerRequests = <Map<String, dynamic>>[];
+      final sender =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      MockClient rpc(Object? Function(String method) result) =>
+          MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': result(body['method'] as String),
+              }),
+              200,
+            );
+          });
+      final client = SmartAccountClient(
+        account: createSimpleSmartAccount(
+          owner: PrivateKeyOwner(
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+          ),
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: sender,
+        ),
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bundlerRequests.add(body);
+            final result = switch (body['method'] as String) {
+              'eth_sendUserOperation' => '0x${'ab' * 32}',
+              'eth_getUserOperationReceipt' => {
+                  'userOpHash': '0x${'ab' * 32}',
+                  'sender': sender.hex,
+                  'nonce': '0x0',
+                  'success': true,
+                  'actualGasCost': '0x1',
+                  'actualGasUsed': '0x1',
+                  'logs': <dynamic>[],
+                  'receipt': {
+                    'transactionHash': '0x${'cd' * 32}',
+                    'blockHash': '0x${'ef' * 32}',
+                    'blockNumber': '0x1',
+                    'from': sender.hex,
+                    'cumulativeGasUsed': '0x1',
+                    'gasUsed': '0x1',
+                    'status': '0x1',
+                    'logs': <dynamic>[],
+                  },
+                },
+              _ => null,
+            };
+            return http.Response(
+              jsonEncode(
+                {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+              ),
+              200,
+            );
+          }),
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_getCode' => '0x',
+                'eth_call' => '0x${'0' * 64}',
+                _ => null,
+              },
+            ),
+          ),
+        ),
+      );
+
+      await client.sendUserOperationV06AndWait(
+        callData: '0xdeadbeef',
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        callGasLimit: BigInt.from(0x1111),
+        verificationGasLimit: BigInt.from(0x2222),
+        preVerificationGas: BigInt.from(0x3333),
+        initCode: '0x${'99' * 20}f00d',
+        signature: '0xabcd',
+        pollingInterval: Duration.zero,
+      );
+
+      expect(
+        bundlerRequests.map((r) => r['method']),
+        isNot(contains('eth_estimateUserOperationGas')),
+      );
+      final sentOp = (bundlerRequests.singleWhere(
+        (r) => r['method'] == 'eth_sendUserOperation',
+      )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+      expect(sentOp['callGasLimit'], equals('0x1111'));
+      expect(sentOp['verificationGasLimit'], equals('0x2222'));
+      expect(sentOp['preVerificationGas'], equals('0x3333'));
+      expect(sentOp['initCode'], equals('0x${'99' * 20}f00d'));
     });
   });
 }

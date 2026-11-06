@@ -819,9 +819,14 @@ class SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
     String? signature,
+    String? initCode,
     PaymasterContext? paymasterContext,
     EthereumAddress? sender,
+    List<StateOverride>? stateOverride,
   }) async {
     var userOp = await prepareUserOperationV06(
       calls: calls,
@@ -829,9 +834,14 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
       signature: signature,
+      initCode: initCode,
       paymasterContext: paymasterContext,
       sender: sender,
+      stateOverride: stateOverride,
     );
 
     if (signature == null) {
@@ -857,6 +867,11 @@ class SmartAccountClient {
     Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
     String? signature,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
+    String? initCode,
+    List<StateOverride>? stateOverride,
   }) async {
     final hash = await sendUserOperationV06(
       calls: calls,
@@ -864,9 +879,14 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
       signature: signature,
+      initCode: initCode,
       paymasterContext: paymasterContext,
       sender: sender,
+      stateOverride: stateOverride,
     );
 
     return waitForReceipt(
