@@ -97,12 +97,16 @@ class Erc20PaymasterResult {
 /// 5. Handles USDT special case (requires 0 approval first)
 /// 6. Re-calculates paymaster data with final calls
 ///
+/// The token is quoted for `smartAccountClient.account.entryPoint`. The
+/// allowance is read through [publicClient], which defaults to
+/// `smartAccountClient.publicClient` (permissionless.js reads it through the
+/// account's client).
+///
 /// **Example:**
 /// ```dart
 /// final result = await prepareUserOperationForErc20Paymaster(
 ///   smartAccountClient: client,
 ///   pimlicoClient: pimlico,
-///   publicClient: public,
 ///   token: usdcAddress,
 ///   calls: [transferCall],
 ///   maxFeePerGas: feeData.maxFeePerGas,
@@ -127,7 +131,7 @@ class Erc20PaymasterResult {
 Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   required SmartAccountClient smartAccountClient,
   required PimlicoClient pimlicoClient,
-  required PublicClient publicClient,
+  PublicClient? publicClient,
   required EthereumAddress token,
   required List<Call> calls,
   required BigInt maxFeePerGas,
@@ -196,7 +200,7 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   final maxCostInToken = estimateTokenCost(quote: quote, userOp: initialUserOp);
 
   final currentAllowance = await getTokenAllowance(
-    publicClient: publicClient,
+    publicClient: publicClient ?? smartAccountClient.publicClient,
     token: token,
     owner: accountAddress,
     spender: paymasterAddress,

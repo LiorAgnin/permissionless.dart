@@ -101,9 +101,13 @@ void main() {
     // - eth_getCode → '0x' unless [isDeployed] (7702: not yet delegated)
     // - eth_getTransactionCount → '0x0' (EOA nonce for the authorization)
     // - eth_call → 0 (serves both EntryPoint.getNonce and ERC-20 allowance)
-    PublicClient createPublicClientMock({bool isDeployed = false}) {
+    PublicClient createPublicClientMock({
+      bool isDeployed = false,
+      List<Map<String, dynamic>>? requests,
+    }) {
       final mock = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
+        requests?.add(body);
         final method = body['method'] as String;
         final result = switch (method) {
           'eth_getCode' => isDeployed ? '0x6080604052' : '0x',
@@ -392,6 +396,51 @@ void main() {
         (quotesRequest['params'] as List<dynamic>)[1],
         equals(EntryPointAddresses.v07.hex),
       );
+    });
+
+    test(
+        "reads the allowance through the SmartAccountClient's publicClient "
+        'when none is passed', () async {
+      final publicRequests = <Map<String, dynamic>>[];
+      final publicClient = createPublicClientMock(
+        isDeployed: true,
+        requests: publicRequests,
+      );
+      final account = createSafeSmartAccount(
+        owners: [PrivateKeyOwner(testPrivateKey)],
+        chainId: BigInt.from(11155111),
+        address: recipient,
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        ),
+        paymaster: createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(),
+        ),
+        publicClient: publicClient,
+      );
+
+      final result = await prepareUserOperationForErc20Paymaster(
+        smartAccountClient: client,
+        pimlicoClient: createPimlico(),
+        token: token,
+        calls: [call],
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      expect(result.approvalInjected, isTrue);
+      final allowanceReads = publicRequests.where((r) {
+        if (r['method'] != 'eth_call') return false;
+        final tx = (r['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+        return (tx['to'] as String).toLowerCase() == token.hex.toLowerCase();
+      });
+      expect(allowanceReads, hasLength(1));
     });
 
     test('throws ArgumentError when token is not supported', () async {
