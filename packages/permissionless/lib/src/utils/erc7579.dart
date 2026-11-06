@@ -469,33 +469,13 @@ bool decode7579BoolResult(String hexResult) {
   return BigInt.parse(hex, radix: 16) != BigInt.zero;
 }
 
-/// Decodes a string result from an eth_call response.
+/// Decodes an ABI-encoded `string` eth_call result (UTF-8).
 ///
-/// ABI-encoded strings have the format:
-/// - bytes 0-31: offset to string data (usually 32)
-/// - bytes 32-63: string length
-/// - bytes 64+: string data (UTF-8 encoded)
+/// Returns an empty string for empty call data (`0x`), which a contract
+/// without the queried function returns.
 String decode7579StringResult(String hexResult) {
-  if (hexResult == '0x' || hexResult.isEmpty) {
-    return '';
-  }
-
-  final hex = Hex.strip0x(hexResult);
-  if (hex.length < 128) {
-    return '';
-  }
-
-  final lengthHex = hex.substring(64, 128);
-  final length = int.parse(lengthHex, radix: 16);
-
-  if (length == 0) {
-    return '';
-  }
-
-  final dataHex = hex.substring(128, 128 + length * 2);
-  final bytes = Hex.decode('0x$dataHex');
-
-  return String.fromCharCodes(bytes);
+  if (Hex.strip0x(hexResult).isEmpty) return '';
+  return AbiEncoder.decodeParameters(['string'], hexResult).single as String;
 }
 
 /// Configuration for installing a module.

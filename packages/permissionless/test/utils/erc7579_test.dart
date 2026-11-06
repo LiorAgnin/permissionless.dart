@@ -725,6 +725,16 @@ void main() {
         expect(result, equals('hello'));
       });
 
+      test('decodes UTF-8 (non-ASCII) account ids', () {
+        // cast abi-encode "f(string)" "kernel.advanced.0.3.1-ñ✓"
+        const hex = '0x'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '000000000000000000000000000000000000000000000000000000000000001b'
+            '6b65726e656c2e616476616e6365642e302e332e312dc3b1e29c930000000000';
+
+        expect(decode7579StringResult(hex), 'kernel.advanced.0.3.1-ñ✓');
+      });
+
       test('handles empty result', () {
         expect(decode7579StringResult('0x'), equals(''));
         expect(decode7579StringResult(''), equals(''));
