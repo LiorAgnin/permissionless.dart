@@ -1,6 +1,6 @@
 import 'package:permissionless/permissionless.dart';
 // Package-internal helper, tested directly.
-import 'package:permissionless/src/clients/bundler/user_operation_request.dart';
+import 'package:permissionless/src/clients/rpc/user_operation_request.dart';
 import 'package:test/test.dart';
 
 final _sender =

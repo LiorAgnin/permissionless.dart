@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../bundler/types.dart';
+import 'rpc_errors.dart';
 
 /// Request timeout used when a client is created without one.
 const Duration defaultRpcTimeout = Duration(seconds: 30);

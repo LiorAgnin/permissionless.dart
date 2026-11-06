@@ -4,8 +4,8 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/user_operation.dart';
-import '../bundler/user_operation_request.dart';
 import '../rpc/rpc_client.dart';
+import '../rpc/user_operation_request.dart';
 import 'types.dart';
 
 /// Client for interacting with ERC-4337 paymasters.

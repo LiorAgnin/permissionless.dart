@@ -2,8 +2,8 @@ import 'dart:async';
 
 import '../../clients/bundler/bundler_client.dart';
 import '../../clients/bundler/types.dart';
-import '../../clients/bundler/user_operation_request.dart';
 import '../../clients/paymaster/types.dart';
+import '../../clients/rpc/user_operation_request.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../errors/errors.dart';

@@ -5,7 +5,7 @@ import '../../types/user_operation.dart';
 /// requests, adding [authorization] (when given) as `eip7702Auth`, a single
 /// object per the Pimlico API and viem.
 ///
-/// Package-internal: not exported from the bundler barrel.
+/// Package-internal: not exported from any barrel.
 Map<String, dynamic> userOperationRequestJson(
   UserOperation userOp, {
   Eip7702Authorization? authorization,
