@@ -18,7 +18,9 @@ class SimpleSmartAccountConfig {
   ///
   /// - [owner]: The owner of this Simple account
   /// - [chainId]: Chain ID for signature domain
-  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
+  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7). On v0.6
+  ///   a batch of more than one call ignores every `Call.value`; see
+  ///   [createSimpleSmartAccount].
   /// - [salt]: Salt for deterministic address generation (defaults to 0)
   /// - [nonceKey]: Custom nonce key for parallel transactions (defaults to 0)
   /// - [entryPointAddress]: Override the canonical EntryPoint address
@@ -174,8 +176,9 @@ class SimpleSmartAccount
   /// Encodes multiple calls using the version-specific executeBatch ABI.
   ///
   /// - v0.6: `executeBatch(address[],bytes[])` (`0x18dfb3c7`); the v0.6
-  ///   SimpleAccount has no values array, so call values are dropped
-  ///   (permissionless.js parity)
+  ///   SimpleAccount has no values array, so with more than one call every
+  ///   `Call.value` is ignored (permissionless.js parity). A single call is
+  ///   encoded as `execute`, which keeps its value.
   /// - v0.7: `executeBatch(address[],uint256[],bytes[])` (`0x47e1da2a`)
   /// - v0.8: `executeBatch((address,uint256,bytes)[])` (`0x34fcd5be`)
   @override
@@ -261,6 +264,13 @@ class SimpleSmartAccount
 /// You must provide either [publicClient] or [address] for address computation:
 /// - [publicClient] - Address will be computed automatically via RPC (recommended)
 /// - [address] - Use a pre-computed address
+///
+/// **EntryPoint v0.6 batches carry no value.** The v0.6 SimpleAccount's
+/// `executeBatch(address[],bytes[])` has no value array, so when more than
+/// one call is batched every [Call.value] is ignored and no ETH is sent
+/// (permissionless.js does the same). To send value on v0.6, send each
+/// valued call as its own single-call UserOperation (`execute` carries the
+/// value), or use EntryPoint v0.7/v0.8, whose batches carry a value per call.
 ///
 /// Example with publicClient (recommended):
 /// ```dart
