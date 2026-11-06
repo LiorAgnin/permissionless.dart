@@ -10,6 +10,12 @@ import '../../utils/erc7579.dart';
 /// The [additionalContext] is typically empty but some modules may
 /// require additional data for the check.
 ///
+/// Throws [StateError] when the call returns no data (`0x`): [account] has
+/// no code on this chain, e.g. it is not deployed yet. This function has no
+/// factory to retry with; for a counterfactual account use
+/// `SmartAccountClient.isModuleInstalled`, which retries through the factory
+/// (permissionless.js parity).
+///
 /// Example:
 /// ```dart
 /// final isInstalled = await isModuleInstalled(
@@ -36,7 +42,12 @@ Future<bool> isModuleInstalled({
     additionalContext: additionalContext,
   );
 
-  final result = await publicClient.call(Call(to: account, data: callData));
+  final result = await _readAccount(
+    publicClient,
+    account,
+    callData,
+    'isModuleInstalled',
+  );
   return decode7579BoolResult(result);
 }
 
@@ -46,6 +57,12 @@ Future<bool> isModuleInstalled({
 ///
 /// Use this before attempting to install a module to ensure the
 /// account implementation supports that module type.
+///
+/// Throws [StateError] when the call returns no data (`0x`): [account] has
+/// no code on this chain, e.g. it is not deployed yet. This function has no
+/// factory to retry with; for a counterfactual account use
+/// `SmartAccountClient.supportsModule`, which retries through the factory
+/// (permissionless.js parity).
 ///
 /// Example:
 /// ```dart
@@ -67,7 +84,8 @@ Future<bool> supportsModule({
   required Erc7579ModuleType moduleType,
 }) async {
   final callData = encode7579SupportsModule(moduleType);
-  final result = await publicClient.call(Call(to: account, data: callData));
+  final result =
+      await _readAccount(publicClient, account, callData, 'supportsModule');
   return decode7579BoolResult(result);
 }
 
@@ -75,6 +93,12 @@ Future<bool> supportsModule({
 ///
 /// Queries the account using `accountId()` which returns a string
 /// in the format "vendorname.accountname.semver".
+///
+/// Throws [StateError] when the call returns no data (`0x`): [account] has
+/// no code on this chain, e.g. it is not deployed yet. This function has no
+/// factory to retry with; for a counterfactual account use
+/// `SmartAccountClient.getAccountId`, which retries through the factory
+/// (permissionless.js parity).
 ///
 /// Example:
 /// ```dart
@@ -90,7 +114,8 @@ Future<String> getAccountId({
   required EthereumAddress account,
 }) async {
   final callData = encode7579AccountId();
-  final result = await publicClient.call(Call(to: account, data: callData));
+  final result =
+      await _readAccount(publicClient, account, callData, 'getAccountId');
   return decode7579StringResult(result);
 }
 
@@ -101,6 +126,8 @@ Future<String> getAccountId({
 /// the addresses of modules you want to check.
 ///
 /// Returns a list of addresses that are installed.
+///
+/// Throws [StateError] like [isModuleInstalled] when [account] has no code.
 ///
 /// Example:
 /// ```dart
@@ -135,4 +162,23 @@ Future<List<EthereumAddress>> getInstalledModulesOfType({
   }
 
   return installed;
+}
+
+/// `eth_call` to [account]; `0x` is an error, as with viem `readContract`
+/// (`ContractFunctionZeroDataError`).
+Future<String> _readAccount(
+  PublicClient publicClient,
+  EthereumAddress account,
+  String callData,
+  String function,
+) async {
+  final result = await publicClient.call(Call(to: account, data: callData));
+  if (result.isEmpty || result == '0x') {
+    throw StateError(
+      '$function: eth_call to ${account.checksummed} returned no data; '
+      'is the account deployed on this chain? For a counterfactual account '
+      'use SmartAccountClient.$function, which retries through the factory.',
+    );
+  }
+  return result;
 }
