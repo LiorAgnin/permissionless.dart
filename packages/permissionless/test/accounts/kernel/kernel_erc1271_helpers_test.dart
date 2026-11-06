@@ -1,12 +1,19 @@
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
-/// Kernel ERC-1271 helper vs account-method prefix relationship.
+/// Kernel ERC-1271 helpers (`wrapMessageHash`, `signKernelMessage`,
+/// `signKernelTypedData`) against permissionless.js.
 ///
 /// Fixtures match [erc1271_signing_parity_test.dart] Kernel group:
 /// privateKey `0x59c6…690d`, message `"hello"`, account `0x4444…4444`,
-/// chainId Sepolia. Helper signatures are unprefixed; v0.3.x account
-/// signatures prepend `0x01‖validator`.
+/// chainId Sepolia. Helper signatures are unprefixed; the v0.3.1 / v0.2.4
+/// account signatures (with their prefixes) are pinned in
+/// erc1271_signing_parity_test.dart.
+///
+/// Vectors marked "kernel.ts" come from
+/// /Users/liorag/.claude/jobs/037f9518/tmp/t2/kernel.ts: permissionless.js
+/// `accounts/kernel/utils/{wrapMessageHash,signMessage}` and
+/// `toKernelSmartAccount` run with viem 2.21.55.
 void main() {
   const privateKey =
       '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
@@ -22,10 +29,25 @@ void main() {
       '0xcc0db94238eec02857c6ed9b7b63da573700091511fa606a132c9e817aecb32b56d14b7db6df7cb7101411368a81c7863c54ba025e27a57ecf734722bb6dcccd1c';
   const jsHelperSignTypedDataV031 =
       '0x482c8a6d24395d2fd86a593003a056d83eb0132d622c3dc5fd56aecc9f38590f0c012b369e907ba35596e428cc398224346a41304f0fc233e118c5978e0784661c';
+  // kernel.ts: wrapMessageHash({hash: hashMessage("hello"), address,
+  // version, chainId: 11155111})
+  const jsWrapV031 =
+      '0x334fbef0c7788841791867268be4c9377686802e228eaa91b414a98750c4cf5c';
+  const jsWrapV024 =
+      '0x4b37882e4d4b8968ea4f29338f3419aed445bfccd2c986f22f82d3081d06cffb';
+  // kernel.ts: signMessage util, version 0.2.1 (owner.signMessage("hello"));
+  // toKernelSmartAccount v0.2.1 (deployed) signMessage returns it unprefixed.
+  const jsSignMessageV021 =
+      '0x76930d64d2e5eb4b3f4572ce806eda50e1e2329d51d9ca5a713a9befcb9d2088'
+      '3e3d4885c3c5eaf775fc8c9fcf4882a28b582b427bc0270565f3294d935549221b';
+  // kernel.ts: signMessage util with eip7702: true, version 0.3.3,
+  // address = owner; toKernelSmartAccount({eip7702: true}).signMessage
+  // prepends the 0x00 root identifier.
+  const jsSignMessage7702V033 =
+      '0xd11aefdbfb763565b9f2755eba2916ab6901c9c99d70694981e2768f3b1c12f0'
+      '274ddb6b44395caaf308f6af655f59ac6b616f08b30d54749fe1dda5334800f61c';
   const jsSignMessageV024 =
       '0xa87069aaabd6cad2f39667debf72d986198f450789762541dfd83106b91ffa2f0ae095a1ef7a49156ccfa238cbdfb1c00a47152a7faaeeb29ab97a5afd6e19081c';
-
-  const v031PrefixLength = 21;
 
   late PrivateKeyOwner owner;
 
@@ -56,29 +78,31 @@ void main() {
       );
 
   group('wrapMessageHash', () {
-    test('returns a 32-byte digest for v0.3.1 and v0.2.4', () {
+    test('v0.3.1 and v0.2.4 digests match permissionless.js', () {
       final hash = hashMessage(message);
-      final v3 = wrapMessageHash(
-        hash: hash,
-        address: accountAddress,
-        version: KernelVersion.v0_3_1,
-        chainId: chainId,
+      expect(
+        wrapMessageHash(
+          hash: hash,
+          address: accountAddress,
+          version: KernelVersion.v0_3_1,
+          chainId: chainId,
+        ),
+        equals(jsWrapV031),
       );
-      final v2 = wrapMessageHash(
-        hash: hash,
-        address: accountAddress,
-        version: KernelVersion.v0_2_4,
-        chainId: chainId,
+      expect(
+        wrapMessageHash(
+          hash: hash,
+          address: accountAddress,
+          version: KernelVersion.v0_2_4,
+          chainId: chainId,
+        ),
+        equals(jsWrapV024),
       );
-      expect(Hex.byteLength(v3), equals(32));
-      expect(Hex.byteLength(v2), equals(32));
-      expect(v3.toLowerCase(), isNot(equals(v2.toLowerCase())));
     });
   });
 
-  group('signKernelMessage / signKernelTypedData vs account', () {
-    test('v0.3.1 helper is the account signMessage without the 21-byte prefix',
-        () async {
+  group('signKernelMessage / signKernelTypedData', () {
+    test('v0.3.1 signKernelMessage matches permissionless.js', () async {
       final helper = await signKernelMessage(
         owner: owner,
         message: message,
@@ -86,30 +110,14 @@ void main() {
         version: KernelVersion.v0_3_1,
         chainId: chainId,
       );
-      final accountSig =
-          await kernelAccount(KernelVersion.v0_3_1).signMessage(message);
 
       expect(
         helper.toLowerCase(),
         equals(jsHelperSignMessageV031.toLowerCase()),
       );
-      expect(
-        Hex.byteLength(accountSig) - Hex.byteLength(helper),
-        equals(v031PrefixLength),
-      );
-      expect(
-        Hex.slice(accountSig, v031PrefixLength).toLowerCase(),
-        equals(helper.toLowerCase()),
-      );
-      expect(
-        Hex.slice(accountSig, 0, v031PrefixLength).toLowerCase(),
-        equals('0x01845adb2c711129d4f3966735ed98a9f09fc4ce57'),
-      );
     });
 
-    test(
-        'v0.3.1 helper is the account signTypedData without the 21-byte prefix',
-        () async {
+    test('v0.3.1 signKernelTypedData matches permissionless.js', () async {
       final helper = await signKernelTypedData(
         owner: owner,
         typedData: sampleTypedData,
@@ -117,24 +125,14 @@ void main() {
         version: KernelVersion.v0_3_1,
         chainId: chainId,
       );
-      final accountSig = await kernelAccount(KernelVersion.v0_3_1)
-          .signTypedData(sampleTypedData);
 
       expect(
         helper.toLowerCase(),
         equals(jsHelperSignTypedDataV031.toLowerCase()),
       );
-      expect(
-        Hex.byteLength(accountSig) - Hex.byteLength(helper),
-        equals(v031PrefixLength),
-      );
-      expect(
-        Hex.slice(accountSig, v031PrefixLength).toLowerCase(),
-        equals(helper.toLowerCase()),
-      );
     });
 
-    test('v0.2.4 helper equals account signMessage (no prefix)', () async {
+    test('v0.2.4 signKernelMessage matches permissionless.js', () async {
       final helper = await signKernelMessage(
         owner: owner,
         message: message,
@@ -142,11 +140,8 @@ void main() {
         version: KernelVersion.v0_2_4,
         chainId: chainId,
       );
-      final accountSig =
-          await kernelAccount(KernelVersion.v0_2_4).signMessage(message);
 
       expect(helper.toLowerCase(), equals(jsSignMessageV024.toLowerCase()));
-      expect(helper.toLowerCase(), equals(accountSig.toLowerCase()));
     });
 
     test('v0.2.1 skips Kernel wrap (owner signs hashMessage directly)',
@@ -158,12 +153,11 @@ void main() {
         version: KernelVersion.v0_2_1,
         chainId: chainId,
       );
-      final direct = await owner.signRawHash(hashMessage(message));
       final accountSig =
           await kernelAccount(KernelVersion.v0_2_1).signMessage(message);
 
-      expect(helper.toLowerCase(), equals(direct.toLowerCase()));
-      expect(helper.toLowerCase(), equals(accountSig.toLowerCase()));
+      expect(helper, equals(jsSignMessageV021));
+      expect(accountSig, equals(jsSignMessageV021));
     });
 
     test('eip7702 helper is Kernel-domain typed data, account prefixes 0x00',
@@ -176,39 +170,15 @@ void main() {
         chainId: chainId,
         eip7702: true,
       );
-      final kernelTypedData = TypedData(
-        domain: TypedDataDomain(
-          name: 'Kernel',
-          version: KernelVersion.v0_3_3.value,
-          chainId: chainId,
-          verifyingContract: owner.address,
-        ),
-        types: {
-          'EIP712Domain': [
-            const TypedDataField(name: 'name', type: 'string'),
-            const TypedDataField(name: 'version', type: 'string'),
-            const TypedDataField(name: 'chainId', type: 'uint256'),
-            const TypedDataField(name: 'verifyingContract', type: 'address'),
-          ],
-          'Kernel': [
-            const TypedDataField(name: 'hash', type: 'bytes32'),
-          ],
-        },
-        primaryType: 'Kernel',
-        message: {'hash': hashMessage(message)},
-      );
-      final direct = await owner.signTypedData(kernelTypedData);
-      expect(helper.toLowerCase(), equals(direct.toLowerCase()));
+      expect(helper, equals(jsSignMessage7702V033));
 
       final account = createEip7702KernelSmartAccount(
         owner: PrivateKeyEip7702KernelOwner(privateKey),
         chainId: chainId,
       );
-      final accountSig = await account.signMessage(message);
-      expect(Hex.slice(accountSig, 0, 1), equals('0x00'));
       expect(
-        Hex.slice(accountSig, 1).toLowerCase(),
-        equals(helper.toLowerCase()),
+        await account.signMessage(message),
+        equals('0x00${jsSignMessage7702V033.substring(2)}'),
       );
     });
   });
