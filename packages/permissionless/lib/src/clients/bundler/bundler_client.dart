@@ -6,7 +6,7 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
-import 'rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 import 'user_operation_request.dart';
 

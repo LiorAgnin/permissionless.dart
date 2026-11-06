@@ -5,7 +5,7 @@ import '../../types/hex.dart';
 import '../../types/user_operation.dart';
 import '../../utils/gas.dart';
 import '../bundler/bundler_client.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'erc20_cost.dart';
 import 'types.dart';
 

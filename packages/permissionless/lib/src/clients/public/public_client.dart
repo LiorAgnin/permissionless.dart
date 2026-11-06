@@ -5,7 +5,7 @@ import '../../types/hex.dart';
 import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Client for read-only Ethereum JSON-RPC operations.
