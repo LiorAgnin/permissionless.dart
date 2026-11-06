@@ -1,7 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permissionless_passkeys/src/accounts/to_webauthn_account.dart';
-import 'package:permissionless_passkeys/src/accounts/webauthn_account.dart';
-import 'package:permissionless_passkeys/src/types/webauthn_credential.dart';
+import 'package:permissionless/permissionless.dart' show Hex, hashMessage;
+import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 import 'package:web3_signers/web3_signers.dart';
 
 import '../helpers/test_fixtures.dart';
@@ -217,39 +219,133 @@ void main() {
       });
     });
 
-    group('signMessage', () {
-      test('throws UnimplementedError (requires keccak256)', () async {
-        final mockSignature = _createMockSignature();
+    group('authenticator response without WebAuthn metadata', () {
+      const hash =
+          '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+      final bareSignature = Signature(testSignatureR, testSignatureS);
 
+      test('sign throws StateError', () async {
         final account = createWebAuthnAccount(
           credential: credential,
-          getFn: (_) async => mockSignature,
+          getFn: (_) async => bareSignature,
         );
 
-        expect(
-          () async => await account.signMessage(message: 'Hello World'),
-          throwsA(isA<UnimplementedError>()),
+        await expectLater(account.sign(hash: hash), throwsA(isA<StateError>()));
+      });
+
+      test('signP256 throws StateError', () async {
+        final account = createWebAuthnAccount(
+          credential: credential,
+          getFn: (_) async => bareSignature,
         );
+
+        await expectLater(account.signP256(hash), throwsA(isA<StateError>()));
+      });
+    });
+
+    group('signP256', () {
+      test('returns the authenticator signature and metadata', () async {
+        final account = createWebAuthnAccount(
+          credential: credential,
+          getFn: (_) async => _createMockSignature(),
+        );
+
+        final data = await account.signP256(
+          '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        );
+
+        expect(data.r, testSignatureR);
+        expect(data.s, testSignatureS);
+        expect(data.authenticatorData, testAuthenticatorData);
+        expect(data.clientDataJSON, testClientDataJSON);
+        expect(data.typeIndex, testResponseTypeLocation);
+      });
+    });
+
+    group('signMessage', () {
+      // viem: hashMessage('hello world')
+      const helloWorldHash =
+          '0xd9eba16ed0ecae432b71fe008c98cc872bb4cc214d3220a36f365326cf807d68';
+
+      Future<String> challengeFor(dynamic message) async {
+        Uint8List? challenge;
+        final account = createWebAuthnAccount(
+          credential: credential,
+          getFn: (c) async {
+            challenge = c;
+            return _createMockSignature();
+          },
+        );
+        await account.signMessage(message: message);
+        return Hex.fromBytes(challenge!);
+      }
+
+      test('signs the EIP-191 hash of a UTF-8 string', () async {
+        expect(await challengeFor('hello world'), helloWorldHash);
+      });
+
+      test('signs the EIP-191 hash of raw bytes', () async {
+        expect(
+          await challengeFor(Uint8List.fromList(utf8.encode('hello world'))),
+          helloWorldHash,
+        );
+      });
+
+      test('treats a 0x-prefixed string as UTF-8 text, like viem', () async {
+        const message = '0x68656c6c6f20776f726c64';
+
+        expect(await challengeFor(message), hashMessage(message));
+        expect(await challengeFor(message), isNot(helloWorldHash));
       });
     });
 
     group('signTypedDataViem', () {
-      test('throws UnimplementedError', () async {
-        final mockSignature = _createMockSignature();
-
+      test('signs the EIP-712 hash', () async {
+        Uint8List? challenge;
         final account = createWebAuthnAccount(
           credential: credential,
-          getFn: (_) async => mockSignature,
+          getFn: (c) async {
+            challenge = c;
+            return _createMockSignature();
+          },
         );
 
+        await account.signTypedDataViem(
+          domain: {
+            'name': 'Ether Mail',
+            'version': '1',
+            'chainId': 1,
+            'verifyingContract': '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+          },
+          types: {
+            'Person': [
+              {'name': 'name', 'type': 'string'},
+              {'name': 'wallet', 'type': 'address'},
+            ],
+            'Mail': [
+              {'name': 'from', 'type': 'Person'},
+              {'name': 'to', 'type': 'Person'},
+              {'name': 'contents', 'type': 'string'},
+            ],
+          },
+          primaryType: 'Mail',
+          message: {
+            'from': {
+              'name': 'Cow',
+              'wallet': '0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826',
+            },
+            'to': {
+              'name': 'Bob',
+              'wallet': '0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB',
+            },
+            'contents': 'Hello, Bob!',
+          },
+        );
+
+        // EIP-712 specification example digest.
         expect(
-          () async => await account.signTypedDataViem(
-            domain: {},
-            types: {},
-            primaryType: 'Test',
-            message: {},
-          ),
-          throwsA(isA<UnimplementedError>()),
+          Hex.fromBytes(challenge!),
+          '0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2',
         );
       });
     });
