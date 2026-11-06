@@ -17,6 +17,21 @@ void main() {
       );
     });
 
+    // One EIP-191 prefix, as verifyMessage(owner, "hello") expects:
+    // cast wallet sign --private-key <owner key> hello
+    test('signMessage is the owner personal_sign of the message', () async {
+      account = createSimpleSmartAccount(
+        owner: owner,
+        chainId: BigInt.one,
+        address: mockAddress,
+      );
+      expect(
+        await account.signMessage('hello'),
+        '0xf16ea9a3478698f695fd1401bfe27e9e4a7e8e3da94aa72b021125e31fa899cc'
+        '573c48ea3fe1d4ab61a9db10c19032026e3ed2dbccba5a178235ac27f94504311c',
+      );
+    });
+
     group('getFactoryData / getInitCode', () {
       // cast calldata "createAccount(address,uint256)" <owner> 0
       const createAccountSalt0 =

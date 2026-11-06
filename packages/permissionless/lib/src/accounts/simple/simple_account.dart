@@ -253,12 +253,14 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
     );
   }
 
-  /// Signs a personal message (EIP-191).
+  /// Signs [message] with the owner's EIP-191 personal_sign.
   ///
-  /// Returns the raw ECDSA signature.
+  /// SimpleAccount does not implement ERC-1271 (permissionless.js throws
+  /// here), so this is the owner's signature, verifiable off-chain against
+  /// the owner address, not by the account contract.
   @override
   Future<String> signMessage(String message) async =>
-      _config.owner.signPersonalMessage(hashMessage(message));
+      _config.owner.signRawHash(hashMessage(message));
 
   /// Signs EIP-712 typed data.
   ///
