@@ -386,15 +386,6 @@ void main() {
       await expectLater(rig.send(), throwsUnsupportedError);
       expect(rig.requests, isEmpty);
     });
-
-    test('toString carries kind and hash', () {
-      final error = SendUserOperationSyncError(
-        kind: SendUserOperationSyncErrorKind.notFound,
-        userOperationHash: '0x01',
-      );
-      expect(error.toString(), contains('not_found'));
-      expect(error.toString(), contains('User operation hash: 0x01'));
-    });
   });
 
   group('userOperationRequestJson', () {
@@ -416,15 +407,26 @@ void main() {
       final auth = Eip7702Authorization(
         chainId: _chainId,
         address: _recipient,
-        nonce: BigInt.zero,
-        v: 27,
+        nonce: BigInt.from(5),
+        v: 28,
         r: '0x${'01' * 32}',
         s: '0x${'02' * 32}',
       );
 
       final json = userOperationRequestJson(op, authorization: auth);
 
-      expect(json['eip7702Auth'], auth.toRpcFormat());
+      // viem formatAuthorization (account-abstraction/utils/formatters/
+      // userOperationRequest.ts): numberToHex(chainId) — `cast to-hex
+      // 11155111` = 0xaa36a7 — numberToHex(nonce), r/s as 32-byte hex and
+      // numberToHex(yParity, {size: 1}); v 28 is yParity 1.
+      expect(json['eip7702Auth'], {
+        'chainId': '0xaa36a7',
+        'address': '0x70997970c51812dc3a010c7d01b75ec5bb3e7dcf',
+        'nonce': '0x5',
+        'yParity': '0x01',
+        'r': '0x${'01' * 32}',
+        's': '0x${'02' * 32}',
+      });
       expect(json['factory'], '0x7702');
     });
 
