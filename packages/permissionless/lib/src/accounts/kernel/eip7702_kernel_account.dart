@@ -181,7 +181,8 @@ class Eip7702KernelSmartAccountConfig {
 /// // Get authorization for submitting to bundler
 /// final auth = await account.getAuthorization(nonce: BigInt.zero);
 /// ```
-class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
+class Eip7702KernelSmartAccount
+    implements Eip7702SmartAccount, EntryPointVersioned {
   /// Creates an EIP-7702 Kernel smart account from the given configuration.
   ///
   /// Prefer using [createEip7702KernelSmartAccount] factory function instead
@@ -204,6 +205,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   bool get isEip7702 => true;
 
   /// The EntryPoint version (v0.7 for Kernel EIP-7702).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   /// The chain ID.

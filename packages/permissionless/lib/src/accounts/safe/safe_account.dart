@@ -217,7 +217,11 @@ class SafeSmartAccountConfig {
 
 /// A Safe smart account implementation for ERC-4337.
 class SafeSmartAccount
-    implements SmartAccount, SmartAccountV06, DeploymentCallsEncoder {
+    implements
+        SmartAccount,
+        SmartAccountV06,
+        DeploymentCallsEncoder,
+        EntryPointVersioned {
   /// Creates a Safe smart account from the given configuration.
   ///
   /// Prefer using [createSafeSmartAccount] factory function instead
@@ -255,6 +259,7 @@ class SafeSmartAccount
   SafeVersion get version => _config.version;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The owners of this Safe.

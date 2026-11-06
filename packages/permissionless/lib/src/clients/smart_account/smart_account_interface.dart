@@ -1,3 +1,4 @@
+import '../../constants/entry_point.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
@@ -195,6 +196,19 @@ abstract class Eip7702SmartAccount implements SmartAccount {
   /// final auth = await account.getAuthorization(nonce: nonce);
   /// ```
   Future<Eip7702Authorization> getAuthorization({required BigInt nonce});
+}
+
+/// Capability of accounts bound to one EntryPoint version.
+///
+/// The version holds even when [SmartAccount.entryPoint] is a custom
+/// address, which [entryPointVersionOf] cannot map back. Every built-in
+/// account implements it; actions that hash UserOperations themselves (e.g.
+/// `sendUserOperationSync`) read it and fall back to [entryPointVersionOf]
+/// for accounts without it. Mirrors permissionless.js
+/// `account.entryPoint.version`.
+abstract interface class EntryPointVersioned {
+  /// The EntryPoint version this account signs UserOperations for.
+  EntryPointVersion get entryPointVersion;
 }
 
 /// Capability of accounts whose first (deploying) UserOperation needs

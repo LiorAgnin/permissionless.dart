@@ -92,7 +92,7 @@ class BiconomySmartAccountConfig {
 /// );
 /// ```
 @Deprecated('Use NexusSmartAccount instead')
-class BiconomySmartAccount implements SmartAccountV06 {
+class BiconomySmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// Creates a Biconomy smart account from the given configuration.
   ///
   /// Prefer using [createBiconomySmartAccount] factory function instead
@@ -115,6 +115,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version (always v0.6 for Biconomy).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v06;
 
   /// The index/salt used for address derivation.

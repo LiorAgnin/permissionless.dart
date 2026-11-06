@@ -96,7 +96,7 @@ class EtherspotCustomAddresses {
 ///
 /// This implements the ERC-4337 smart account interface for Etherspot's
 /// modular wallet. It uses ERC-7579 for call encoding and EntryPoint v0.7.
-class EtherspotSmartAccount implements SmartAccount {
+class EtherspotSmartAccount implements SmartAccount, EntryPointVersioned {
   /// Creates an Etherspot smart account from the given configuration.
   ///
   /// Prefer using [createEtherspotSmartAccount] factory function instead
@@ -129,6 +129,7 @@ class EtherspotSmartAccount implements SmartAccount {
       EtherspotAddresses.ecdsaValidator;
 
   /// The EntryPoint version (always v0.7 for Etherspot).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   @override

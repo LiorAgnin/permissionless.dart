@@ -158,7 +158,8 @@ class Eip7702SimpleSmartAccountConfig {
 /// // Get authorization for submitting to bundler
 /// final auth = await account.getAuthorization(nonce: BigInt.zero);
 /// ```
-class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
+class Eip7702SimpleSmartAccount
+    implements Eip7702SmartAccount, EntryPointVersioned {
   /// Creates an EIP-7702 Simple smart account from the given configuration.
   ///
   /// Prefer using [createEip7702SimpleSmartAccount] factory function instead
@@ -179,6 +180,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   bool get isEip7702 => true;
 
   /// The EntryPoint version (always v0.8 for EIP-7702).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v08;
 
   /// The chain ID.

@@ -117,7 +117,7 @@ class KernelSmartAccountConfig {
 /// Kernel smart account implementation.
 ///
 /// Supports both v0.2.x (EntryPoint v0.6) and v0.3.x (EntryPoint v0.7).
-class KernelSmartAccount implements SmartAccountV06 {
+class KernelSmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// Creates a Kernel smart account from the given configuration.
   ///
   /// Prefer using [createKernelSmartAccount] factory function instead
@@ -131,6 +131,7 @@ class KernelSmartAccount implements SmartAccountV06 {
   EthereumAddress? _cachedAddress;
 
   /// Returns the entry point version for this account.
+  @override
   EntryPointVersion get entryPointVersion =>
       _config.version.isV2 ? EntryPointVersion.v06 : EntryPointVersion.v07;
 

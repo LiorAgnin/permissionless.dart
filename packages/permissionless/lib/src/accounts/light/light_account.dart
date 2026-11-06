@@ -120,7 +120,8 @@ class LightSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Light account: $address');
 /// ```
-class LightSmartAccount implements SmartAccount, SmartAccountV06 {
+class LightSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Light smart account from the given configuration.
   ///
   /// Prefer using [createLightSmartAccount] factory function instead
@@ -140,6 +141,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
   LightAccountVersion get version => _config.version;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The salt used for address derivation.

@@ -88,7 +88,8 @@ class SimpleSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Simple account: $address');
 /// ```
-class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
+class SimpleSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Simple smart account from the given configuration.
   ///
   /// Prefer using [createSimpleSmartAccount] factory function instead
@@ -107,6 +108,7 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The salt used for address derivation.

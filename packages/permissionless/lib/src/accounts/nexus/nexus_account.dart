@@ -104,7 +104,7 @@ class NexusSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Nexus account: $address');
 /// ```
-class NexusSmartAccount implements SmartAccount {
+class NexusSmartAccount implements SmartAccount, EntryPointVersioned {
   /// Creates a Nexus smart account from the given configuration.
   ///
   /// Prefer using [createNexusSmartAccount] factory function instead
@@ -124,6 +124,7 @@ class NexusSmartAccount implements SmartAccount {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version (always v0.7 for Nexus).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   /// The index/salt used for address derivation.

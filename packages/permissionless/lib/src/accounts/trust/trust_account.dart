@@ -83,7 +83,7 @@ class TrustSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Trust account: $address');
 /// ```
-class TrustSmartAccount implements SmartAccountV06 {
+class TrustSmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// Creates a Trust smart account from the given configuration.
   ///
   /// Prefer using [createTrustSmartAccount] factory function instead
@@ -110,6 +110,7 @@ class TrustSmartAccount implements SmartAccountV06 {
   BigInt get chainId => _config.chainId;
 
   /// The EntryPoint version (always v0.6 for Trust).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v06;
 
   /// The EntryPoint address (v0.6).

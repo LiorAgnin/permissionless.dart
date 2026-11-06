@@ -109,7 +109,8 @@ class ThirdwebSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Thirdweb account: $address');
 /// ```
-class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
+class ThirdwebSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Thirdweb smart account from the given configuration.
   ///
   /// Prefer using [createThirdwebSmartAccount] factory function instead
@@ -126,6 +127,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The chain ID.

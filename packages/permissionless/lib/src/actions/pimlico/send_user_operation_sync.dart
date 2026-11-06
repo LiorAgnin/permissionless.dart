@@ -135,7 +135,11 @@ extension PimlicoActions on SmartAccountClient {
     Duration? timeout,
     Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
-    final entryPointVersion = entryPointVersionOf(account.entryPoint);
+    final currentAccount = account;
+    final entryPointVersion = switch (currentAccount) {
+      final EntryPointVersioned versioned => versioned.entryPointVersion,
+      _ => entryPointVersionOf(currentAccount.entryPoint),
+    };
     if (entryPointVersion != EntryPointVersion.v07 &&
         entryPointVersion != EntryPointVersion.v08) {
       throw UnsupportedError(
@@ -165,7 +169,6 @@ extension PimlicoActions on SmartAccountClient {
         ? prepared.userOp
         : await signUserOperation(prepared.userOp);
 
-    final currentAccount = account;
     final userOperationHash = getUserOperationHash(
       userOperation: userOp,
       entryPointAddress: entryPoint,
