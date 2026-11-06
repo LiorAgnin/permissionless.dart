@@ -531,6 +531,48 @@ void main() {
       }
     });
   });
+
+  group('WebAuthn owner config is checked up front', () {
+    final webAuthnOwner = _FixedWebAuthnOwner(
+      P256SignatureData(
+        r: BigInt.one,
+        s: BigInt.one,
+        authenticatorData: Uint8List(37),
+        clientDataJSON: '{}',
+        challengeIndex: 0,
+        typeIndex: 0,
+      ),
+    );
+
+    test('Kernel v0.2.x rejects a WebAuthn owner', () {
+      expect(
+        () => KernelSmartAccountConfig(
+          owner: webAuthnOwner,
+          chainId: BigInt.one,
+          version: KernelVersion.v0_2_4,
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('a WebAuthn owner requires a webAuthnValidator address', () {
+      final v031 = KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1)!;
+      expect(
+        () => KernelSmartAccountConfig(
+          owner: webAuthnOwner,
+          chainId: BigInt.one,
+          version: KernelVersion.v0_3_1,
+          customAddresses: KernelAddresses(
+            accountImplementation: v031.accountImplementation,
+            factory: v031.factory,
+            metaFactory: v031.metaFactory,
+            ecdsaValidator: v031.ecdsaValidator,
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
 }
 
 class _FixedWebAuthnOwner extends WebAuthnAccountOwner {

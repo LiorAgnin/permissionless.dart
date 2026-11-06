@@ -33,7 +33,9 @@ class KernelSmartAccountConfig {
   /// - [useMetaFactory]: For v0.3.x, route deployment via meta factory (default true)
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   ///
-  /// Throws [ArgumentError] if version-specific requirements aren't met.
+  /// Throws [ArgumentError] if version-specific requirements aren't met,
+  /// including a WebAuthn [owner] on Kernel v0.2.x or without a
+  /// `webAuthnValidator` address.
   KernelSmartAccountConfig({
     required this.owner,
     required this.chainId,
@@ -57,6 +59,20 @@ class KernelSmartAccountConfig {
       throw ArgumentError(
         'ECDSA validator address required for Kernel ${version.value}',
       );
+    }
+    if (owner is WebAuthnAccountOwner) {
+      if (version.isV2) {
+        throw ArgumentError(
+          'WebAuthn owners are not supported on Kernel v0.2.x. '
+          'Use Kernel v0.3.x or later.',
+        );
+      }
+      if (addresses.webAuthnValidator == null) {
+        throw ArgumentError(
+          'WebAuthn owner requires webAuthnValidator address. '
+          'WebAuthn is only supported on Kernel v0.3.x+',
+        );
+      }
     }
     if (version.isV3) checkKernelV3NonceKey(nonceKey, version);
     if (version.isV3 && useMetaFactory && addresses.metaFactory == null) {
@@ -153,34 +169,15 @@ class KernelSmartAccount implements SmartAccountV06, EntryPointVersioned {
   @override
   bool get isWebAuthn => _isWebAuthn;
 
-  EthereumAddress get _validatorAddress {
-    if (_isWebAuthn) {
-      final webAuthnValidator = _addresses.webAuthnValidator;
-      if (webAuthnValidator == null) {
-        throw StateError(
-          'WebAuthn owner requires webAuthnValidator address. '
-          'WebAuthn is only supported on Kernel v0.3.x+',
-        );
-      }
-      return webAuthnValidator;
-    }
-    return _addresses.ecdsaValidator!;
-  }
+  /// The config constructor guarantees the validator for the owner type.
+  EthereumAddress get _validatorAddress =>
+      _isWebAuthn ? _addresses.webAuthnValidator! : _addresses.ecdsaValidator!;
 
   @override
   BigInt get nonceKey {
     final userKey = _config.nonceKey ?? BigInt.zero;
-    if (_config.version.isV2) {
-      if (_isWebAuthn) {
-        throw StateError(
-          'WebAuthn owners are not supported on Kernel v0.2.x. '
-          'Use Kernel v0.3.x or later.',
-        );
-      }
-      // v2: passthrough (permissionless.js getNonceKeyWithEncoding)
-      return userKey;
-    }
-
+    // v2: passthrough (permissionless.js getNonceKeyWithEncoding)
+    if (_config.version.isV2) return userKey;
     return encodeKernelV3NonceKey(
       validator: _validatorAddress,
       nonceKey: userKey,
