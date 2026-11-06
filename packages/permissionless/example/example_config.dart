@@ -5,7 +5,8 @@
 //
 // Expected variables:
 //   PIMLICO_API_KEY       — required for bundler / paymaster
-//   TEST_PRIVATE_KEY      — owner key (0x-prefixed or raw hex)
+//   TEST_PRIVATE_KEY      — owner key (0x-prefixed or raw hex); defaults to
+//                           the public Hardhat/Anvil account 0 key
 //   SEPOLIA_RPC_URL       — optional; falls back to publicnode
 //   BASE_SEPOLIA_RPC_URL  — optional; falls back to sepolia.base.org
 

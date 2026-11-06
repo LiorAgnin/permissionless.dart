@@ -17,8 +17,8 @@ import 'example_config.dart';
 
 /// Example WebAuthn owner implementation.
 ///
-/// In production, use web3-signers PassKeySigner or implement
-/// WebAuthnAccountOwner with actual WebAuthn APIs.
+/// In production, use `createWebAuthnAccount` from permissionless_passkeys,
+/// or implement WebAuthnAccountOwner with actual WebAuthn APIs.
 class ExampleWebAuthnOwner extends WebAuthnAccountOwner {
   ExampleWebAuthnOwner({
     required this.x,
@@ -82,9 +82,10 @@ void main() async {
   // 1. Create Clients and Kernel Smart Account with WebAuthn
   // ================================================================
   //
-  // Kernel v0.3.x supports WebAuthn via a dedicated P256 validator module.
-  // The SDK automatically uses the WebAuthn validator address when a
-  // WebAuthn owner is detected.
+  // Kernel supports WebAuthn via a dedicated P256 validator module. The SDK
+  // uses the WebAuthn validator address when the owner is a
+  // WebAuthnAccountOwner. v0.2.x, or a version without a built-in WebAuthn
+  // validator (v0.3.2), throws ArgumentError here.
 
   final rpcUrl = config.sepoliaRpcUrl;
   final publicClient = createPublicClient(url: rpcUrl);
@@ -92,7 +93,7 @@ void main() async {
   final account = createKernelSmartAccount(
     owner: webAuthnOwner, // WebAuthn owner instead of PrivateKeyOwner
     chainId: BigInt.from(11155111), // Sepolia
-    version: KernelVersion.v0_3_1, // WebAuthn requires v0.3.x
+    version: KernelVersion.v0_3_1, // v0.3.0-beta, v0.3.1 or v0.3.3
     index: BigInt.zero,
     publicClient: publicClient,
   );
@@ -144,8 +145,8 @@ void main() async {
   // 5. Fetch Nonce with Correct Key
   // ================================================================
   //
-  // Kernel v0.3.x uses validator-specific nonce keys. The SDK now
-  // automatically passes the correct nonce key when fetching nonces.
+  // Kernel v0.3.x uses validator-specific nonce keys. SmartAccountClient
+  // passes account.nonceKey itself; this call shows it explicitly.
 
   print('\n--- Nonce Handling ---');
 
@@ -160,9 +161,10 @@ void main() async {
   // 6. Prepare and Send Transaction
   // ================================================================
   //
-  // WebAuthn accounts require ~800k verification gas for P256
-  // on-chain signature verification. The SDK automatically
-  // applies minimum gas limits when isWebAuthn is true.
+  // verificationGasLimit is the bundler estimate times the client's
+  // gasMultipliers, as for any account. The WebAuthn stub signature prices
+  // the Solidity P256 verifier, so the estimate also covers chains without
+  // the RIP-7212 precompile. To set a minimum, pass verificationGasLimit.
 
   print('\n--- Preparing UserOperation ---');
 
@@ -204,7 +206,8 @@ void main() async {
   print('WebAuthn Kernel Account Example Complete');
   print('');
   print('Key points:');
-  print('  - Kernel v0.3.x supports WebAuthn via P256 validator module');
+  print('  - Kernel v0.3.0-beta, v0.3.1 and v0.3.3 support WebAuthn via '
+      'the P256 validator module');
   print('  - account.isWebAuthn returns true for WebAuthn owners');
   print('  - Nonce key encodes the WebAuthn validator address');
   print('  - Verification gas comes from the bundler estimate');

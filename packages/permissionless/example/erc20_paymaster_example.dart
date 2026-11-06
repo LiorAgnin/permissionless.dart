@@ -122,7 +122,9 @@ void main(List<String> args) async {
     // injects the gas approval in front of YOUR calls.
     //
     // NOTE: an unsupported token makes the helper throw ArgumentError —
-    // check support upfront with pimlico.getTokenQuotes([token]).
+    // check support upfront with pimlico.getTokenQuotes([token]). A token
+    // address with no code on this chain throws StateError from the
+    // allowance read.
 
     final gasPrices = await pimlico.getUserOperationGasPrice();
 

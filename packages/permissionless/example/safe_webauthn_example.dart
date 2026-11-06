@@ -17,8 +17,8 @@ import 'example_config.dart';
 
 /// Example WebAuthn owner implementation.
 ///
-/// In production, use web3-signers PassKeySigner or implement
-/// WebAuthnAccountOwner with actual WebAuthn APIs.
+/// In production, use `createWebAuthnAccount` from permissionless_passkeys,
+/// or implement WebAuthnAccountOwner with actual WebAuthn APIs.
 class ExampleWebAuthnOwner extends WebAuthnAccountOwner {
   ExampleWebAuthnOwner({
     required this.x,
@@ -139,9 +139,9 @@ void main() async {
   // 5. Prepare and Send Transaction
   // ================================================================
   //
-  // WebAuthn accounts require ~800k verification gas for P256
-  // on-chain signature verification. The SDK automatically
-  // applies minimum gas limits when isWebAuthn is true.
+  // verificationGasLimit is the bundler estimate times the client's
+  // gasMultipliers, as for any account; the estimate is priced from the
+  // WebAuthn stub signature. To set a minimum, pass verificationGasLimit.
 
   print('\n--- Preparing UserOperation ---');
 

@@ -22,7 +22,8 @@ class ThirdwebVariant {
   final EntryPointVersion entryPointVersion;
 
   /// Distinct salt so each variant gets its own address under the same owner.
-  /// Thirdweb salt is bytes (hex string), not a numeric index.
+  /// Thirdweb salt is a string encoded as UTF-8 bytes (permissionless.js
+  /// `toHex(salt)`), not hex-decoded and not a numeric index.
   final String salt;
   final String label;
 
