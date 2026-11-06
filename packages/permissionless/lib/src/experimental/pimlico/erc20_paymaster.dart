@@ -8,6 +8,7 @@ library;
 
 import '../../clients/paymaster/paymaster_client.dart';
 import '../../clients/paymaster/types.dart';
+import '../../clients/pimlico/erc20_cost.dart';
 import '../../clients/pimlico/erc20_paymaster.dart';
 import '../../clients/pimlico/pimlico_client.dart';
 import '../../clients/pimlico/types.dart';
@@ -134,14 +135,15 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   BigInt? nonce,
   Erc20PaymasterConfig config = const Erc20PaymasterConfig(),
 }) async {
-  final quotes = await pimlicoClient.getTokenQuotes([token]);
-  if (quotes.isEmpty) {
-    throw ArgumentError(
-      'Token $token is not supported by the Pimlico ERC-20 paymaster',
-    );
-  }
-
-  final quote = quotes.first;
+  // permissionless.js parity: quoted for `account.entryPoint.address`, the
+  // EntryPoint the op is sponsored and sent on, not the Pimlico client's.
+  final quote = tokenQuoteFor(
+    token,
+    await pimlicoClient.getTokenQuotes(
+      [token],
+      entryPoint: smartAccountClient.account.entryPoint,
+    ),
+  );
   final paymasterAddress = quote.paymaster;
 
   // A max approval keeps gas simulation from failing on allowance checks.
@@ -259,6 +261,9 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
 /// This is a simpler utility that only calculates the estimated cost
 /// without preparing the full UserOperation.
 ///
+/// [entryPoint] is the EntryPoint whose paymaster quotes the token; pass the
+/// account's. It defaults to the [PimlicoClient]'s EntryPoint.
+///
 /// **Example:**
 /// ```dart
 /// final estimate = await estimateErc20PaymasterCost(
@@ -274,15 +279,12 @@ Future<Erc20CostEstimate> estimateErc20PaymasterCost({
   required PimlicoClient pimlicoClient,
   required EthereumAddress token,
   required UserOperationV07 userOperation,
+  EthereumAddress? entryPoint,
 }) async {
-  final quotes = await pimlicoClient.getTokenQuotes([token]);
-  if (quotes.isEmpty) {
-    throw ArgumentError(
-      'Token $token is not supported by the Pimlico ERC-20 paymaster',
-    );
-  }
-
-  final quote = quotes.first;
+  final quote = tokenQuoteFor(
+    token,
+    await pimlicoClient.getTokenQuotes([token], entryPoint: entryPoint),
+  );
   final maxCostInToken = estimateTokenCost(quote: quote, userOp: userOperation);
 
   return Erc20CostEstimate(

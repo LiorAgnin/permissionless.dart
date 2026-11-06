@@ -350,6 +350,50 @@ void main() {
       },
     );
 
+    test(
+        "quotes the token for the account's EntryPoint, not the Pimlico "
+        "client's", () async {
+      final publicClient = createPublicClientMock(isDeployed: true);
+      final account = createSafeSmartAccount(
+        owners: [PrivateKeyOwner(testPrivateKey)],
+        chainId: BigInt.from(11155111),
+        address: recipient,
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        ),
+        paymaster: createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(),
+        ),
+        publicClient: publicClient,
+      );
+
+      await prepareUserOperationForErc20Paymaster(
+        smartAccountClient: client,
+        // Built on v0.8 while the Safe account is v0.7.
+        pimlicoClient: createPimlico(),
+        publicClient: publicClient,
+        token: token,
+        calls: [call],
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      final quotesRequest = pimlicoRequests
+          .singleWhere((r) => r['method'] == 'pimlico_getTokenQuotes');
+      // permissionless.js prepareUserOperationForErc20Paymaster passes
+      // `entryPointAddress: account.entryPoint.address`.
+      expect(
+        (quotesRequest['params'] as List<dynamic>)[1],
+        equals(EntryPointAddresses.v07.hex),
+      );
+    });
+
     test('throws ArgumentError when token is not supported', () async {
       final publicClient = createPublicClientMock(isDeployed: true);
       final account = createSafeSmartAccount(
@@ -402,6 +446,64 @@ void main() {
         ),
         throwsArgumentError,
       );
+    });
+  });
+
+  group('estimateErc20PaymasterCost (experimental)', () {
+    test('forwards entryPoint to pimlico_getTokenQuotes', () async {
+      final quoteEntryPoints = <dynamic>[];
+      final pimlico = createPimlicoClient(
+        url: 'http://localhost:3002/rpc',
+        entryPoint: EntryPointAddresses.v08,
+        httpClient: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          final method = body['method'] as String;
+          if (method == 'pimlico_getTokenQuotes') {
+            quoteEntryPoints.add((body['params'] as List<dynamic>)[1]);
+          }
+          final result = switch (method) {
+            'eth_chainId' => '0xaa36a7',
+            'pimlico_getTokenQuotes' => {
+                'quotes': [
+                  {
+                    'token': '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+                    'paymaster': '0x888888888888Ec68A58AB8094Cc1AD20Ba3D2402',
+                    'postOpGas': '0x124f8',
+                    'exchangeRate': '0xba2c2b15',
+                  },
+                ],
+              },
+            _ => null,
+          };
+          return http.Response(
+            jsonEncode({'jsonrpc': '2.0', 'id': body['id'], 'result': result}),
+            200,
+          );
+        }),
+      );
+
+      await estimateErc20PaymasterCost(
+        pimlicoClient: pimlico,
+        token: EthereumAddress.fromHex(
+          '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+        ),
+        userOperation: UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.one,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          signature: '0x',
+        ),
+        entryPoint: EntryPointAddresses.v07,
+      );
+
+      expect(quoteEntryPoints, equals([EntryPointAddresses.v07.hex]));
     });
   });
 }
