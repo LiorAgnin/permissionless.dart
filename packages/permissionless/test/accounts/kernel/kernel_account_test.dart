@@ -378,6 +378,25 @@ void main() {
         // Should be 65 bytes
         expect((signature.length - 2) ~/ 2, equals(65));
       });
+
+      test('rejects a v0.6 UserOperation (EntryPoint v0.7 account)', () async {
+        final userOp = UserOperationV06(
+          sender: await account.getAddress(),
+          nonce: BigInt.zero,
+          initCode: '0x',
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        await expectLater(
+          account.signUserOperationV06(userOp),
+          throwsArgumentError,
+        );
+      });
     });
 
     group('nonce key', () {
@@ -655,8 +674,27 @@ void main() {
     group('sign user operation', () {
       test('signature contains ROOT_MODE prefix', () async {
         final address = await account.getAddress();
-        final userOp = UserOperationV07(
+        final userOp = UserOperationV06(
           sender: address,
+          nonce: BigInt.zero,
+          initCode: '0x',
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        final signature = await account.signUserOperationV06(userOp);
+
+        // Should have ROOT_MODE prefix
+        expect(signature.substring(2, 10), equals('00000000'));
+      });
+
+      test('rejects a v0.7 UserOperation (EntryPoint v0.6 account)', () async {
+        final userOp = UserOperationV07(
+          sender: await account.getAddress(),
           nonce: BigInt.zero,
           callData: '0x',
           callGasLimit: BigInt.from(100000),
@@ -666,10 +704,10 @@ void main() {
           maxPriorityFeePerGas: BigInt.from(1000000000),
         );
 
-        final signature = await account.signUserOperation(userOp);
-
-        // Should have ROOT_MODE prefix
-        expect(signature.substring(2, 10), equals('00000000'));
+        await expectLater(
+          account.signUserOperation(userOp),
+          throwsArgumentError,
+        );
       });
     });
 
@@ -772,9 +810,10 @@ void main() {
       );
 
       final address = await account.getAddress();
-      final userOp = UserOperationV07(
+      final userOp = UserOperationV06(
         sender: address,
         nonce: BigInt.zero,
+        initCode: '0x',
         callData: '0x',
         callGasLimit: BigInt.from(100000),
         verificationGasLimit: BigInt.from(100000),
@@ -783,7 +822,7 @@ void main() {
         maxPriorityFeePerGas: BigInt.from(1000000000),
       );
 
-      final signature = await account.signUserOperation(userOp);
+      final signature = await account.signUserOperationV06(userOp);
 
       // ROOT_MODE prefix + 65-byte ECDSA = 69 bytes = 138 hex + 0x
       expect(signature, startsWith('0x00000000'));
