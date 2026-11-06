@@ -332,7 +332,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
     );
 
-    // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV07(
       sender: sender,
       nonce: accountNonce,
@@ -362,12 +361,11 @@ class SmartAccountClient {
       userOp = userOp.withPaymasterStub(stubData);
     }
 
-    // Estimate gas only when at least one core gas field is missing (viem).
-    // Convert state overrides to JSON format for RPC call.
     final stateOverrideJson = stateOverride != null && stateOverride.isNotEmpty
         ? stateOverridesToJson(stateOverride)
         : null;
 
+    // viem estimates only when at least one core gas field is missing.
     final needsGasEstimate = callGasLimit == null ||
         verificationGasLimit == null ||
         preVerificationGas == null;
@@ -696,7 +694,6 @@ class SmartAccountClient {
           deploysAccount: resolvedInitCode != '0x',
         );
 
-    // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV06(
       sender: sender,
       nonce: accountNonce,

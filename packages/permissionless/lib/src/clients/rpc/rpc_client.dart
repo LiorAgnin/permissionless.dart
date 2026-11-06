@@ -143,7 +143,6 @@ class JsonRpcClient {
       results[id] = responseMap['result'];
     }
 
-    // Return results in request order
     return [
       for (var i = startId; i <= _requestId; i++) results[i],
     ];
