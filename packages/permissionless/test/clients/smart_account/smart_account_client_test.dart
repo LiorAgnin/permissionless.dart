@@ -658,10 +658,13 @@ void main() {
         );
       }
 
-      SmartAccountClient create7702Client({PaymasterClient? paymaster}) {
+      SmartAccountClient create7702Client({
+        PaymasterClient? paymaster,
+        EthereumAddress? bundlerEntryPoint,
+      }) {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
-          entryPoint: EntryPointAddresses.v08,
+          entryPoint: bundlerEntryPoint ?? EntryPointAddresses.v08,
           httpClient: createBundlerMock(),
         );
         final publicClient = create7702PublicClientMock();
@@ -715,6 +718,40 @@ void main() {
           );
           // The EIP-7702 factory marker stays in its short wire form.
           expect(userOpJson['factory'], equals('0x7702'));
+        }
+      });
+
+      // viem's bundler actions take `account.entryPoint.address`; the nonce,
+      // paymaster requests and signature already use the account's
+      // EntryPoint, so estimate and send must target it too.
+      test('estimate and send target the account EntryPoint, not the bundler',
+          () async {
+        final client = create7702Client(
+          bundlerEntryPoint: EntryPointAddresses.v07,
+        );
+        expect(client.account.entryPoint, equals(EntryPointAddresses.v08));
+
+        await client.sendUserOperation(
+          calls: [call],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        for (final method in [
+          'eth_estimateUserOperationGas',
+          'eth_sendUserOperation',
+        ]) {
+          final request = bundlerRequests.singleWhere(
+            (r) => r['method'] == method,
+          );
+          final params = request['params'] as List<dynamic>;
+          expect(params[1], equals(EntryPointAddresses.v08.hex),
+              reason: method);
+          expect(
+            (params[0] as Map<String, dynamic>).containsKey('eip7702Auth'),
+            isTrue,
+            reason: method,
+          );
         }
       });
 

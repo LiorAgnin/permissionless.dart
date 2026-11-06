@@ -376,6 +376,7 @@ class SmartAccountClient {
       final gasEstimate = await bundler.estimateUserOperationGas(
         userOp,
         stateOverride: stateOverrideJson,
+        entryPoint: account.entryPoint,
         authorization: authorization,
       );
       userOp = _applyGasEstimate(
@@ -477,7 +478,11 @@ class SmartAccountClient {
     UserOperationV07 userOp, {
     Eip7702Authorization? authorization,
   }) =>
-      bundler.sendUserOperation(userOp, authorization: authorization);
+      bundler.sendUserOperation(
+        userOp,
+        entryPoint: account.entryPoint,
+        authorization: authorization,
+      );
 
   /// Sends a signed UserOperation with optional EIP-7702 authorization.
   ///
@@ -714,7 +719,10 @@ class SmartAccountClient {
         );
       }
     } else if (needsGasEstimate) {
-      final gasEstimate = await bundler.estimateUserOperationGas(userOp);
+      final gasEstimate = await bundler.estimateUserOperationGas(
+        userOp,
+        entryPoint: account.entryPoint,
+      );
       userOp = _applyGasEstimateV06(
         userOp,
         gasEstimate,
@@ -748,7 +756,7 @@ class SmartAccountClient {
   ///
   /// Returns the UserOperation hash for tracking.
   Future<String> sendPreparedUserOperationV06(UserOperationV06 userOp) =>
-      bundler.sendUserOperation(userOp);
+      bundler.sendUserOperation(userOp, entryPoint: account.entryPoint);
 
   /// Prepares, signs, and sends a UserOperation v0.6 in one call.
   ///
