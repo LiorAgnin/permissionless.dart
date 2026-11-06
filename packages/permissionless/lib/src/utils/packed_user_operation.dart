@@ -83,10 +83,6 @@ class PackedUserOperation {
       };
 }
 
-// ============================================================================
-// Packing Functions
-// ============================================================================
-
 /// Packs a v0.7 UserOperation into the packed format.
 ///
 /// This converts the unpacked [UserOperationV07] into [PackedUserOperation]
@@ -211,10 +207,6 @@ String getPaymasterAndData(UserOperationV07 userOperation) {
     userOperation.paymasterData ?? '0x',
   ]);
 }
-
-// ============================================================================
-// Unpacking Functions
-// ============================================================================
 
 /// Result of unpacking initCode.
 class UnpackedInitCode {

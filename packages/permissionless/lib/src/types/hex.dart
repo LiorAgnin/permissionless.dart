@@ -16,7 +16,6 @@ class Hex {
   /// Converts a hex string (with or without '0x' prefix) to bytes.
   static Uint8List decode(String hexString) {
     final cleanHex = strip0x(hexString);
-    // Pad with leading zero if odd length
     final paddedHex = cleanHex.length.isOdd ? '0$cleanHex' : cleanHex;
     return Uint8List.fromList(hex.decode(paddedHex));
   }

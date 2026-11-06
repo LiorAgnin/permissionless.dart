@@ -97,8 +97,6 @@ class Erc7579Selectors {
   static const String supportsExecutionMode = '0xd03c7914';
 }
 
-// Solidity signatures behind [Erc7579Selectors]; encoders and decoders go
-// through these.
 const String _executeSignature = 'execute(bytes32,bytes)';
 const String _installModuleSignature = 'installModule(uint256,address,bytes)';
 const String _uninstallModuleSignature =
@@ -263,8 +261,8 @@ String encode7579SingleCallData(Call call) {
   final callDataBytes = Hex.decode(call.data);
   return Hex.concat([
     call.to.hex, // 20 bytes (no padding)
-    Hex.fromBigInt(call.value, byteLength: 32), // 32 bytes
-    Hex.fromBytes(callDataBytes), // Variable length
+    Hex.fromBigInt(call.value, byteLength: 32),
+    Hex.fromBytes(callDataBytes),
   ]);
 }
 

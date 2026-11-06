@@ -133,7 +133,6 @@ List<StateOverride> mergeStateOverrides(List<StateOverride> overrides) {
       return addressOverrides.first;
     }
 
-    // Merge all overrides for this address
     BigInt? balance;
     BigInt? nonce;
     String? code;

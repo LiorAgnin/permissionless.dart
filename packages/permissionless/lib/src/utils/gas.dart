@@ -163,7 +163,6 @@ extension GasEstimateMultipliers on UserOperationGasEstimate {
   UserOperationGasEstimate withMinimumVerificationGas({
     BigInt? minimum,
   }) {
-    // Default: 900k gas for P256 on-chain verification with buffer
     final minGas = minimum ?? BigInt.from(900000);
 
     if (verificationGasLimit >= minGas) {
@@ -261,14 +260,9 @@ class GasCostEstimate {
 /// Applies a multiplier to a BigInt value.
 BigInt _applyMultiplier(BigInt value, double multiplier) {
   if (multiplier == 1.0) return value;
-  // Scale up to avoid precision loss, then scale back down
   final scaled = (value.toDouble() * multiplier * 1000).round();
   return BigInt.from(scaled) ~/ BigInt.from(1000);
 }
-
-// ============================================================================
-// Required Prefund Calculation
-// ============================================================================
 
 /// Calculates the required prefund for a UserOperation (v0.7).
 ///
@@ -298,7 +292,6 @@ BigInt getRequiredPrefund(UserOperationV07 userOperation) {
       userOperation.callGasLimit +
       userOperation.preVerificationGas;
 
-  // Add paymaster gas limits if present
   if (userOperation.paymasterVerificationGasLimit != null) {
     requiredGas += userOperation.paymasterVerificationGasLimit!;
   }
@@ -326,7 +319,6 @@ BigInt getRequiredPrefund(UserOperationV07 userOperation) {
 /// final prefund = getRequiredPrefundV06(userOperationV06);
 /// ```
 BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
-  // Check if paymaster is present (paymasterAndData > 2 chars means it has content beyond '0x')
   final hasPaymaster = userOperation.paymasterAndData.length > 2;
 
   final multiplier = hasPaymaster ? BigInt.from(3) : BigInt.one;
@@ -337,10 +329,6 @@ BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
 
   return requiredGas * userOperation.maxFeePerGas;
 }
-
-// ============================================================================
-// Address Extraction Utilities
-// ============================================================================
 
 /// Extracts an address from `initCode` or `paymasterAndData` fields.
 ///
@@ -368,23 +356,19 @@ BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
 /// );
 /// ```
 EthereumAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
-  // Handle null or empty data
   if (data == null || data.isEmpty || data == '0x') {
     return null;
   }
 
-  // An address needs at least 42 hex characters: '0x' + 40 hex digits (20 bytes)
   if (data.length < 42) {
     return null;
   }
 
-  // Extract the first 20 bytes (40 hex chars + '0x' prefix)
   final addressHex = data.substring(0, 42);
 
   try {
     return EthereumAddress.fromHex(addressHex);
   } catch (_) {
-    // Invalid address format
     return null;
   }
 }

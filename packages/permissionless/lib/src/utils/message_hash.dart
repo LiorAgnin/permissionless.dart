@@ -71,7 +71,6 @@ String hashTypedData(TypedData typedData) {
 /// The domain separator is computed by hashing the EIP712Domain struct
 /// with only the fields that are present in the domain.
 String computeDomainSeparator(TypedDataDomain domain) {
-  // Build the domain type string with only present fields
   final fields = <String>[];
   if (domain.name != null) fields.add('string name');
   if (domain.version != null) fields.add('string version');
@@ -83,7 +82,6 @@ String computeDomainSeparator(TypedDataDomain domain) {
   final domainTypeHash =
       keccak256(Uint8List.fromList(domainTypeString.codeUnits));
 
-  // Encode domain values in order
   final encodedParts = <String>[Hex.fromBytes(domainTypeHash)];
 
   if (domain.name != null) {
@@ -145,12 +143,10 @@ String _encodeType(
     throw ArgumentError('Type $primaryType not found in types');
   }
 
-  // Find all referenced types (recursively)
   final referencedTypes = <String>{};
   _findReferencedTypes(primaryType, types, referencedTypes);
-  referencedTypes.remove(primaryType); // Don't include the primary type twice
+  referencedTypes.remove(primaryType);
 
-  // Build the type string
   final buffer = StringBuffer()..write(_formatTypeString(primaryType, fields));
 
   // Append referenced types in alphabetical order
@@ -177,7 +173,7 @@ void _findReferencedTypes(
   if (found.contains(typeName)) return;
 
   final fields = types[typeName];
-  if (fields == null) return; // Primitive type
+  if (fields == null) return;
 
   found.add(typeName);
 
@@ -224,7 +220,6 @@ String _encodeValue(
   dynamic value,
   Map<String, List<TypedDataField>> types,
 ) {
-  // Handle arrays
   if (type.endsWith('[]')) {
     final baseType = type.substring(0, type.length - 2);
     final array = value as List<dynamic>;
@@ -233,36 +228,30 @@ String _encodeValue(
     return Hex.fromBytes(keccak256(Hex.decode(combined)));
   }
 
-  // Handle custom struct types
   if (types.containsKey(type)) {
     return hashStruct(type, value as Map<String, dynamic>, types);
   }
 
-  // Handle primitive types
   return _encodePrimitive(type, value);
 }
 
 /// Encodes a primitive Solidity type.
 String _encodePrimitive(String type, dynamic value) {
-  // bytes (dynamic)
   if (type == 'bytes') {
     final hexValue = value as String;
     return Hex.fromBytes(keccak256(Hex.decode(hexValue)));
   }
 
-  // string
   if (type == 'string') {
     final stringValue = value as String;
     return _hashString(stringValue);
   }
 
-  // bool
   if (type == 'bool') {
     final boolValue = value as bool;
     return AbiEncoder.encodeUint256(boolValue ? BigInt.one : BigInt.zero);
   }
 
-  // address
   if (type == 'address') {
     if (value is EthereumAddress) {
       return AbiEncoder.encodeAddress(value);
@@ -270,7 +259,6 @@ String _encodePrimitive(String type, dynamic value) {
     return AbiEncoder.encodeAddress(EthereumAddress.fromHex(value as String));
   }
 
-  // bytes1 through bytes32
   if (type.startsWith('bytes') && type.length <= 7) {
     final size = int.tryParse(type.substring(5));
     if (size != null && size >= 1 && size <= 32) {
@@ -278,7 +266,6 @@ String _encodePrimitive(String type, dynamic value) {
     }
   }
 
-  // uint types (uint8, uint16, ..., uint256)
   if (type.startsWith('uint')) {
     if (value is BigInt) {
       return AbiEncoder.encodeUint256(value);
@@ -289,7 +276,6 @@ String _encodePrimitive(String type, dynamic value) {
     return AbiEncoder.encodeUint256(BigInt.parse(value.toString()));
   }
 
-  // int types (int8, int16, ..., int256)
   if (type.startsWith('int')) {
     BigInt bigValue;
     if (value is BigInt) {
@@ -299,7 +285,6 @@ String _encodePrimitive(String type, dynamic value) {
     } else {
       bigValue = BigInt.parse(value.toString());
     }
-    // Convert to two's complement for negative values
     if (bigValue < BigInt.zero) {
       bigValue = (BigInt.one << 256) + bigValue;
     }

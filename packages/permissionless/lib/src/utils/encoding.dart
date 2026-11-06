@@ -44,7 +44,6 @@ class AbiEncoder {
     final data = Hex.decode(hexData);
     final length = encodeUint256(BigInt.from(data.length));
 
-    // Pad data to 32-byte boundary
     final paddedLength = ((data.length + 31) ~/ 32) * 32;
     final paddedData = Uint8List(paddedLength)..setRange(0, data.length, data);
 
@@ -184,7 +183,6 @@ class AbiEncoder {
       if (isStatic) {
         staticParts.add(data);
       } else {
-        // Add offset pointer
         staticParts.add(encodeUint256(BigInt.from(dynamicOffset)));
         dynamicParts.add(data);
         dynamicOffset += Hex.byteLength(data);

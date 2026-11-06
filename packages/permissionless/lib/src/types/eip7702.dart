@@ -278,7 +278,6 @@ class Eip7702Authorization {
       'chainId': Hex.fromBigInt(chainId),
       'address': address.hex,
       'nonce': Hex.fromBigInt(nonce),
-      // yParity: 1 byte, properly padded
       'yParity': Hex.fromBigInt(BigInt.from(yParity), byteLength: 1),
       // r and s: 32 bytes each (already padded in sign())
       'r': r,

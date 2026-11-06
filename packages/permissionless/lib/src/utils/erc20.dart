@@ -174,7 +174,6 @@ BigInt decodeUint256Result(String hexResult) {
     return BigInt.zero;
   }
 
-  // Remove 0x prefix if present
   final hex = Hex.strip0x(hexResult);
   if (hex.isEmpty) {
     return BigInt.zero;
@@ -241,7 +240,6 @@ List<StateOverride> erc20AllowanceOverride({
   // This is: keccak256(spender . keccak256(owner . slot))
   // where '.' is concatenation
 
-  // First: keccak256(abi.encode(owner, slot))
   final ownerSlotData = Hex.decode(
     Hex.concat([
       AbiEncoder.encodeAddress(owner),
@@ -250,7 +248,6 @@ List<StateOverride> erc20AllowanceOverride({
   );
   final innerHash = keccak256(ownerSlotData);
 
-  // Then: keccak256(abi.encode(spender, innerHash))
   final spenderInnerData = Hex.decode(
     Hex.concat([
       AbiEncoder.encodeAddress(spender),
@@ -405,7 +402,6 @@ List<StateOverride> erc20PaymasterOverride({
 class Erc20StorageSlots {
   Erc20StorageSlots._();
 
-  // Balance slots
   /// OpenZeppelin ERC-20 balance slot (slot 0).
   static final BigInt openzeppelinBalance = BigInt.zero;
 
@@ -418,7 +414,6 @@ class Erc20StorageSlots {
   /// DAI balance slot (slot 2).
   static final BigInt daiBalance = BigInt.two;
 
-  // Allowance slots
   /// OpenZeppelin ERC-20 allowance slot (slot 1).
   static final BigInt openzeppelinAllowance = BigInt.one;
 

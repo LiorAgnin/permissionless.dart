@@ -39,7 +39,6 @@ class GasUnits {
   ///
   /// Example: `gweiToWei(50)` returns 50 * 10^9 wei
   static BigInt gweiToWei(num gwei) {
-    // Handle decimal gwei values by scaling up
     final scaledGwei = (gwei * 1e9).round();
     return BigInt.from(scaledGwei);
   }
@@ -53,7 +52,6 @@ class GasUnits {
   ///
   /// Example: `etherToWei(1.5)` returns 1.5 * 10^18 wei
   static BigInt etherToWei(num ether) {
-    // Handle decimal ether values by scaling up
     final scaledEther = (ether * 1e18).round();
     return BigInt.from(scaledEther);
   }
@@ -89,7 +87,6 @@ class GasUnits {
   static BigInt parse(String value) {
     final trimmed = value.trim().toLowerCase();
 
-    // Try to extract number and unit
     final match =
         RegExp(r'^([\d.]+)\s*(gwei|eth|ether|wei)?$').firstMatch(trimmed);
 
@@ -137,7 +134,6 @@ class GasUnits {
   /// Formats a decimal number with specified precision.
   static String _formatDecimal(double value, int decimals) {
     final str = value.toStringAsFixed(decimals);
-    // Remove trailing zeros after decimal point
     if (str.contains('.')) {
       var result = str.replaceAll(RegExp(r'0+$'), '');
       if (result.endsWith('.')) {
