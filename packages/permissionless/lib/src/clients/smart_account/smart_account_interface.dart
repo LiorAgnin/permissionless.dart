@@ -196,3 +196,14 @@ abstract class Eip7702SmartAccount implements SmartAccount {
   /// ```
   Future<Eip7702Authorization> getAuthorization({required BigInt nonce});
 }
+
+/// Capability of accounts whose first (deploying) UserOperation needs
+/// different call data than later ones, e.g. an ERC-7579 Safe whose launchpad
+/// must receive `setupSafe(initData)` wrapping the user's calls.
+///
+/// [SmartAccountClient] uses [encodeCallsForDeployment] whenever the
+/// UserOperation deploys the account, and [encodeCalls] otherwise.
+abstract interface class DeploymentCallsEncoder implements SmartAccount {
+  /// Encodes [calls] for the UserOperation that deploys this account.
+  String encodeCallsForDeployment(List<Call> calls);
+}
