@@ -1,3 +1,4 @@
+import '../../clients/bundler/bundler_client.dart';
 import '../../clients/bundler/types.dart';
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_client.dart';
@@ -229,8 +230,8 @@ extension Erc7579Actions on SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final hash = await installModule(
       type: type,
@@ -262,8 +263,8 @@ extension Erc7579Actions on SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final hash = await uninstallModule(
       type: type,

@@ -120,7 +120,7 @@ class PimlicoClient extends BundlerClient {
   Future<PimlicoUserOperationStatus> waitForUserOperationStatus(
     String userOpHash, {
     Duration timeout = const Duration(seconds: 60),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final deadline = DateTime.now().add(timeout);
 

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../../clients/bundler/bundler_client.dart';
 import '../../clients/bundler/types.dart';
 import '../../clients/bundler/user_operation_request.dart';
 import '../../clients/paymaster/types.dart';
@@ -132,7 +133,7 @@ extension PimlicoActions on SmartAccountClient {
     List<StateOverride>? stateOverride,
     EthereumAddress? entryPointAddress,
     Duration? timeout,
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final entryPointVersion = entryPointVersionOf(account.entryPoint);
     if (entryPointVersion != EntryPointVersion.v07 &&

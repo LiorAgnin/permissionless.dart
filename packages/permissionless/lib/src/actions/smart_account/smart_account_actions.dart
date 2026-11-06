@@ -1,3 +1,4 @@
+import '../../clients/bundler/bundler_client.dart';
 import '../../clients/bundler/types.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../types/address.dart';
@@ -84,7 +85,7 @@ extension SmartAccountActions on SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 120),
+    Duration timeout = defaultReceiptTimeout,
   }) async {
     final hash = await sendUserOperation(
       calls: [Call(to: to, value: value, data: data)],
@@ -142,7 +143,7 @@ extension SmartAccountActions on SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
-    Duration timeout = const Duration(seconds: 120),
+    Duration timeout = defaultReceiptTimeout,
   }) async {
     var callData = AbiEncoder.encodeFunctionData(functionSignature, args);
     if (dataSuffix != null && dataSuffix.isNotEmpty) {

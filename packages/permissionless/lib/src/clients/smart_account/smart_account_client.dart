@@ -612,8 +612,8 @@ class SmartAccountClient {
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
     List<StateOverride>? stateOverride,
   }) async {
@@ -644,8 +644,8 @@ class SmartAccountClient {
   /// Throws [TimeoutException] if the receipt is not found within [timeout].
   Future<UserOperationReceipt> waitForReceipt(
     String userOpHash, {
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) =>
       bundler.waitForUserOperationReceipt(
         userOpHash,
@@ -832,8 +832,8 @@ class SmartAccountClient {
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
   }) async {
     final hash = await sendUserOperationV06(
@@ -875,38 +875,34 @@ class SmartAccountClient {
       buffered = buffered.withMinimumVerificationGas();
     }
 
-    // For paymaster gas limits:
-    // 1. If userOp already has values (from paymaster stub), keep them
-    // 2. If userOp doesn't have values, use bundler estimate if reasonable
-    // 3. Filter out obviously wrong values (< 10000 gas is too low)
-    final minPaymasterGas = BigInt.from(10000);
-
-    var paymasterVerificationGas = userOp.paymasterVerificationGasLimit;
-    if (paymasterVerificationGas == null ||
-        paymasterVerificationGas < minPaymasterGas) {
-      final bundlerValue = buffered.paymasterVerificationGasLimit;
-      if (bundlerValue != null && bundlerValue >= minPaymasterGas) {
-        paymasterVerificationGas = bundlerValue;
-      }
-    }
-
-    var paymasterPostOpGas = userOp.paymasterPostOpGasLimit;
-    if (paymasterPostOpGas == null || paymasterPostOpGas < minPaymasterGas) {
-      final bundlerValue = buffered.paymasterPostOpGasLimit;
-      if (bundlerValue != null && bundlerValue >= minPaymasterGas) {
-        paymasterPostOpGas = bundlerValue;
-      }
-    }
-
     return userOp.copyWith(
       preVerificationGas:
           preservePreVerificationGas ?? buffered.preVerificationGas,
       verificationGasLimit:
           preserveVerificationGasLimit ?? buffered.verificationGasLimit,
       callGasLimit: preserveCallGasLimit ?? buffered.callGasLimit,
-      paymasterVerificationGasLimit: paymasterVerificationGas,
-      paymasterPostOpGasLimit: paymasterPostOpGas,
+      paymasterVerificationGasLimit: _paymasterGas(
+        userOp.paymasterVerificationGasLimit,
+        buffered.paymasterVerificationGasLimit,
+      ),
+      paymasterPostOpGasLimit: _paymasterGas(
+        userOp.paymasterPostOpGasLimit,
+        buffered.paymasterPostOpGasLimit,
+      ),
     );
+  }
+
+  /// Paymaster gas limits below this are treated as obviously wrong.
+  static final BigInt _minPaymasterGas = BigInt.from(10000);
+
+  /// The paymaster's own value (from stub data) unless it is missing or
+  /// implausibly low, in which case a plausible bundler estimate wins.
+  static BigInt? _paymasterGas(BigInt? fromPaymaster, BigInt? estimated) {
+    if (fromPaymaster != null && fromPaymaster >= _minPaymasterGas) {
+      return fromPaymaster;
+    }
+    if (estimated != null && estimated >= _minPaymasterGas) return estimated;
+    return fromPaymaster;
   }
 
   /// Applies gas estimates to a UserOperation v0.6 with multipliers.

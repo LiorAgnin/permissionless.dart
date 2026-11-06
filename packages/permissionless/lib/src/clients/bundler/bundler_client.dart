@@ -10,6 +10,12 @@ import 'rpc_client.dart';
 import 'types.dart';
 import 'user_operation_request.dart';
 
+/// How long receipt-waiting helpers wait by default (viem parity).
+const Duration defaultReceiptTimeout = Duration(seconds: 120);
+
+/// How often receipt-waiting helpers poll the bundler by default.
+const Duration defaultReceiptPollingInterval = Duration(seconds: 2);
+
 /// Client for interacting with ERC-4337 bundlers.
 ///
 /// Provides methods to submit, estimate, and track UserOperations
@@ -198,8 +204,8 @@ class BundlerClient {
   /// Throws [TimeoutException] if the receipt is not found within [timeout].
   Future<UserOperationReceipt> waitForUserOperationReceipt(
     String userOpHash, {
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final deadline = DateTime.now().add(timeout);
 
