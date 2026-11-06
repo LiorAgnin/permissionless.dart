@@ -380,8 +380,8 @@ void main() {
         );
       });
 
-      // viem 2.21.55 encodePacked, as in permissionless.js encodeExecutionMode:
-      //   /Users/liorag/.claude/jobs/037f9518/tmp/t1/viem/erc7579.ts
+      // viem 2.21.55 encodePacked(['bytes1', 'bytes1', 'bytes4', 'bytes4',
+      // 'bytes22'], …), as in permissionless.js encodeExecutionMode.
       test('right-pads a short selector into bytes 6-9', () {
         expect(
           const ExecutionMode(

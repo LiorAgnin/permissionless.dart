@@ -43,8 +43,8 @@ void main() {
       '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d';
 
   // ---- permissionless.js fixtures ----
-  // From /Users/liorag/.claude/jobs/037f9518/tmp/t2/safe.ts: permissionless.js
-  // toSafeSmartAccount (viem 2.21.55), owners = [privateKeyToAccount(
+  // permissionless.js 0.5.2 (source at a536891) toSafeSmartAccount
+  // (viem 2.21.55), owners = [privateKeyToAccount(
   // testPrivateKey)], version 1.4.1, EntryPoint v0.7, chainId 1, saltNonce 0
   // unless noted. proxyCreationCode() is answered with the mainnet value of
   // the v1.4.1 / v1.5.0 SafeProxyFactory (eth_call 0x53e5d935 via

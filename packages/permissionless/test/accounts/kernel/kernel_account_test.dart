@@ -18,8 +18,8 @@ void main() {
       EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
   // ---- permissionless.js fixtures ----
-  // From /Users/liorag/.claude/jobs/037f9518/tmp/t2/kernel.ts:
-  // permissionless.js toKernelSmartAccount with viem 2.21.55, owner =
+  // permissionless.js 0.5.2 (source at a536891) toKernelSmartAccount with
+  // viem 2.21.55, owner =
   // privateKeyToAccount(testPrivateKey), address = mockAddress, chainId 1.
   //   jsFactoryDataV031Index123 = v0.3.1, index: 123n, getFactoryArgs()
   //     (lower-cased; viem keeps checksummed addresses inside packed bytes)
