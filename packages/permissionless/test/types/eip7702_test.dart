@@ -74,6 +74,27 @@ void main() {
     }
   });
 
+  // viem serializes a signed authorization with `yParity`, never `v`
+  // (account-abstraction/utils/formatters/userOperationRequest.ts
+  // formatAuthorization; utils/formatters/transactionRequest.ts falls back
+  // to `v` only when yParity is absent). chainId: `cast to-hex 11155111`.
+  test('toJson uses the yParity wire shape, not v', () async {
+    final auth = await Eip7702Authorization.sign(
+      chainId: BigInt.from(11155111),
+      contractAddress: _delegate,
+      nonce: BigInt.from(7),
+      privateKey: _privateKey,
+    );
+    expect(auth.toJson(), {
+      'chainId': '0xaa36a7',
+      'address': '0xe6cdaa14c4d8a1f0dd8bb2c0b1b4d8e0bff4e8f6',
+      'nonce': '0x7',
+      'yParity': vectors[4].yParity,
+      'r': vectors[4].r,
+      's': vectors[4].s,
+    });
+  });
+
   group('toRpcFormat', () {
     // Wallets (viem signAuthorization, eth_signAuthorization) report the
     // recovery id as yParity 0/1; the constructor documents v as the
