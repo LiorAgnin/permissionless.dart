@@ -217,40 +217,21 @@ final result = await account.sign(hash: '0x...');
 // Returns WebAuthnSignReturnType with signature and metadata
 ```
 
-### Encoding Functions
+### Signature Encoding
 
-#### Kernel Signatures
-
-```dart
-// Encode a WebAuthn signature for Kernel
-final encoded = encodeKernelWebAuthnSignature(
-  authenticatorData: '0x...',
-  clientDataJSON: '{"type":"webauthn.get",...}',
-  responseTypeLocation: BigInt.from(1),
-  r: BigInt.parse('...'),
-  s: BigInt.parse('...'),
-  usePrecompile: true,
-);
-
-// Get dummy signature for gas estimation
-final dummy = getDummyKernelWebAuthnSignature(usePrecompile: true);
-```
-
-#### Safe Signatures
+Kernel and Safe WebAuthn signature encoders live in core
+`package:permissionless`, and the smart accounts call them for you. To encode
+a signature yourself, pass the account's `P256SignatureData`:
 
 ```dart
-// Encode a WebAuthn signature for Safe
-final encoded = encodeSafeWebAuthnSignature(
-  authenticatorData: '0x...',
-  clientDataFields: '"challenge":"..."',
-  r: BigInt.parse('...'),
-  s: BigInt.parse('...'),
-  validAfter: BigInt.zero,
-  validUntil: BigInt.zero,
-);
+final p256 = await account.signP256(userOpHash);
 
-// Get dummy signature for gas estimation
-final dummy = getDummySafeWebAuthnSignature();
+final kernelSignature = encodeKernelWebAuthnSignature(p256);
+final safeSignature = encodeSafeWebAuthnSignature(p256);
+
+// Dummy signatures for gas estimation
+final kernelDummy = getDummyKernelWebAuthnSignature();
+final safeDummy = getDummySafeWebAuthnSignature();
 ```
 
 ## Platform Setup
@@ -309,7 +290,7 @@ dart test
 ```
 
 The package includes comprehensive tests for:
-- Signature encoding (Kernel and Safe formats)
+- Signing (raw hash, personal message, typed data)
 - Credential serialization
 - Account configuration
 - Address computation
@@ -323,9 +304,6 @@ lib/
     ├── accounts/
     │   ├── webauthn_account.dart         # WebAuthnAccount abstract class
     │   └── to_webauthn_account.dart      # toWebAuthnAccount factory
-    ├── encoding/
-    │   ├── kernel_encoding.dart          # Kernel signature ABI
-    │   └── safe_encoding.dart            # Safe signature ABI
     ├── types/
     │   └── webauthn_credential.dart      # Credential wrapper
     └── factory.dart                      # Convenience factory functions
