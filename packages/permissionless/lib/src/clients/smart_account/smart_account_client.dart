@@ -161,13 +161,6 @@ class SmartAccountClient {
     return eip7702.getAuthorization(nonce: eoaNonce);
   }
 
-  /// EIP-7702 factory marker address.
-  ///
-  /// Used to signal to the bundler that this UserOperation requires
-  /// EIP-7702 authorization handling. Matches viem's `factory: "0x7702"`
-  /// (stored as the padded 20-byte form; serialized short in RPC JSON).
-  static final _eip7702FactoryMarker = eip7702FactoryMarkerAddress;
-
   /// Prepares a UserOperation without signing.
   ///
   /// This builds the UserOperation, applies paymaster stub data (if using),
@@ -307,7 +300,7 @@ class SmartAccountClient {
         // Pimlico rejects factory when the sender is already constructed, and
         // auth alone is enough to re-point the delegation.
         if (!isDeployed) {
-          resolvedFactory = _eip7702FactoryMarker;
+          resolvedFactory = eip7702FactoryMarkerAddress;
           resolvedFactoryData = '0x';
         }
       } else if (!isDeployed) {
@@ -921,20 +914,19 @@ class SmartAccountClient {
 /// ```dart
 /// final client = createSmartAccountClient(
 ///   account: safeAccount,
-///   bundlerUrl: 'https://bundler.example.com/rpc',
-///   paymasterUrl: 'https://paymaster.example.com/rpc', // optional
+///   bundler: createBundlerClient(
+///     url: 'https://bundler.example.com/rpc',
+///     entryPoint: safeAccount.entryPoint,
+///   ),
+///   publicClient: createPublicClient(url: 'https://rpc.example.com'),
+///   paymaster: createPaymasterClient(
+///     url: 'https://paymaster.example.com/rpc',
+///   ), // optional
 /// );
 /// ```
 ///
-/// For EIP-7702 accounts, provide a [publicClient] to enable automatic
-/// delegation detection and authorization handling:
-/// ```dart
-/// final client = createSmartAccountClient(
-///   account: eip7702Account,
-///   bundler: bundlerClient,
-///   publicClient: publicClient, // required for EIP-7702
-/// );
-/// ```
+/// [publicClient] reads nonces and deployment state; for EIP-7702 accounts it
+/// also detects whether the EOA is already delegated.
 SmartAccountClient createSmartAccountClient({
   required SmartAccount account,
   required BundlerClient bundler,
