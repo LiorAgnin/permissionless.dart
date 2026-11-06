@@ -338,33 +338,32 @@ class SafeSmartAccount
   /// Resolves proxy creation code for CREATE2 derivation.
   ///
   /// When a [SafeSmartAccountConfig.publicClient] is configured, reads
-  /// `proxyCreationCode()` from the configured SafeProxyFactory (matching
-  /// permissionless.js). Falls back to the canonical code for the configured
-  /// [SafeVersion] when no client is available or the RPC call fails.
+  /// `proxyCreationCode()` from the configured SafeProxyFactory and lets any
+  /// RPC error propagate (permissionless.js reads it with `readContract`).
+  /// Without a client, uses the canonical code for the configured
+  /// [SafeVersion], which is only right for the canonical factory.
+  ///
+  /// Throws [StateError] when the factory returns no code.
   Future<String> _getProxyCreationCode() async {
-    if (_cachedProxyCreationCode != null) {
-      return _cachedProxyCreationCode!;
-    }
+    if (_cachedProxyCreationCode case final cached?) return cached;
 
     final client = _config.publicClient;
-    if (client != null) {
-      try {
-        final result = await client.call(
-          Call(
-            to: _addresses.safeProxyFactoryAddress,
-            data: SafeSelectors.proxyCreationCode,
-          ),
-        );
-        final code = _decodeReturnedBytes(result);
-        if (code.length > 2) {
-          return _cachedProxyCreationCode = code;
-        }
-      } catch (_) {
-        // Fall back to the canonical code below.
-      }
+    if (client == null) {
+      return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
     }
-
-    return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
+    final factory = _addresses.safeProxyFactoryAddress;
+    final result = await client.call(
+      Call(to: factory, data: SafeSelectors.proxyCreationCode),
+    );
+    final code =
+        Hex.byteLength(result) == 0 ? '0x' : _decodeReturnedBytes(result);
+    if (Hex.byteLength(code) == 0) {
+      throw StateError(
+        'SafeProxyFactory ${factory.hex} returned no proxyCreationCode(); '
+        'is the factory deployed on chain ${_config.chainId}?',
+      );
+    }
+    return _cachedProxyCreationCode = code;
   }
 
   /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
