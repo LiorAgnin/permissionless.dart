@@ -17,11 +17,12 @@ const _p256TestX =
 const _p256TestY =
     '0xc7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e';
 
-/// Cache of RIP-7212 support results, keyed by chain ID.
-///
-/// Precompile support is immutable for a given chain, so results are
-/// cached for the lifetime of the application.
+/// Probe answers by chain ID. Precompile support does not change for a
+/// chain, so an answer is kept for the lifetime of the application.
 final Map<int, bool> _rip7212Cache = {};
+
+/// Chain ID of each client already asked, so a cached answer costs no RPC.
+var _clientChainIds = Expando<int>();
 
 /// Dynamically checks if the connected chain supports the RIP-7212 P256 precompile.
 ///
@@ -29,8 +30,10 @@ final Map<int, bool> _rip7212Cache = {};
 /// test vector. Returns `true` if the precompile exists and verifies
 /// the signature correctly.
 ///
-/// Results are cached per chain ID — precompile support is immutable
-/// for a given chain, so the expensive RPC call only happens once.
+/// The answer is cached per chain ID once the precompile call returns:
+/// precompile support is immutable for a given chain, so the probe runs
+/// once. A call that fails (timeout, HTTP or JSON-RPC error) returns `false`
+/// without caching it, so the next call probes again.
 ///
 /// This is more reliable than the static [supportsRip7212] check since
 /// it detects support on any chain, including new chains not yet in
@@ -45,38 +48,34 @@ final Map<int, bool> _rip7212Cache = {};
 /// }
 /// ```
 Future<bool> isRip7212Supported(PublicClient client) async {
-  final chainId = (await client.getChainId()).toInt();
+  final chainId = _clientChainIds[client] ??
+      (_clientChainIds[client] = (await client.getChainId()).toInt());
 
-  if (_rip7212Cache.containsKey(chainId)) {
-    return _rip7212Cache[chainId]!;
-  }
+  final cached = _rip7212Cache[chainId];
+  if (cached != null) return cached;
 
-  // Precompile input: hash || r || s || x || y (5 × 32 bytes = 160 bytes)
-  final calldata = Hex.concat([
-    _p256TestHash,
-    _p256TestR,
-    _p256TestS,
-    _p256TestX,
-    _p256TestY,
-  ]);
-
+  final bool supported;
   try {
     final result = await client.call(
       Call(
         to: EthereumAddress.fromHex(p256PrecompileAddress),
-        data: calldata,
+        // Precompile input: hash ‖ r ‖ s ‖ x ‖ y.
+        data: Hex.concat([
+          _p256TestHash,
+          _p256TestR,
+          _p256TestS,
+          _p256TestX,
+          _p256TestY,
+        ]),
       ),
     );
-
-    // Success: precompile returns uint256(1) for valid signature
-    final supported = Hex.toBigInt(result) == BigInt.one;
-    _rip7212Cache[chainId] = supported;
-    return supported;
+    // Without the precompile the call hits an empty account and returns
+    // `0x`; only a deployed precompile returns uint256(1).
+    supported = Hex.toBigInt(result) == BigInt.one;
   } on Exception {
-    // Reverts or empty response → precompile not deployed on this chain
-    _rip7212Cache[chainId] = false;
     return false;
   }
+  return _rip7212Cache[chainId] = supported;
 }
 
 /// Clears the cached RIP-7212 support results.
@@ -84,4 +83,7 @@ Future<bool> isRip7212Supported(PublicClient client) async {
 /// Primarily useful for testing. In production, the cache is valid
 /// for the lifetime of the application since precompile support
 /// doesn't change for a given chain.
-void clearRip7212Cache() => _rip7212Cache.clear();
+void clearRip7212Cache() {
+  _rip7212Cache.clear();
+  _clientChainIds = Expando<int>();
+}
