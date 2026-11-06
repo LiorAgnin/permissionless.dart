@@ -2,9 +2,9 @@ import 'package:http/http.dart' as http;
 
 import '../../types/address.dart';
 import '../../types/hex.dart';
+import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
-import '../../utils/parsing.dart';
 import '../bundler/rpc_client.dart';
 import 'types.dart';
 

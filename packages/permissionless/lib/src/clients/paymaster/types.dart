@@ -1,5 +1,5 @@
 import '../../types/address.dart';
-import '../../utils/parsing.dart';
+import '../../types/parsing.dart';
 
 /// Response from pm_getPaymasterStubData.
 ///

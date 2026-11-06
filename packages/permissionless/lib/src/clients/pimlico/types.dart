@@ -1,5 +1,5 @@
 import '../../types/address.dart';
-import '../../utils/parsing.dart';
+import '../../types/parsing.dart';
 import '../bundler/types.dart';
 
 /// Detailed status of a UserOperation from Pimlico.

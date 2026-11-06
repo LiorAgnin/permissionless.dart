@@ -1,4 +1,4 @@
-import '../utils/parsing.dart';
+import 'parsing.dart';
 
 /// Status of a batch call operation (ERC-5792).
 enum CallsStatusType {

@@ -1,6 +1,6 @@
-import '../clients/bundler/types.dart';
 import '../types/address.dart';
 import '../types/user_operation.dart';
+import '../types/user_operation_gas_estimate.dart';
 
 /// Speed tier for gas price estimation.
 enum GasSpeed {

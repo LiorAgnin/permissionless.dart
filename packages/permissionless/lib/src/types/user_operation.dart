@@ -1,7 +1,7 @@
-import '../utils/parsing.dart';
 import 'address.dart';
 import 'eip7702.dart';
 import 'hex.dart';
+import 'parsing.dart';
 
 /// EntryPoint contract version for ERC-4337.
 ///
