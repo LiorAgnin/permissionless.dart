@@ -44,6 +44,7 @@ export 'src/clients/pimlico/pimlico.dart';
 export 'src/clients/public/public.dart';
 export 'src/clients/smart_account/smart_account.dart';
 export 'src/constants/entry_point.dart';
+export 'src/errors/errors.dart';
 // Experimental (API may change)
 export 'src/experimental/experimental.dart';
 export 'src/types/address.dart';
