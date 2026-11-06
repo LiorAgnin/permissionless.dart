@@ -160,16 +160,12 @@ class PimlicoClient extends BundlerClient {
     final result = await rpcClient.call(
       'pimlico_getTokenQuotes',
       [
-        // First param: object with tokens array
         {'tokens': tokens.map((t) => t.hex).toList()},
-        // Second param: entryPoint address
         entryPoint.hex,
-        // Third param: chainId in hex
         Hex.fromBigInt(chain),
       ],
     );
 
-    // API returns { quotes: [...] }
     final quotes = (result as Map<String, dynamic>)['quotes'] as List<dynamic>;
     return quotes
         .cast<Map<String, dynamic>>()
@@ -190,24 +186,8 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoSupportedToken>> getSupportedTokens() async {
-    final result = await rpcClient.call(
-      'pimlico_getSupportedTokens',
-      [],
-    );
-
-    // API returns a list directly
-    if (result is List) {
-      return result
-          .cast<Map<String, dynamic>>()
-          .map(PimlicoSupportedToken.fromJson)
-          .toList();
-    }
-
-    // Fallback for wrapped response format
-    final tokens = result['tokens'] as List<dynamic>?;
-    if (tokens == null) return [];
-
-    return tokens
+    final result = await rpcClient.call('pimlico_getSupportedTokens', []);
+    return (result as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .map(PimlicoSupportedToken.fromJson)
         .toList();

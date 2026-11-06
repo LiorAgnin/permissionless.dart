@@ -276,6 +276,61 @@ void main() {
         expect(params[2], equals(EntryPointAddresses.v06.hex));
       });
     });
+
+    group('getSupportedTokens', () {
+      test('parses the documented bare-array result', () async {
+        // Response example from
+        // https://docs.pimlico.io/references/paymaster/erc20-paymaster/endpoints/pimlico_getSupportedTokens
+        client = createPimlicoClient(
+          url: 'http://localhost:8545',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createMockClient(
+            (_) => [
+              {
+                'name': 'Dai Stablecoin',
+                'decimals': 18,
+                'symbol': 'DAI',
+                'token': '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+              },
+              {
+                'name': 'USD Coin',
+                'decimals': 6,
+                'symbol': 'USDC',
+                'token': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+              },
+            ],
+          ),
+        );
+
+        final tokens = await client.getSupportedTokens();
+
+        expect(capturedRequests.single['method'], 'pimlico_getSupportedTokens');
+        expect(capturedRequests.single['params'], isEmpty);
+        expect(tokens, hasLength(2));
+        expect(tokens[0].name, 'Dai Stablecoin');
+        expect(tokens[0].symbol, 'DAI');
+        expect(tokens[0].decimals, 18);
+        expect(
+          tokens[0].token,
+          EthereumAddress.fromHex('0x6B175474E89094C44Da98b954EedeAC495271d0F'),
+        );
+        expect(tokens[1].symbol, 'USDC');
+        expect(tokens[1].decimals, 6);
+      });
+
+      test('an undocumented non-array result is an error, not []', () async {
+        client = createPimlicoClient(
+          url: 'http://localhost:8545',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createMockClient((_) => {'unexpected': true}),
+        );
+
+        await expectLater(
+          client.getSupportedTokens(),
+          throwsA(isA<TypeError>()),
+        );
+      });
+    });
   });
 
   group('PimlicoUserOperationStatus', () {
