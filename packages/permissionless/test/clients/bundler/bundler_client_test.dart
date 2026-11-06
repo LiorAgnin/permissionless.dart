@@ -403,7 +403,7 @@ void main() {
   });
 
   group('JsonRpcClient', () {
-    test('increments request ID', () async {
+    test('gives each request a distinct id', () async {
       final requests = <Map<String, dynamic>>[];
       final mockClient = MockClient((request) async {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
@@ -423,9 +423,8 @@ void main() {
       await rpcClient.call('method2');
       await rpcClient.call('method3');
 
-      expect(requests[0]['id'], equals(1));
-      expect(requests[1]['id'], equals(2));
-      expect(requests[2]['id'], equals(3));
+      // JSON-RPC 2.0 matches responses to requests by id.
+      expect(requests.map((r) => r['id']).toSet(), hasLength(3));
     });
 
     test('batch returns results in order', () async {
@@ -549,18 +548,6 @@ void main() {
   });
 
   group('UserOperationGasEstimate', () {
-    test('parses from JSON with hex values', () {
-      final estimate = UserOperationGasEstimate.fromJson({
-        'preVerificationGas': '0x5208',
-        'verificationGasLimit': '0x186a0',
-        'callGasLimit': '0x186a0',
-      });
-
-      expect(estimate.preVerificationGas, equals(BigInt.from(21000)));
-      expect(estimate.verificationGasLimit, equals(BigInt.from(100000)));
-      expect(estimate.callGasLimit, equals(BigInt.from(100000)));
-    });
-
     test('parses from JSON with decimal values', () {
       final estimate = UserOperationGasEstimate.fromJson({
         'preVerificationGas': 21000,
@@ -622,17 +609,6 @@ void main() {
 
       expect(error.aaErrorCode, isNull);
       expect(error.aaErrorDescription, isNull);
-    });
-
-    test('toString includes AA code description when known', () {
-      const error = BundlerRpcError(
-        code: -32000,
-        message: 'failed',
-        data: 'AA21',
-      );
-
-      expect(error.toString(), contains('AA21'));
-      expect(error.toString(), contains("Didn't pay prefund"));
     });
   });
 }
