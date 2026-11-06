@@ -1427,5 +1427,222 @@ void main() {
         expect(str, contains('calls:'));
       });
     });
+
+    // Independent vectors from Foundry cast 1.5.1, ERC-7579 mode layout
+    // callType(1) execType(1) unused(4) selector(4) payload(22):
+    //   cast abi-encode --packed 'f(bytes1,bytes1,bytes4,bytes4,bytes22)' \
+    //     <callType> <execType> 0x00000000 <selector> <payload>
+    group('mode word characterization (cast)', () {
+      const modeWords = <(Erc7579CallKind, int, String)>[
+        (
+          Erc7579CallKind.call,
+          Erc7579ExecType.defaultExec,
+          '0x0000000000000000000000000000000000000000000000000000000000000000',
+        ),
+        (
+          Erc7579CallKind.call,
+          Erc7579ExecType.tryExec,
+          '0x0001000000000000000000000000000000000000000000000000000000000000',
+        ),
+        (
+          Erc7579CallKind.batchCall,
+          Erc7579ExecType.defaultExec,
+          '0x0100000000000000000000000000000000000000000000000000000000000000',
+        ),
+        (
+          Erc7579CallKind.batchCall,
+          Erc7579ExecType.tryExec,
+          '0x0101000000000000000000000000000000000000000000000000000000000000',
+        ),
+        (
+          Erc7579CallKind.delegateCall,
+          Erc7579ExecType.defaultExec,
+          '0xff00000000000000000000000000000000000000000000000000000000000000',
+        ),
+        (
+          Erc7579CallKind.delegateCall,
+          Erc7579ExecType.tryExec,
+          '0xff01000000000000000000000000000000000000000000000000000000000000',
+        ),
+      ];
+
+      test('encode7579ExecuteMode matches every (callType, execType)', () {
+        for (final (kind, execType, expected) in modeWords) {
+          expect(
+            encode7579ExecuteMode(callType: kind.value, execType: execType),
+            equals(expected),
+            reason: '$kind execType=$execType',
+          );
+        }
+      });
+
+      test('ExecutionMode.encode matches every (callType, execType)', () {
+        for (final (kind, execType, expected) in modeWords) {
+          expect(
+            ExecutionMode(
+              type: kind,
+              revertOnError: execType == Erc7579ExecType.tryExec,
+            ).encode(),
+            equals(expected),
+            reason: '$kind execType=$execType',
+          );
+        }
+      });
+
+      test('ExecutionMode.encode places selector and payload', () {
+        // cast abi-encode --packed 'f(bytes1,bytes1,bytes4,bytes4,bytes22)' \
+        //   0x01 0x01 0x00000000 0xaabbccdd \
+        //   0x11223344556677889900112233445566778899001122
+        expect(
+          const ExecutionMode(
+            type: Erc7579CallKind.batchCall,
+            revertOnError: true,
+            selector: '0xaabbccdd',
+            context: '0x11223344556677889900112233445566778899001122',
+          ).encode(),
+          equals(
+            '0x010100000000aabbccdd11223344556677889900112233445566778899001122',
+          ),
+        );
+      });
+
+      // permissionless.js `encodeExecutionMode` throws (viem SizeOverflowError)
+      // for a selector over 4 bytes or a context over 22 bytes.
+      test('ExecutionMode.encode rejects a selector over 4 bytes', () {
+        expect(
+          () => const ExecutionMode(
+            type: Erc7579CallKind.call,
+            selector: '0xaabbccddee',
+          ).encode(),
+          throwsArgumentError,
+        );
+      });
+
+      test('ExecutionMode.encode rejects a context over 22 bytes', () {
+        expect(
+          () => ExecutionMode(
+            type: Erc7579CallKind.call,
+            context: '0x${'11' * 23}',
+          ).encode(),
+          throwsArgumentError,
+        );
+      });
+
+      test('encode7579ExecuteMode rejects a callType or execType over 1 byte',
+          () {
+        expect(
+          () => encode7579ExecuteMode(callType: 0x100),
+          throwsArgumentError,
+        );
+        expect(() => encode7579ExecuteMode(callType: -1), throwsArgumentError);
+        expect(
+          () => encode7579ExecuteMode(execType: 0x101),
+          throwsArgumentError,
+        );
+      });
+
+      test('Erc7579CallKind and Erc7579CallType carry the same bytes', () {
+        expect(Erc7579CallKind.call.value, Erc7579CallType.call);
+        expect(Erc7579CallKind.batchCall.value, Erc7579CallType.batchCall);
+        expect(
+          Erc7579CallKind.delegateCall.value,
+          Erc7579CallType.delegateCall,
+        );
+      });
+    });
+
+    group('execute calldata characterization (cast)', () {
+      final to = EthereumAddress.fromHex(
+        '0x1111111111111111111111111111111111111111',
+      );
+      final to2 = EthereumAddress.fromHex(
+        '0x2222222222222222222222222222222222222222',
+      );
+      final single = Call(
+        to: to,
+        value: BigInt.parse('1000000000000000000'),
+        data: '0xdeadbeef',
+      );
+
+      // SINGLE=$(cast abi-encode --packed 'f(address,uint256,bytes)' \
+      //   0x1111111111111111111111111111111111111111 1000000000000000000 \
+      //   0xdeadbeef)
+      // cast calldata 'execute(bytes32,bytes)' <mode 0x00..00> $SINGLE
+      test('encode7579Execute', () {
+        expect(
+          encode7579Execute(single),
+          equals(
+            '0xe9ae5c53'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '0000000000000000000000000000000000000000000000000000000000000038'
+            '1111111111111111111111111111111111111111'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            'deadbeef0000000000000000',
+          ),
+        );
+      });
+
+      // cast calldata 'execute(bytes32,bytes)' <mode 0xff00..00> $SINGLE
+      test('encode7579ExecuteDelegateCall', () {
+        expect(
+          encode7579ExecuteDelegateCall(single),
+          equals(
+            '0xe9ae5c53'
+            'ff00000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '0000000000000000000000000000000000000000000000000000000000000038'
+            '1111111111111111111111111111111111111111'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            'deadbeef0000000000000000',
+          ),
+        );
+      });
+
+      // BATCH=$(cast abi-encode 'f((address,uint256,bytes)[])' \
+      //   "[(0x1111111111111111111111111111111111111111,1000000000000000000,0xdeadbeef),(0x2222222222222222222222222222222222222222,0,0x)]")
+      // cast calldata 'execute(bytes32,bytes)' <mode 0x0100..00> $BATCH
+      test('encode7579ExecuteBatch', () {
+        expect(
+          encode7579ExecuteBatch([single, Call(to: to2)]),
+          equals(
+            '0xe9ae5c53'
+            '0100000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '00000000000000000000000000000000000000000000000000000000000001a0'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '0000000000000000000000000000000000000000000000000000000000000002'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '00000000000000000000000000000000000000000000000000000000000000e0'
+            '0000000000000000000000001111111111111111111111111111111111111111'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            '0000000000000000000000000000000000000000000000000000000000000060'
+            '0000000000000000000000000000000000000000000000000000000000000004'
+            'deadbeef00000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000002222222222222222222222222222222222222222'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000060'
+            '0000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
+      });
+
+      // cast calldata 'supportsExecutionMode(bytes32)' \
+      //   0x0101000000000000000000000000000000000000000000000000000000000000
+      test('encode7579SupportsExecutionMode', () {
+        expect(
+          encode7579SupportsExecutionMode(
+            const ExecutionMode(
+              type: Erc7579CallKind.batchCall,
+              revertOnError: true,
+            ),
+          ),
+          equals(
+            '0xd03c7914'
+            '0101000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
+      });
+    });
   });
 }
