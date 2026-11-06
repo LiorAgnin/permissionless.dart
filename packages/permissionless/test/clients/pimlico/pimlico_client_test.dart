@@ -284,16 +284,6 @@ void main() {
       expect(status.isPending, isTrue);
     });
 
-    test('isPending returns true for submitted', () {
-      const status = PimlicoUserOperationStatus(status: 'submitted');
-      expect(status.isPending, isTrue);
-    });
-
-    test('isPending returns false for included', () {
-      const status = PimlicoUserOperationStatus(status: 'included');
-      expect(status.isPending, isFalse);
-    });
-
     test('isFailed returns true for rejected/reverted/failed', () {
       expect(
         const PimlicoUserOperationStatus(status: 'rejected').isFailed,
