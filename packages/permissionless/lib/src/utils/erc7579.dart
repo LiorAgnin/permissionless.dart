@@ -98,8 +98,16 @@ class Erc7579Selectors {
   static const String supportsExecutionMode = '0xd03c7914';
 }
 
-/// `execute(bytes32 mode, bytes executionCalldata)`.
+// Solidity signatures behind [Erc7579Selectors]; encoders and decoders go
+// through these.
 const String _executeSignature = 'execute(bytes32,bytes)';
+const String _installModuleSignature = 'installModule(uint256,address,bytes)';
+const String _uninstallModuleSignature =
+    'uninstallModule(uint256,address,bytes)';
+const String _isModuleInstalledSignature =
+    'isModuleInstalled(uint256,address,bytes)';
+const String _supportsModuleSignature = 'supportsModule(uint256)';
+const String _supportsExecutionModeSignature = 'supportsExecutionMode(bytes32)';
 
 /// ERC-7579 batch execution calldata: `abi.encode(Execution[])`.
 const String _executionsAbi = '(address,uint256,bytes)[]';
@@ -109,13 +117,13 @@ const String _executionsAbi = '(address,uint256,bytes)[]';
 /// Determines how the execution calldata is interpreted.
 enum Erc7579CallKind {
   /// Single call execution (target, value, calldata packed).
-  call(0x00),
+  call(Erc7579CallType.call),
 
   /// Batch call execution (array of Execution structs).
-  batchCall(0x01),
+  batchCall(Erc7579CallType.batchCall),
 
   /// Delegate call execution (target, calldata only, no value).
-  delegateCall(0xff);
+  delegateCall(Erc7579CallType.delegateCall);
 
   const Erc7579CallKind(this.value);
 
@@ -123,18 +131,10 @@ enum Erc7579CallKind {
   final int value;
 
   /// Creates from a byte value.
-  static Erc7579CallKind fromValue(int value) {
-    switch (value) {
-      case 0x00:
-        return Erc7579CallKind.call;
-      case 0x01:
-        return Erc7579CallKind.batchCall;
-      case 0xff:
-        return Erc7579CallKind.delegateCall;
-      default:
-        throw ArgumentError('Unknown call type: $value');
-    }
-  }
+  static Erc7579CallKind fromValue(int value) => values.firstWhere(
+        (kind) => kind.value == value,
+        orElse: () => throw ArgumentError('Unknown call type: $value'),
+      );
 }
 
 /// Execution mode configuration for ERC-7579 accounts.
@@ -214,16 +214,8 @@ class ExecutionMode {
   /// - Bytes 10-31: context (or zeros)
   String encode() {
     final mode = Uint8List(32);
-
-    // Byte 0: Call type
     mode[0] = type.value;
-
-    // Byte 1: Exec type — permissionless.js: revertOnError ? 0x01 : 0x00
     mode[1] = revertOnError ? 0x01 : 0x00;
-
-    // Bytes 2-5: Reserved (already zeros)
-
-    // Bytes 6-9: Selector (4 bytes)
     if (selector != null && selector!.isNotEmpty && selector != '0x') {
       final selectorBytes = Hex.decode(selector!);
       final len = selectorBytes.length.clamp(0, 4);
@@ -231,8 +223,6 @@ class ExecutionMode {
         mode[6 + i] = selectorBytes[i];
       }
     }
-
-    // Bytes 10-31: Context (22 bytes)
     if (context != null && context!.isNotEmpty && context != '0x') {
       final contextBytes = Hex.decode(context!);
       final len = contextBytes.length.clamp(0, 22);
@@ -264,7 +254,6 @@ String encode7579ExecuteMode({
   final mode = Uint8List(32);
   mode[0] = callType;
   mode[1] = execType;
-  // Remaining bytes are already zero
   return Hex.fromBytes(mode);
 }
 
@@ -288,85 +277,18 @@ String encode7579BatchCallData(List<Call> calls) {
   if (calls.isEmpty) {
     throw ArgumentError('At least one call is required for batch execution');
   }
-
-  // Each Execution struct has 3 fields (address, uint256, bytes)
-  // The bytes field is dynamic, so we need offset pointers
-
-  // First, calculate the offset to the array data
-  const arrayOffset = 32; // Single parameter (array)
-
-  // Array length
-  final arrayLength = AbiEncoder.encodeUint256(BigInt.from(calls.length));
-
-  // Calculate offsets for each Execution struct
-  // Each struct starts with offset to its data
-  final structOffsets = <String>[];
-  final structData = <String>[];
-
-  // Base offset starts after array length and all struct offsets
-  var currentOffset = calls.length * 32;
-
-  for (final call in calls) {
-    // Add offset to this struct
-    structOffsets.add(AbiEncoder.encodeUint256(BigInt.from(currentOffset)));
-
-    // Encode the struct: (address, uint256, bytes)
-    final encodedStruct = _encodeExecutionStruct(call);
-    structData.add(encodedStruct);
-
-    // Update offset for next struct
-    currentOffset += Hex.byteLength(encodedStruct);
-  }
-
-  return Hex.concat([
-    // Offset to array
-    AbiEncoder.encodeUint256(BigInt.from(arrayOffset)),
-    // Array length
-    arrayLength,
-    // Struct offsets
-    ...structOffsets,
-    // Struct data
-    ...structData,
-  ]);
-}
-
-/// Encodes a single Execution struct for batch calls.
-///
-/// Format: (address target, uint256 value, bytes callData)
-String _encodeExecutionStruct(Call call) {
-  final callDataEncoded = AbiEncoder.encodeBytes(call.data);
-
-  // Struct has 3 fields: address (static), uint256 (static), bytes (dynamic)
-  // Offset for bytes is 3 * 32 = 96
-  const bytesOffset = 3 * 32;
-
-  return Hex.concat([
-    AbiEncoder.encodeAddress(call.to),
-    AbiEncoder.encodeUint256(call.value),
-    AbiEncoder.encodeUint256(BigInt.from(bytesOffset)),
-    Hex.strip0x(callDataEncoded),
+  return encodeAbiParameters(_executionsAbi, [
+    [
+      for (final call in calls) [call.to, call.value, call.data],
+    ],
   ]);
 }
 
 /// Encodes a complete ERC-7579 execute call (single call).
 ///
 /// Generates: execute(mode, executionCalldata) with single call encoding.
-String encode7579Execute(Call call) {
-  final mode = encode7579ExecuteMode(callType: Erc7579CallType.call);
-  final executionData = encode7579SingleCallData(call);
-
-  // Encode the execute function call
-  // execute(bytes32 mode, bytes executionCalldata)
-  const executionDataOffset = 2 * 32; // mode (32) + offset pointer (32)
-  final executionDataEncoded = AbiEncoder.encodeBytes(executionData);
-
-  return Hex.concat([
-    Erc7579Selectors.execute,
-    Hex.strip0x(mode), // bytes32 mode (no padding needed, already 32 bytes)
-    AbiEncoder.encodeUint256(BigInt.from(executionDataOffset)),
-    Hex.strip0x(executionDataEncoded),
-  ]);
-}
+String encode7579Execute(Call call) =>
+    _encodeExecute(Erc7579CallType.call, encode7579SingleCallData(call));
 
 /// Encodes a complete ERC-7579 execute call (batch calls).
 ///
@@ -381,20 +303,10 @@ String encode7579ExecuteBatch(List<Call> calls) {
   if (calls.isEmpty) {
     throw ArgumentError('At least one call is required');
   }
-
-  final mode = encode7579ExecuteMode(callType: Erc7579CallType.batchCall);
-  final executionData = encode7579BatchCallData(calls);
-
-  // Encode the execute function call
-  const executionDataOffset = 2 * 32;
-  final executionDataEncoded = AbiEncoder.encodeBytes(executionData);
-
-  return Hex.concat([
-    Erc7579Selectors.execute,
-    Hex.strip0x(mode),
-    AbiEncoder.encodeUint256(BigInt.from(executionDataOffset)),
-    Hex.strip0x(executionDataEncoded),
-  ]);
+  return _encodeExecute(
+    Erc7579CallType.batchCall,
+    encode7579BatchCallData(calls),
+  );
 }
 
 /// Encodes a complete ERC-7579 execute call as a delegatecall.
@@ -402,24 +314,16 @@ String encode7579ExecuteBatch(List<Call> calls) {
 /// Generates: execute(mode, executionCalldata) with `callType = 0xff` and
 /// packed single-call execution data (`to || value || data`), matching
 /// permissionless.js `encode7579Calls` when `mode.type === "delegatecall"`.
-String encode7579ExecuteDelegateCall(Call call) {
-  final mode = encode7579ExecuteMode(callType: Erc7579CallType.delegateCall);
-  final executionData = encode7579SingleCallData(call);
+String encode7579ExecuteDelegateCall(Call call) => _encodeExecute(
+      Erc7579CallType.delegateCall,
+      encode7579SingleCallData(call),
+    );
 
-  const executionDataOffset = 2 * 32;
-  final executionDataEncoded = AbiEncoder.encodeBytes(executionData);
-
-  return Hex.concat([
-    Erc7579Selectors.execute,
-    Hex.strip0x(mode),
-    AbiEncoder.encodeUint256(BigInt.from(executionDataOffset)),
-    Hex.strip0x(executionDataEncoded),
-  ]);
-}
-
-// ============================================================================
-// Module Management Encoding
-// ============================================================================
+String _encodeExecute(int callType, String executionData) =>
+    AbiEncoder.encodeFunctionData(_executeSignature, [
+      encode7579ExecuteMode(callType: callType),
+      executionData,
+    ]);
 
 /// Encodes an ERC-7579 installModule call.
 ///
@@ -440,20 +344,11 @@ String encode7579InstallModule({
   required Erc7579ModuleType moduleType,
   required EthereumAddress module,
   String initData = '0x',
-}) {
-  // Function signature: installModule(uint256, address, bytes)
-  // Static params: moduleTypeId (32) + module (32) + offset to bytes (32) = 96
-  const initDataOffset = 3 * 32;
-  final initDataEncoded = AbiEncoder.encodeBytes(initData);
-
-  return Hex.concat([
-    Erc7579Selectors.installModule,
-    AbiEncoder.encodeUint256(BigInt.from(moduleType.id)),
-    AbiEncoder.encodeAddress(module),
-    AbiEncoder.encodeUint256(BigInt.from(initDataOffset)),
-    Hex.strip0x(initDataEncoded),
-  ]);
-}
+}) =>
+    AbiEncoder.encodeFunctionData(
+      _installModuleSignature,
+      [moduleType.id, module, initData],
+    );
 
 /// Encodes an ERC-7579 uninstallModule call.
 ///
@@ -474,23 +369,11 @@ String encode7579UninstallModule({
   required Erc7579ModuleType moduleType,
   required EthereumAddress module,
   String deInitData = '0x',
-}) {
-  // Function signature: uninstallModule(uint256, address, bytes)
-  const deInitDataOffset = 3 * 32;
-  final deInitDataEncoded = AbiEncoder.encodeBytes(deInitData);
-
-  return Hex.concat([
-    Erc7579Selectors.uninstallModule,
-    AbiEncoder.encodeUint256(BigInt.from(moduleType.id)),
-    AbiEncoder.encodeAddress(module),
-    AbiEncoder.encodeUint256(BigInt.from(deInitDataOffset)),
-    Hex.strip0x(deInitDataEncoded),
-  ]);
-}
-
-// ============================================================================
-// Query Encoding (for eth_call)
-// ============================================================================
+}) =>
+    AbiEncoder.encodeFunctionData(
+      _uninstallModuleSignature,
+      [moduleType.id, module, deInitData],
+    );
 
 /// Encodes an ERC-7579 isModuleInstalled call for use with eth_call.
 ///
@@ -512,19 +395,11 @@ String encode7579IsModuleInstalled({
   required Erc7579ModuleType moduleType,
   required EthereumAddress module,
   String additionalContext = '0x',
-}) {
-  // Function signature: isModuleInstalled(uint256, address, bytes)
-  const contextOffset = 3 * 32;
-  final contextEncoded = AbiEncoder.encodeBytes(additionalContext);
-
-  return Hex.concat([
-    Erc7579Selectors.isModuleInstalled,
-    AbiEncoder.encodeUint256(BigInt.from(moduleType.id)),
-    AbiEncoder.encodeAddress(module),
-    AbiEncoder.encodeUint256(BigInt.from(contextOffset)),
-    Hex.strip0x(contextEncoded),
-  ]);
-}
+}) =>
+    AbiEncoder.encodeFunctionData(
+      _isModuleInstalledSignature,
+      [moduleType.id, module, additionalContext],
+    );
 
 /// Encodes an ERC-7579 supportsModule call for use with eth_call.
 ///
@@ -539,10 +414,8 @@ String encode7579IsModuleInstalled({
 /// final result = await publicClient.call(Call(to: account, data: callData));
 /// final supportsHooks = decode7579BoolResult(result);
 /// ```
-String encode7579SupportsModule(Erc7579ModuleType moduleType) => Hex.concat([
-      Erc7579Selectors.supportsModule,
-      AbiEncoder.encodeUint256(BigInt.from(moduleType.id)),
-    ]);
+String encode7579SupportsModule(Erc7579ModuleType moduleType) =>
+    AbiEncoder.encodeFunctionData(_supportsModuleSignature, [moduleType.id]);
 
 /// Encodes an ERC-7579 supportsExecutionMode call for use with eth_call.
 ///
@@ -561,10 +434,11 @@ String encode7579SupportsModule(Erc7579ModuleType moduleType) => Hex.concat([
 /// final result = await publicClient.call(Call(to: account, data: callData));
 /// final supported = decode7579BoolResult(result);
 /// ```
-String encode7579SupportsExecutionMode(ExecutionMode mode) => Hex.concat([
-      Erc7579Selectors.supportsExecutionMode,
-      Hex.strip0x(mode.encode()), // bytes32 mode (already 32 bytes)
-    ]);
+String encode7579SupportsExecutionMode(ExecutionMode mode) =>
+    AbiEncoder.encodeFunctionData(
+      _supportsExecutionModeSignature,
+      [mode.encode()],
+    );
 
 /// Encodes an ERC-7579 accountId call for use with eth_call.
 ///
@@ -580,10 +454,6 @@ String encode7579SupportsExecutionMode(ExecutionMode mode) => Hex.concat([
 /// final accountId = decode7579StringResult(result); // e.g., "kernel.advanced.0.3.1"
 /// ```
 String encode7579AccountId() => Erc7579Selectors.accountId;
-
-// ============================================================================
-// Result Decoding
-// ============================================================================
 
 /// Decodes a boolean result from an eth_call response.
 ///
@@ -615,12 +485,9 @@ String decode7579StringResult(String hexResult) {
 
   final hex = Hex.strip0x(hexResult);
   if (hex.length < 128) {
-    // Need at least offset (64 chars) + length (64 chars)
     return '';
   }
 
-  // Skip offset (first 32 bytes = 64 hex chars)
-  // Read length (next 32 bytes = 64 hex chars)
   final lengthHex = hex.substring(64, 128);
   final length = int.parse(lengthHex, radix: 16);
 
@@ -628,16 +495,11 @@ String decode7579StringResult(String hexResult) {
     return '';
   }
 
-  // Read string data (length bytes after the length field)
   final dataHex = hex.substring(128, 128 + length * 2);
   final bytes = Hex.decode('0x$dataHex');
 
   return String.fromCharCodes(bytes);
 }
-
-// ============================================================================
-// Module Configuration Types
-// ============================================================================
 
 /// Configuration for installing a module.
 class InstallModuleConfig {
@@ -676,10 +538,6 @@ class UninstallModuleConfig {
   /// De-initialization data passed to the module's onUninstall function.
   final String deInitData;
 }
-
-// ============================================================================
-// Nonce Encoding/Decoding (ERC-4337)
-// ============================================================================
 
 /// Result of decoding an ERC-4337 nonce.
 ///
@@ -723,10 +581,8 @@ class DecodedNonce {
 /// print('Key: ${decoded.key}, Sequence: ${decoded.sequence}');
 /// ```
 DecodedNonce decodeNonce(BigInt nonce) {
-  // Lower 64 bits = sequence
   final sequence = nonce & BigInt.parse('FFFFFFFFFFFFFFFF', radix: 16);
 
-  // Upper 192 bits = key (shift right by 64)
   final key = nonce >> 64;
 
   return DecodedNonce(key: key, sequence: sequence);
@@ -742,7 +598,6 @@ DecodedNonce decodeNonce(BigInt nonce) {
 /// final nonce = encodeNonce(key: BigInt.one, sequence: BigInt.from(5));
 /// ```
 BigInt encodeNonce({required BigInt key, required BigInt sequence}) {
-  // Mask key to 192 bits and sequence to 64 bits
   final maskedKey = key &
       BigInt.parse(
         'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
@@ -752,10 +607,6 @@ BigInt encodeNonce({required BigInt key, required BigInt sequence}) {
 
   return (maskedKey << 64) + maskedSequence;
 }
-
-// ============================================================================
-// Call Data Decoding
-// ============================================================================
 
 /// Result of decoding ERC-7579 execute call data.
 class Decoded7579Calls {
