@@ -213,9 +213,6 @@ void main() {
       );
       final sig = await account.signMessage(message);
       expect(sig.toLowerCase(), equals(jsSignMessage.toLowerCase()));
-      // V should be 0x20 (32) or 0x1f (31) after +4 eth_sign adjustment
-      final v = int.parse(sig.substring(sig.length - 2), radix: 16);
-      expect(v == 31 || v == 32, isTrue);
     });
 
     test('signTypedData matches permissionless.js (v 27/28)', () async {
@@ -226,8 +223,6 @@ void main() {
       );
       final sig = await account.signTypedData(sampleTypedData);
       expect(sig.toLowerCase(), equals(jsSignTypedData.toLowerCase()));
-      final v = int.parse(sig.substring(sig.length - 2), radix: 16);
-      expect(v == 27 || v == 28, isTrue);
     });
   });
 }
