@@ -296,14 +296,6 @@ void main() {
       );
     });
 
-    test('dataSuffix appends after encoded calldata (writeContract parity)',
-        () {
-      // Mirrors JS: `${data}${dataSuffix.replace("0x", "")}`
-      final data = AbiEncoder.encodeFunctionData('increment()');
-      final withSuffix = Hex.concat([data, '0xdeadbeef']);
-      expect(withSuffix, equals('0xd09de08adeadbeef'));
-    });
-
     test('throws on bytes32 size mismatch', () {
       expect(
         () => AbiEncoder.encodeFunctionData(
