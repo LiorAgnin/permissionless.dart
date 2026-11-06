@@ -29,61 +29,28 @@ class FakeRpcClient extends JsonRpcClient {
 void main() {
   group('RIP-7212 P256 Precompile Support', () {
     group('supportsRip7212', () {
-      test('returns true for Sepolia', () {
-        expect(supportsRip7212(chainId: BigInt.from(11155111)), isTrue);
-      });
-
-      test('returns true for Optimism', () {
+      test('returns true for a listed chain (Optimism)', () {
         expect(supportsRip7212(chainId: BigInt.from(10)), isTrue);
-      });
-
-      test('returns true for Base', () {
-        expect(supportsRip7212(chainId: BigInt.from(8453)), isTrue);
-      });
-
-      test('returns true for Polygon', () {
-        expect(supportsRip7212(chainId: BigInt.from(137)), isTrue);
-      });
-
-      test('returns true for Arbitrum One', () {
-        expect(supportsRip7212(chainId: BigInt.from(42161)), isTrue);
-      });
-
-      test('returns true for zkSync Era', () {
-        expect(supportsRip7212(chainId: BigInt.from(324)), isTrue);
       });
 
       test('returns false for unsupported chain', () {
         // Some random chain ID that doesn't support RIP-7212
         expect(supportsRip7212(chainId: BigInt.from(999)), isFalse);
       });
-
-      test('returns true for Ethereum Mainnet (Fusaka)', () {
-        // Ethereum mainnet supports RIP-7212 since Fusaka upgrade (Jan 2026)
-        expect(supportsRip7212(chainId: BigInt.from(1)), isTrue);
-      });
     });
 
-    group('shouldUseP256Precompile', () {
-      test('returns same as supportsRip7212', () {
-        final testChainIds = [
-          BigInt.from(10), // Optimism - supported
-          BigInt.from(1), // Mainnet - supported (Fusaka)
-          BigInt.from(11155111), // Sepolia - supported
-        ];
-
-        for (final chainId in testChainIds) {
-          expect(
-            shouldUseP256Precompile(chainId: chainId),
-            equals(supportsRip7212(chainId: chainId)),
-          );
-        }
-      });
+    test('shouldUseP256Precompile follows the chain list', () {
+      expect(shouldUseP256Precompile(chainId: BigInt.from(10)), isTrue);
+      expect(shouldUseP256Precompile(chainId: BigInt.from(999)), isFalse);
     });
 
+    // The expected chains come from the sources cited on
+    // rip7212SupportedChainIds (EIP-7951, OP Fjord, ZeroDev passkey docs).
     group('rip7212SupportedChainIds', () {
-      test('contains expected L2 chains', () {
+      test('contains expected mainnet and L2 chains', () {
         final expectedChains = [
+          1, // Ethereum Mainnet (EIP-7951, Fusaka)
+          324, // zkSync Era
           10, // Optimism
           8453, // Base
           42161, // Arbitrum One

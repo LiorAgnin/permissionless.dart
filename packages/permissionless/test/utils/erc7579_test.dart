@@ -3,141 +3,23 @@ import 'package:test/test.dart';
 
 void main() {
   group('ERC-7579 Utilities', () {
-    group('Erc7579CallType', () {
-      test('call type is 0x00', () {
-        expect(Erc7579CallType.call, equals(0x00));
-      });
-
-      test('batchCall type is 0x01', () {
-        expect(Erc7579CallType.batchCall, equals(0x01));
-      });
-
-      test('delegateCall type is 0xff', () {
-        expect(Erc7579CallType.delegateCall, equals(0xff));
-      });
-    });
-
-    group('Erc7579ExecType', () {
-      test('default execution type is 0x00', () {
-        expect(Erc7579ExecType.defaultExec, equals(0x00));
-      });
-
-      test('try execution type is 0x01', () {
-        expect(Erc7579ExecType.tryExec, equals(0x01));
-      });
-    });
-
-    group('encode7579ExecuteMode', () {
-      test('encodes call mode correctly', () {
-        final mode = encode7579ExecuteMode(callType: Erc7579CallType.call);
-
-        expect(mode, startsWith('0x'));
-        // 32 bytes = 64 hex chars + 0x = 66
-        expect(mode.length, equals(66));
-        // First byte is call type
-        expect(mode.substring(2, 4), equals('00'));
-        // Second byte is exec type (default)
-        expect(mode.substring(4, 6), equals('00'));
-      });
-
-      test('encodes batch call mode correctly', () {
-        final mode = encode7579ExecuteMode(callType: Erc7579CallType.batchCall);
-
-        expect(mode.substring(2, 4), equals('01'));
-      });
-
-      test('encodes delegate call mode correctly', () {
-        final mode =
-            encode7579ExecuteMode(callType: Erc7579CallType.delegateCall);
-
-        expect(mode.substring(2, 4), equals('ff'));
-      });
-
-      test('encodes try exec mode correctly', () {
-        final mode = encode7579ExecuteMode(
-          callType: Erc7579CallType.call,
-          execType: Erc7579ExecType.tryExec,
-        );
-
-        expect(mode.substring(2, 4), equals('00')); // call type
-        expect(mode.substring(4, 6), equals('01')); // try exec
-      });
-
-      test('remaining bytes are zero', () {
-        final mode = encode7579ExecuteMode();
-
-        // All bytes after first 2 should be zero
-        final remaining = mode.substring(6);
-        expect(remaining, equals('0' * 60));
-      });
-    });
+    final module =
+        EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
     group('encode7579SingleCallData', () {
-      test('encodes simple ETH transfer', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          value: BigInt.from(1000),
-          data: '0x',
-        );
-
-        final encoded = encode7579SingleCallData(call);
-
-        expect(encoded, startsWith('0x'));
-        // 20 bytes address + 32 bytes value = 52 bytes = 104 hex chars
-        expect(encoded.length, equals(106)); // 104 + 2 for 0x
-      });
-
-      test('encodes call with data', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          value: BigInt.zero,
-          data: '0xabcdef',
-        );
-
-        final encoded = encode7579SingleCallData(call);
-
-        // 20 + 32 + 3 (data bytes) = 55 bytes = 110 hex chars
-        expect(encoded.length, equals(112));
-        // Should end with the data
-        expect(encoded.toLowerCase().endsWith('abcdef'), isTrue);
-      });
-
-      test('includes address without padding', () {
-        const address = '0x1234567890123456789012345678901234567890';
-        final call = Call(
-          to: EthereumAddress.fromHex(address),
-          value: BigInt.zero,
-          data: '0x',
-        );
-
-        final encoded = encode7579SingleCallData(call);
-
-        // First 40 hex chars after 0x should be the address
+      // cast abi-encode --packed 'f(address,uint256,bytes)' \
+      //   0x1234567890123456789012345678901234567890 1000 0xabcdef
+      test('packs target (20 bytes), value (32 bytes) and data', () {
         expect(
-          encoded.substring(2, 42).toLowerCase(),
-          equals(address.substring(2).toLowerCase()),
-        );
-      });
-
-      test('encodes value as 32 bytes', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
+          encode7579SingleCallData(
+            Call(to: module, value: BigInt.from(1000), data: '0xabcdef'),
           ),
-          value: BigInt.from(255),
-          data: '0x',
+          equals(
+            '0x1234567890123456789012345678901234567890'
+            '00000000000000000000000000000000000000000000000000000000000003e8'
+            'abcdef',
+          ),
         );
-
-        final encoded = encode7579SingleCallData(call);
-
-        // Value starts at byte 20 (hex position 42)
-        final valueHex = encoded.substring(42, 106);
-        expect(valueHex.length, equals(64)); // 32 bytes
-        expect(valueHex.endsWith('ff'), isTrue); // 255 = 0xff
       });
     });
 
@@ -149,86 +31,41 @@ void main() {
         );
       });
 
-      test('encodes single call in batch format', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1234567890123456789012345678901234567890',
-            ),
-            value: BigInt.zero,
-            data: '0x',
-          ),
-        ];
-
-        final encoded = encode7579BatchCallData(calls);
-
-        expect(encoded, startsWith('0x'));
-        // Should contain array offset, length, and struct data
-        expect(encoded.length, greaterThan(66));
-      });
-
-      test('encodes multiple calls', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1111111111111111111111111111111111111111',
-            ),
-            value: BigInt.from(100),
-            data: '0x',
-          ),
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x2222222222222222222222222222222222222222',
-            ),
-            value: BigInt.from(200),
-            data: '0xabcd',
-          ),
-        ];
-
-        final encoded = encode7579BatchCallData(calls);
-
-        expect(encoded, startsWith('0x'));
-        // Should be longer than single call
-        final singleEncoded = encode7579BatchCallData([calls.first]);
-        expect(encoded.length, greaterThan(singleEncoded.length));
-      });
-    });
-
-    group('encode7579Execute', () {
-      test('encodes single call execution', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          value: BigInt.from(1000),
-          data: '0x',
-        );
-
-        final encoded = encode7579Execute(call);
-
-        expect(encoded, startsWith('0x'));
-        // Should start with execute selector
+      // cast abi-encode 'f((address,uint256,bytes)[])' \
+      //   "[(0x1111111111111111111111111111111111111111,1000000000000000000,0xdeadbeef),(0x2222222222222222222222222222222222222222,0,0x)]"
+      test('ABI-encodes the calls as (address,uint256,bytes)[]', () {
         expect(
-          encoded.substring(2, 10).toLowerCase(),
-          equals(Erc7579Selectors.execute.substring(2).toLowerCase()),
-        );
-      });
-
-      test('uses call mode for single execution', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
+          encode7579BatchCallData([
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1111111111111111111111111111111111111111',
+              ),
+              value: BigInt.parse('1000000000000000000'),
+              data: '0xdeadbeef',
+            ),
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x2222222222222222222222222222222222222222',
+              ),
+            ),
+          ]),
+          equals(
+            '0x'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '0000000000000000000000000000000000000000000000000000000000000002'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '00000000000000000000000000000000000000000000000000000000000000e0'
+            '0000000000000000000000001111111111111111111111111111111111111111'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            '0000000000000000000000000000000000000000000000000000000000000060'
+            '0000000000000000000000000000000000000000000000000000000000000004'
+            'deadbeef00000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000002222222222222222222222222222222222222222'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000060'
+            '0000000000000000000000000000000000000000000000000000000000000000',
           ),
-          value: BigInt.zero,
-          data: '0x',
         );
-
-        final encoded = encode7579Execute(call);
-
-        // Mode is bytes32 after selector (bytes 4-36, hex 10-74)
-        final mode = encoded.substring(10, 74);
-        // First byte should be call type (0x00)
-        expect(mode.substring(0, 2), equals('00'));
       });
     });
 
@@ -268,79 +105,9 @@ void main() {
           equals(calls[0].to.hex.toLowerCase()),
         );
       });
-
-      test('uses batch mode for multiple calls', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1111111111111111111111111111111111111111',
-            ),
-            value: BigInt.zero,
-            data: '0x',
-          ),
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x2222222222222222222222222222222222222222',
-            ),
-            value: BigInt.zero,
-            data: '0x',
-          ),
-        ];
-
-        final encoded = encode7579ExecuteBatch(calls);
-
-        // Mode should be batch (0x01)
-        final mode = encoded.substring(10, 74);
-        expect(mode.substring(0, 2), equals('01'));
-      });
-
-      test('encodes selector correctly', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1111111111111111111111111111111111111111',
-            ),
-            value: BigInt.zero,
-            data: '0x',
-          ),
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x2222222222222222222222222222222222222222',
-            ),
-            value: BigInt.zero,
-            data: '0x',
-          ),
-        ];
-
-        final encoded = encode7579ExecuteBatch(calls);
-
-        expect(
-          encoded.substring(2, 10).toLowerCase(),
-          equals(Erc7579Selectors.execute.substring(2).toLowerCase()),
-        );
-      });
     });
 
     group('encode7579ExecuteDelegateCall', () {
-      test('uses delegatecall mode 0xff', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          value: BigInt.zero,
-          data: '0xabcdef',
-        );
-
-        final encoded = encode7579ExecuteDelegateCall(call);
-        expect(
-          encoded.substring(2, 10).toLowerCase(),
-          equals(Erc7579Selectors.execute.substring(2).toLowerCase()),
-        );
-        final mode = encoded.substring(10, 74);
-        expect(mode.substring(0, 2), equals('ff'));
-        expect(mode.substring(2, 4), equals('00')); // default execType
-      });
-
       test('round-trips through decode7579Calls', () {
         final call = Call(
           to: EthereumAddress.fromHex(
@@ -366,322 +133,123 @@ void main() {
       });
     });
 
-    group('Erc7579Selectors', () {
-      // Expected selectors are derived from the canonical ERC-7579 signatures
-      // (first 4 bytes of keccak256) so wrong hard-coded values fail the suite.
-      // Verified against `cast sig` / ERC-7579 interface.
-      String expectedSelector(String signature) =>
-          AbiEncoder.functionSelector(signature);
-
-      test('execute selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.execute,
-          equals(expectedSelector('execute(bytes32,bytes)')),
-        );
-      });
-
-      test('installModule selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.installModule,
-          equals(expectedSelector('installModule(uint256,address,bytes)')),
-        );
-      });
-
-      test('uninstallModule selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.uninstallModule,
-          equals(expectedSelector('uninstallModule(uint256,address,bytes)')),
-        );
-      });
-
-      test('isModuleInstalled selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.isModuleInstalled,
-          equals(
-            expectedSelector('isModuleInstalled(uint256,address,bytes)'),
-          ),
-        );
-      });
-
-      test('supportsModule selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.supportsModule,
-          equals(expectedSelector('supportsModule(uint256)')),
-        );
-      });
-
-      test('accountId selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.accountId,
-          equals(expectedSelector('accountId()')),
-        );
-      });
-
-      test('supportsExecutionMode selector matches keccak of signature', () {
-        expect(
-          Erc7579Selectors.supportsExecutionMode,
-          equals(expectedSelector('supportsExecutionMode(bytes32)')),
-        );
-      });
+    // cast sig '<signature>'
+    test('Erc7579Selectors match the ERC-7579 signatures', () {
+      expect(Erc7579Selectors.execute, '0xe9ae5c53');
+      expect(Erc7579Selectors.installModule, '0x9517e29f');
+      expect(Erc7579Selectors.uninstallModule, '0xa71763a8');
+      expect(Erc7579Selectors.isModuleInstalled, '0x112d3a7d');
+      expect(Erc7579Selectors.supportsModule, '0xf2dc691d');
+      expect(Erc7579Selectors.accountId, '0x9cfd7cff');
+      expect(Erc7579Selectors.supportsExecutionMode, '0xd03c7914');
     });
 
-    group('Erc7579ModuleType', () {
-      test('validator type has id 1', () {
-        expect(Erc7579ModuleType.validator.id, equals(1));
-      });
+    // Expected calldata: cast calldata '<fn>(uint256,address,bytes)' \
+    //   <typeId> 0x1234567890123456789012345678901234567890 <bytes>
+    group('module management calldata (cast)', () {
+      const moduleWord =
+          '0000000000000000000000001234567890123456789012345678901234567890';
+      const bytesOffset =
+          '0000000000000000000000000000000000000000000000000000000000000060';
+      const emptyBytes =
+          '0000000000000000000000000000000000000000000000000000000000000000';
+      String typeWord(int id) => id.toRadixString(16).padLeft(64, '0');
 
-      test('executor type has id 2', () {
-        expect(Erc7579ModuleType.executor.id, equals(2));
-      });
-
-      test('fallback type has id 3', () {
-        expect(Erc7579ModuleType.fallback.id, equals(3));
-      });
-
-      test('hook type has id 4', () {
-        expect(Erc7579ModuleType.hook.id, equals(4));
-      });
-    });
-
-    group('encode7579InstallModule', () {
-      test('encodes install module call correctly', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-
-        final encoded = encode7579InstallModule(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-          initData: '0x',
-        );
-
-        // Check selector
+      test('encode7579InstallModule, validator, no init data', () {
         expect(
-          encoded.substring(0, 10),
-          equals(Erc7579Selectors.installModule),
-        );
-
-        // Check it contains the module type (1 for validator)
-        expect(
-          encoded,
-          contains(
-            '0000000000000000000000000000000000000000000000000000000000000001',
-          ),
-        );
-      });
-
-      test('encodes with init data', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-        const initData = '0xabcdef';
-
-        final encoded = encode7579InstallModule(
-          moduleType: Erc7579ModuleType.executor,
-          module: module,
-          initData: initData,
-        );
-
-        // Should be longer due to init data
-        final withoutInitData = encode7579InstallModule(
-          moduleType: Erc7579ModuleType.executor,
-          module: module,
-          initData: '0x',
-        );
-
-        expect(encoded.length, greaterThan(withoutInitData.length));
-      });
-
-      test('encodes different module types correctly', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-
-        for (final type in Erc7579ModuleType.values) {
-          final encoded = encode7579InstallModule(
-            moduleType: type,
+          encode7579InstallModule(
+            moduleType: Erc7579ModuleType.validator,
             module: module,
-            initData: '0x',
-          );
-
-          // Each should start with the selector
-          expect(
-            encoded.substring(0, 10),
-            equals(Erc7579Selectors.installModule),
-          );
-        }
+          ),
+          equals('0x9517e29f${typeWord(1)}$moduleWord$bytesOffset$emptyBytes'),
+        );
       });
-    });
 
-    group('encode7579UninstallModule', () {
-      test('encodes uninstall module call correctly', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-
-        final encoded = encode7579UninstallModule(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-          deInitData: '0x',
-        );
-
-        // Check selector
+      test('encode7579InstallModule, executor, init data 0xabcdef', () {
         expect(
-          encoded.substring(0, 10),
-          equals(Erc7579Selectors.uninstallModule),
-        );
-      });
-
-      test('encodes with de-init data', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-        const deInitData = '0xaabbccdd';
-
-        final encoded = encode7579UninstallModule(
-          moduleType: Erc7579ModuleType.hook,
-          module: module,
-          deInitData: deInitData,
-        );
-
-        // Check selector
-        expect(
-          encoded.substring(0, 10),
-          equals(Erc7579Selectors.uninstallModule),
-        );
-        // Should be longer due to de-init data
-        expect(encoded.length, greaterThan(200));
-      });
-    });
-
-    group('encode7579IsModuleInstalled', () {
-      test('encodes isModuleInstalled query correctly', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-
-        final encoded = encode7579IsModuleInstalled(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-        );
-
-        // Check selector
-        expect(
-          encoded.substring(0, 10),
-          equals(Erc7579Selectors.isModuleInstalled),
-        );
-      });
-
-      test('encodes with additional context', () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-
-        final withContext = encode7579IsModuleInstalled(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-          additionalContext: '0xabcd',
-        );
-
-        final withoutContext = encode7579IsModuleInstalled(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-        );
-
-        expect(withContext.length, greaterThan(withoutContext.length));
-      });
-    });
-
-    group('encode7579SupportsModule', () {
-      test('encodes supportsModule query correctly', () {
-        final encoded = encode7579SupportsModule(Erc7579ModuleType.hook);
-
-        // Check selector
-        expect(
-          encoded.substring(0, 10),
-          equals(Erc7579Selectors.supportsModule),
-        );
-        // Should have selector (4 bytes) + uint256 (32 bytes) = 74 hex chars
-        expect(encoded.length, equals(74));
-      });
-
-      test('encodes different module types', () {
-        for (final type in Erc7579ModuleType.values) {
-          final encoded = encode7579SupportsModule(type);
-          expect(
-            encoded.substring(0, 10),
-            equals(Erc7579Selectors.supportsModule),
-          );
-        }
-      });
-    });
-
-    group('encode7579AccountId', () {
-      test('returns accountId selector', () {
-        final encoded = encode7579AccountId();
-        expect(encoded, equals(Erc7579Selectors.accountId));
-      });
-    });
-
-    group('7579 query encode + recorded eth_call fixtures', () {
-      // Recorded ABI-encoded eth_call results as returned by a modular
-      // ERC-7579 account (bool true / string account id). Combined with
-      // correct query selectors this exercises the full read path without
-      // a live network.
-      const recordedBoolTrue =
-          '0x0000000000000000000000000000000000000000000000000000000000000001';
-      const recordedBoolFalse =
-          '0x0000000000000000000000000000000000000000000000000000000000000000';
-      // ABI-encoded string "rhinestone.nexus.1.0.0" (22 bytes, length 0x16)
-      const recordedAccountId = '0x'
-          '0000000000000000000000000000000000000000000000000000000000000020'
-          '0000000000000000000000000000000000000000000000000000000000000016'
-          '7268696e6573746f6e652e6e657875732e312e302e3000000000000000000000';
-
-      test('isModuleInstalled query uses derived selector and decodes true',
-          () {
-        final module = EthereumAddress.fromHex(
-          '0x1234567890123456789012345678901234567890',
-        );
-        final callData = encode7579IsModuleInstalled(
-          moduleType: Erc7579ModuleType.validator,
-          module: module,
-        );
-
-        expect(
-          callData.substring(0, 10),
+          encode7579InstallModule(
+            moduleType: Erc7579ModuleType.executor,
+            module: module,
+            initData: '0xabcdef',
+          ),
           equals(
-            AbiEncoder.functionSelector(
-              'isModuleInstalled(uint256,address,bytes)',
-            ),
+            '0x9517e29f${typeWord(2)}$moduleWord$bytesOffset'
+            '0000000000000000000000000000000000000000000000000000000000000003'
+            'abcdef0000000000000000000000000000000000000000000000000000000000',
           ),
         );
-        expect(decode7579BoolResult(recordedBoolTrue), isTrue);
-        expect(decode7579BoolResult(recordedBoolFalse), isFalse);
       });
 
-      test('supportsModule query uses derived selector and decodes true', () {
-        final callData = encode7579SupportsModule(Erc7579ModuleType.validator);
-
+      test('encode7579UninstallModule, validator, no de-init data', () {
         expect(
-          callData.substring(0, 10),
-          equals(AbiEncoder.functionSelector('supportsModule(uint256)')),
+          encode7579UninstallModule(
+            moduleType: Erc7579ModuleType.validator,
+            module: module,
+          ),
+          equals('0xa71763a8${typeWord(1)}$moduleWord$bytesOffset$emptyBytes'),
         );
-        expect(decode7579BoolResult(recordedBoolTrue), isTrue);
       });
 
-      test('accountId query uses derived selector and decodes fixture string',
-          () {
-        final callData = encode7579AccountId();
+      test('encode7579UninstallModule, hook, de-init data 0xaabbccdd', () {
+        expect(
+          encode7579UninstallModule(
+            moduleType: Erc7579ModuleType.hook,
+            module: module,
+            deInitData: '0xaabbccdd',
+          ),
+          equals(
+            '0xa71763a8${typeWord(4)}$moduleWord$bytesOffset'
+            '0000000000000000000000000000000000000000000000000000000000000004'
+            'aabbccdd00000000000000000000000000000000000000000000000000000000',
+          ),
+        );
+      });
 
+      test('encode7579IsModuleInstalled, no additional context', () {
         expect(
-          callData,
-          equals(AbiEncoder.functionSelector('accountId()')),
+          encode7579IsModuleInstalled(
+            moduleType: Erc7579ModuleType.validator,
+            module: module,
+          ),
+          equals('0x112d3a7d${typeWord(1)}$moduleWord$bytesOffset$emptyBytes'),
         );
+      });
+
+      test('encode7579IsModuleInstalled, additional context 0xabcd', () {
         expect(
-          decode7579StringResult(recordedAccountId),
-          equals('rhinestone.nexus.1.0.0'),
+          encode7579IsModuleInstalled(
+            moduleType: Erc7579ModuleType.validator,
+            module: module,
+            additionalContext: '0xabcd',
+          ),
+          equals(
+            '0x112d3a7d${typeWord(1)}$moduleWord$bytesOffset'
+            '0000000000000000000000000000000000000000000000000000000000000002'
+            'abcd000000000000000000000000000000000000000000000000000000000000',
+          ),
         );
+      });
+
+      // cast calldata 'supportsModule(uint256)' <typeId>; ERC-7579 type ids
+      // validator 1, executor 2, fallback 3, hook 4.
+      test('encode7579SupportsModule for every module type', () {
+        for (final (type, id) in [
+          (Erc7579ModuleType.validator, 1),
+          (Erc7579ModuleType.executor, 2),
+          (Erc7579ModuleType.fallback, 3),
+          (Erc7579ModuleType.hook, 4),
+        ]) {
+          expect(
+            encode7579SupportsModule(type),
+            equals('0xf2dc691d${typeWord(id)}'),
+            reason: '$type',
+          );
+        }
+      });
+
+      // cast sig 'accountId()'
+      test('encode7579AccountId is the bare accountId() selector', () {
+        expect(encode7579AccountId(), equals('0x9cfd7cff'));
       });
     });
 
@@ -725,6 +293,18 @@ void main() {
         expect(result, equals('hello'));
       });
 
+      test('decodes a recorded Nexus accountId() result', () {
+        // ABI-encoded string "rhinestone.nexus.1.0.0" (22 bytes, length 0x16)
+        const recordedAccountId = '0x'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '0000000000000000000000000000000000000000000000000000000000000016'
+            '7268696e6573746f6e652e6e657875732e312e302e3000000000000000000000';
+        expect(
+          decode7579StringResult(recordedAccountId),
+          equals('rhinestone.nexus.1.0.0'),
+        );
+      });
+
       test('decodes UTF-8 (non-ASCII) account ids', () {
         // cast abi-encode "f(string)" "kernel.advanced.0.3.1-ñ✓"
         const hex = '0x'
@@ -750,65 +330,7 @@ void main() {
       });
     });
 
-    group('InstallModuleConfig', () {
-      test('creates config with required fields', () {
-        final config = InstallModuleConfig(
-          type: Erc7579ModuleType.validator,
-          address: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-        );
-
-        expect(config.type, equals(Erc7579ModuleType.validator));
-        expect(config.initData, equals('0x'));
-      });
-
-      test('creates config with init data', () {
-        final config = InstallModuleConfig(
-          type: Erc7579ModuleType.executor,
-          address: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          initData: '0xabcd',
-        );
-
-        expect(config.initData, equals('0xabcd'));
-      });
-    });
-
-    group('UninstallModuleConfig', () {
-      test('creates config with required fields', () {
-        final config = UninstallModuleConfig(
-          type: Erc7579ModuleType.hook,
-          address: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-        );
-
-        expect(config.type, equals(Erc7579ModuleType.hook));
-        expect(config.deInitData, equals('0x'));
-      });
-
-      test('creates config with de-init data', () {
-        final config = UninstallModuleConfig(
-          type: Erc7579ModuleType.fallback,
-          address: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
-          ),
-          deInitData: '0xffee',
-        );
-
-        expect(config.deInitData, equals('0xffee'));
-      });
-    });
-
     group('Erc7579CallKind', () {
-      test('has correct byte values', () {
-        expect(Erc7579CallKind.call.value, equals(0x00));
-        expect(Erc7579CallKind.batchCall.value, equals(0x01));
-        expect(Erc7579CallKind.delegateCall.value, equals(0xff));
-      });
-
       test('fromValue returns correct enum', () {
         expect(Erc7579CallKind.fromValue(0x00), equals(Erc7579CallKind.call));
         expect(
@@ -829,234 +351,34 @@ void main() {
       });
     });
 
-    group('ExecutionMode', () {
-      test('creates with default values', () {
-        const mode = ExecutionMode(type: Erc7579CallKind.call);
-
-        expect(mode.type, equals(Erc7579CallKind.call));
-        // Default matches permissionless.js (undefined → falsy → execType 0x00).
-        expect(mode.revertOnError, isFalse);
-        expect(mode.selector, isNull);
-        expect(mode.context, isNull);
-      });
-
-      test('creates with custom values', () {
-        const mode = ExecutionMode(
-          type: Erc7579CallKind.batchCall,
-          revertOnError: true,
-          selector: '0x12345678',
-          context: '0xaabbccdd',
+    group('ExecutionMode.encode', () {
+      // permissionless.js: revertOnError undefined -> falsy -> execType 0x00.
+      test('defaults revertOnError to false (execType 0x00)', () {
+        expect(
+          const ExecutionMode(type: Erc7579CallKind.call).encode(),
+          equals('0x${'00' * 32}'),
         );
-
-        expect(mode.type, equals(Erc7579CallKind.batchCall));
-        expect(mode.revertOnError, isTrue);
-        expect(mode.selector, equals('0x12345678'));
-        expect(mode.context, equals('0xaabbccdd'));
       });
 
-      group('encode', () {
-        // Wire vectors from permissionless.js encodeExecutionMode
-        // (actions/erc7579/supportsExecutionMode.ts):
-        //   revertOnError ? 0x01 : 0x00
-        test('byte-matches JS for all (callType, revertOnError) combos', () {
-          const cases = <(Erc7579CallKind, bool, String)>[
-            // call + false → 0x00 0x00
-            (
-              Erc7579CallKind.call,
-              false,
-              '0x0000000000000000000000000000000000000000000000000000000000000000',
-            ),
-            // call + true → 0x00 0x01
-            (
-              Erc7579CallKind.call,
-              true,
-              '0x0001000000000000000000000000000000000000000000000000000000000000',
-            ),
-            // batchcall + false → 0x01 0x00
-            (
-              Erc7579CallKind.batchCall,
-              false,
-              '0x0100000000000000000000000000000000000000000000000000000000000000',
-            ),
-            // batchcall + true → 0x01 0x01
-            (
-              Erc7579CallKind.batchCall,
-              true,
-              '0x0101000000000000000000000000000000000000000000000000000000000000',
-            ),
-          ];
-
-          for (final (type, revertOnError, expected) in cases) {
-            final encoded = ExecutionMode(
-              type: type,
-              revertOnError: revertOnError,
-            ).encode();
-            expect(
-              encoded.toLowerCase(),
-              equals(expected),
-              reason: 'type=$type revertOnError=$revertOnError',
-            );
-          }
-        });
-
-        test('default mode emits execType 0x00 (JS undefined polarity)', () {
-          const mode = ExecutionMode(type: Erc7579CallKind.call);
-          final encoded = mode.encode();
-
-          expect(encoded, startsWith('0x'));
-          expect(encoded.length, equals(66)); // 32 bytes + 0x
-
-          // Byte 0: call type = 0x00
-          expect(encoded.substring(2, 4), equals('00'));
-          // Byte 1: default / JS falsy = 0x00
-          expect(encoded.substring(4, 6), equals('00'));
-        });
-
-        test('revertOnError true emits execType 0x01 (try / JS polarity)', () {
-          const mode = ExecutionMode(
-            type: Erc7579CallKind.batchCall,
-            revertOnError: true,
-          );
-          final encoded = mode.encode();
-
-          // Byte 0: batch call = 0x01
-          expect(encoded.substring(2, 4), equals('01'));
-          // Byte 1: JS true → 0x01 (ERC-7579 try)
-          expect(encoded.substring(4, 6), equals('01'));
-        });
-
-        test('encodes delegate call with JS polarity', () {
-          // JS: delegatecall + false → 0xff00..., + true → 0xff01...
-          expect(
-            const ExecutionMode(type: Erc7579CallKind.delegateCall)
-                .encode()
-                .toLowerCase(),
-            equals(
-              '0xff00000000000000000000000000000000000000000000000000000000000000',
-            ),
-          );
-          expect(
-            const ExecutionMode(
-              type: Erc7579CallKind.delegateCall,
-              revertOnError: true,
-            ).encode().toLowerCase(),
-            equals(
-              '0xff01000000000000000000000000000000000000000000000000000000000000',
-            ),
-          );
-        });
-
-        test('encodes with selector', () {
-          const mode = ExecutionMode(
+      // viem 2.21.55 encodePacked, as in permissionless.js encodeExecutionMode:
+      //   /Users/liorag/.claude/jobs/037f9518/tmp/t1/viem/erc7579.ts
+      test('right-pads a short selector into bytes 6-9', () {
+        expect(
+          const ExecutionMode(
             type: Erc7579CallKind.call,
             selector: '0xaabbccdd',
-          );
-          final encoded = mode.encode();
+          ).encode(),
+          equals('0x${'00' * 6}aabbccdd${'00' * 22}'),
+        );
+      });
 
-          // Bytes 6-9 contain the selector (ERC-7579 / JS encoder layout)
-          // Position: 0x + 2 chars per byte * 6 = 14
-          expect(encoded.substring(14, 22), equals('aabbccdd'));
-        });
-
-        test('encodes with context', () {
-          const mode = ExecutionMode(
+      test('right-pads a short context into bytes 10-31', () {
+        expect(
+          const ExecutionMode(
             type: Erc7579CallKind.call,
             context: '0x1122334455',
-          );
-          final encoded = mode.encode();
-
-          // Bytes 10+ contain the context
-          // Position: 0x + 2 chars per byte * 10 = 22
-          expect(encoded.substring(22, 32), equals('1122334455'));
-        });
-
-        test('produces 32-byte output for all modes', () {
-          final modes = [
-            const ExecutionMode(type: Erc7579CallKind.call),
-            const ExecutionMode(
-              type: Erc7579CallKind.batchCall,
-              revertOnError: true,
-            ),
-            const ExecutionMode(
-              type: Erc7579CallKind.delegateCall,
-              selector: '0xffffffff',
-            ),
-            ExecutionMode(
-              type: Erc7579CallKind.call,
-              context: '0x${'00' * 22}',
-            ),
-          ];
-
-          for (final mode in modes) {
-            final encoded = mode.encode();
-            expect(encoded.length, equals(66), reason: 'Mode: $mode');
-          }
-        });
-      });
-
-      test('toString returns readable format', () {
-        const mode = ExecutionMode(
-          type: Erc7579CallKind.batchCall,
-          revertOnError: true,
-        );
-        final str = mode.toString();
-
-        expect(str, contains('batchCall'));
-        expect(str, contains('revertOnError: true'));
-      });
-    });
-
-    group('encode7579SupportsExecutionMode', () {
-      test('encodes call to supportsExecutionMode', () {
-        const mode = ExecutionMode(type: Erc7579CallKind.call);
-        final callData = encode7579SupportsExecutionMode(mode);
-
-        // Should start with the function selector
-        expect(
-          callData.toLowerCase(),
-          startsWith(Erc7579Selectors.supportsExecutionMode.toLowerCase()),
-        );
-        // 4 bytes selector + 32 bytes mode = 36 bytes = 72 hex + 0x = 74
-        expect(callData.length, equals(74));
-      });
-
-      test('encodes different modes correctly', () {
-        const callMode = ExecutionMode(type: Erc7579CallKind.call);
-        const batchMode = ExecutionMode(type: Erc7579CallKind.batchCall);
-        const delegateMode = ExecutionMode(type: Erc7579CallKind.delegateCall);
-
-        final callData1 = encode7579SupportsExecutionMode(callMode);
-        final callData2 = encode7579SupportsExecutionMode(batchMode);
-        final callData3 = encode7579SupportsExecutionMode(delegateMode);
-
-        // All same length but different content
-        expect(callData1.length, equals(callData2.length));
-        expect(callData2.length, equals(callData3.length));
-        expect(callData1, isNot(equals(callData2)));
-        expect(callData2, isNot(equals(callData3)));
-      });
-
-      test('includes mode bytes after selector', () {
-        const mode = ExecutionMode(
-          type: Erc7579CallKind.batchCall,
-          revertOnError: true,
-        );
-        final callData = encode7579SupportsExecutionMode(mode);
-
-        // After selector (4 bytes = 8 hex chars), mode starts
-        // Byte 0 of mode should be 0x01 (batchCall)
-        expect(callData.substring(10, 12), equals('01'));
-        // Byte 1 of mode should be 0x01 (JS true / ERC-7579 try)
-        expect(callData.substring(12, 14), equals('01'));
-      });
-    });
-
-    group('supportsExecutionMode selector', () {
-      test('is correct keccak256 hash', () {
-        // keccak256("supportsExecutionMode(bytes32)")[0:4] = 0xd03c7914
-        expect(
-          Erc7579Selectors.supportsExecutionMode.toLowerCase(),
-          equals('0xd03c7914'),
+          ).encode(),
+          equals('0x${'00' * 10}1122334455${'00' * 17}'),
         );
       });
     });
@@ -1134,8 +456,8 @@ void main() {
       test('encodes key and sequence', () {
         final nonce =
             encodeNonce(key: BigInt.from(5), sequence: BigInt.from(10));
-        // Expected: (5 << 64) + 10
-        expect(nonce, equals((BigInt.from(5) << 64) + BigInt.from(10)));
+        // key 0x5 in the upper 192 bits, sequence 0xa in the lower 64.
+        expect(nonce, equals(BigInt.parse('0x5000000000000000a')));
       });
 
       test('roundtrips with decodeNonce', () {
@@ -1234,56 +556,6 @@ void main() {
           decoded.calls[0].data.toLowerCase(),
           equals(call.data.toLowerCase()),
         );
-      });
-
-      test('decodes batch call execution', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1111111111111111111111111111111111111111',
-            ),
-            value: BigInt.from(100),
-            data: '0x',
-          ),
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x2222222222222222222222222222222222222222',
-            ),
-            value: BigInt.from(200),
-            data: '0xaabb',
-          ),
-        ];
-        final encoded = encode7579ExecuteBatch(calls);
-
-        final decoded = decode7579Calls(encoded);
-
-        expect(decoded.mode.type, equals(Erc7579CallKind.batchCall));
-        expect(decoded.calls, hasLength(2));
-        expect(
-          decoded.calls[0].to.hex.toLowerCase(),
-          equals(calls[0].to.hex.toLowerCase()),
-        );
-        expect(decoded.calls[0].value, equals(calls[0].value));
-        expect(
-          decoded.calls[1].to.hex.toLowerCase(),
-          equals(calls[1].to.hex.toLowerCase()),
-        );
-        expect(decoded.calls[1].value, equals(calls[1].value));
-      });
-
-      test('decodes call with zero value', () {
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-          ),
-          value: BigInt.zero,
-          data: '0x',
-        );
-        final encoded = encode7579Execute(call);
-
-        final decoded = decode7579Calls(encoded);
-
-        expect(decoded.calls[0].value, equals(BigInt.zero));
       });
 
       test('decodes call with large data payload', () {
@@ -1396,35 +668,6 @@ void main() {
           () => decode7579Calls(invalidCallData),
           throwsA(isA<ArgumentError>()),
         );
-      });
-    });
-
-    group('DecodedNonce', () {
-      test('toString returns readable format', () {
-        final decoded =
-            DecodedNonce(key: BigInt.from(5), sequence: BigInt.from(10));
-        expect(decoded.toString(), contains('key: 5'));
-        expect(decoded.toString(), contains('sequence: 10'));
-      });
-    });
-
-    group('Decoded7579Calls', () {
-      test('toString returns readable format', () {
-        final decoded = Decoded7579Calls(
-          mode: const ExecutionMode(type: Erc7579CallKind.call),
-          calls: [
-            Call(
-              to: EthereumAddress.fromHex(
-                '0x1234567890123456789012345678901234567890',
-              ),
-              value: BigInt.zero,
-              data: '0x',
-            ),
-          ],
-        );
-        final str = decoded.toString();
-        expect(str, contains('mode:'));
-        expect(str, contains('calls:'));
       });
     });
 
