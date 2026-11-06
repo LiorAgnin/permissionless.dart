@@ -8,11 +8,14 @@ import 'dart:io';
 ///
 /// Usage:
 ///   1. Run this server: `dart run bin/server.dart`
-///   2. Expose via Tailscale Funnel: `tailscale funnel 8080`
+///   2. Expose port 8080 over HTTPS with a tunnel, e.g. localhost.run:
+///      `ssh -R 80:localhost:8080 nokey@localhost.run`
 ///   3. The AASA file will be available at:
-///      https://28fc478be30e2f.lhr.life/.well-known/apple-app-site-association
+///      https://<tunnel host>/.well-known/apple-app-site-association
 void main(List<String> args) async {
   // Configuration - update these values to match your iOS/Android app
+  // Tunnel host; must equal passkeyRpId in ../lib/config.dart.
+  const domain = '28fc478be30e2f.lhr.life';
   // TODO: Update teamId to your Apple Developer Team ID
   const teamId = 'YOUR_TEAM_ID'; // Get from Xcode: Signing & Capabilities
   const bundleId = 'com.example.permissionlessPasskeysExample';
@@ -54,16 +57,9 @@ void main(List<String> args) async {
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
   print('AASA Server running on http://localhost:$port');
   print('');
-  print('Exposed via Tailscale Funnel at:');
-  print('  https://28fc478be30e2f.lhr.life/');
-  print('');
-  print('Verify the files are accessible at:');
-  print(
-    '  iOS:     https://28fc478be30e2f.lhr.life/.well-known/apple-app-site-association',
-  );
-  print(
-    '  Android: https://28fc478be30e2f.lhr.life/.well-known/assetlinks.json',
-  );
+  print('Expose this port over HTTPS at https://$domain/, then verify:');
+  print('  iOS:     https://$domain/.well-known/apple-app-site-association');
+  print('  Android: https://$domain/.well-known/assetlinks.json');
   print('');
   if (teamId == 'YOUR_TEAM_ID') {
     print('WARNING: Update teamId in server.dart with your Apple Team ID!');
@@ -114,7 +110,7 @@ void main(List<String> args) async {
 <head><title>AASA Server</title></head>
 <body>
   <h1>WebAuthn Association Server</h1>
-  <p>This server hosts the required files for WebAuthn passkey testing via Tailscale Funnel.</p>
+  <p>This server hosts the required files for WebAuthn passkey testing.</p>
   <h2>Available Endpoints:</h2>
   <ul>
     <li><a href="/.well-known/apple-app-site-association">/.well-known/apple-app-site-association</a> (iOS)</li>
