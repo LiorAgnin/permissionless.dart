@@ -131,7 +131,7 @@ melos test
 ### Package Structure
 
 ```
-permissionless-dart/
+permissionless.dart/
 ├── packages/
 │   ├── permissionless/           # Core ERC-4337 package
 │   │   ├── lib/
@@ -154,6 +154,7 @@ permissionless-dart/
 - **Light** (Alchemy) - gas-efficient single-owner account
 - **Simple** (eth-infinitism) - minimal reference implementation
 - **Thirdweb**, **Trust (Barz)**, **Etherspot**, **Biconomy (deprecated)**
+- **EIP-7702 Simple and Kernel** - the EOA itself becomes the smart account
 
 ### Passkeys Package (`permissionless_passkeys`)
 - **WebAuthnAccount** - passkey credential as an `AccountOwner` for Kernel (WebAuthn validator) and Safe (shared WebAuthn signer) accounts
@@ -165,7 +166,9 @@ The SDK supports any EVM chain with ERC-4337 infrastructure:
 - Polygon, Arbitrum, Optimism, Base
 - And many more...
 
-See the [permissionless package](packages/permissionless/) for the full chain list.
+The SDK has no chain list: pass your chain's `chainId` and RPC URLs. See the
+[permissionless package](packages/permissionless/) for the EntryPoint versions
+each account supports.
 
 ## Contributing
 
