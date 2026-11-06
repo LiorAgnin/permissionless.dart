@@ -35,3 +35,14 @@ class EntryPointAddresses {
         EntryPointVersion.v08 => v08,
       };
 }
+
+/// Returns the [EntryPointVersion] of a canonical EntryPoint address, or
+/// `null` when [entryPoint] is not one of [EntryPointAddresses].
+EntryPointVersion? entryPointVersionOf(EthereumAddress entryPoint) {
+  for (final version in EntryPointVersion.values) {
+    if (EntryPointAddresses.fromVersion(version).hex == entryPoint.hex) {
+      return version;
+    }
+  }
+  return null;
+}
