@@ -13,7 +13,6 @@ import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/packed_user_operation.dart' as packing;
-import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
 import '../account_support.dart';
 import '../webauthn_owner.dart';
@@ -21,6 +20,7 @@ import '../webauthn_utils.dart';
 import 'constants.dart';
 import 'multisend.dart';
 import 'safe_encoding.dart';
+import 'safe_webauthn.dart';
 
 /// `SafeProxyFactory.proxyCreationCode()` per Safe version, used for the
 /// CREATE2 address when no public client is configured or the call fails.

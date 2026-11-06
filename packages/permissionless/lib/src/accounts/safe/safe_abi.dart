@@ -44,3 +44,11 @@ const safe7579SetupSafeSignature = 'setupSafe((address,address[],uint256,'
 /// `callData`), as a function signature so `AbiEncoder` can encode them.
 const safe7579InitHashFieldsSignature = 'initHash(address,address[],uint256,'
     'address,bytes,address,(address,bytes)[])';
+
+/// `SafeWebAuthnSharedSigner` `Signer` struct `(uint256 x, uint256 y,
+/// P256.Verifiers verifiers)`; `Verifiers` is a uint176.
+const safeWebAuthnSignerType = '(uint256,uint256,uint176)';
+
+/// `SafeWebAuthnSharedSigner.configure(Signer)`.
+const safeWebAuthnSignerConfigureSignature =
+    'configure($safeWebAuthnSignerType)';

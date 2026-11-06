@@ -1,5 +1,6 @@
 import 'package:permissionless/src/clients/bundler/rpc_client.dart';
 import 'package:permissionless/src/clients/public/public_client.dart';
+import 'package:permissionless/src/clients/public/rip7212.dart';
 import 'package:permissionless/src/utils/rip7212.dart';
 import 'package:test/test.dart';
 

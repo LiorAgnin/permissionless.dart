@@ -29,3 +29,4 @@ export 'constants.dart';
 export 'eip7702_kernel_account.dart';
 export 'kernel_account.dart';
 export 'kernel_erc1271.dart';
+export 'kernel_webauthn.dart';

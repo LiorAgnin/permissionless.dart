@@ -1,4 +1,5 @@
 import '../../clients/public/public_client.dart';
+import '../../clients/public/rip7212.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
@@ -11,7 +12,6 @@ import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/rip7212.dart';
 import '../../utils/user_operation_hash.dart';
-import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
 import '../account_support.dart';
 import '../erc7579_calls.dart';
@@ -20,6 +20,7 @@ import '../webauthn_utils.dart';
 import 'constants.dart';
 import 'kernel_abi.dart';
 import 'kernel_erc1271.dart';
+import 'kernel_webauthn.dart';
 
 /// Configuration for creating a Kernel smart account.
 class KernelSmartAccountConfig {
