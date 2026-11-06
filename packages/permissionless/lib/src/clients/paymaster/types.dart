@@ -216,7 +216,11 @@ class PaymasterContext {
       };
 }
 
-/// Error returned by paymaster RPC calls.
+/// Declared for paymaster RPC errors, but never thrown.
+///
+/// `PaymasterClient` calls go through `JsonRpcClient`, which throws
+/// `BundlerRpcError` for every JSON-RPC error; catch that instead.
+@Deprecated('Never thrown; paymaster RPC errors are BundlerRpcError')
 class PaymasterRpcError implements Exception {
   /// Creates a paymaster RPC error with the given details.
   ///

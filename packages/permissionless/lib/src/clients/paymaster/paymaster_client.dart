@@ -14,6 +14,9 @@ import 'types.dart';
 /// enabling "gasless" transactions. This client supports the
 /// standard paymaster API methods.
 ///
+/// RPC failures are thrown as `BundlerRpcError` (see [JsonRpcClient]), not
+/// as the deprecated `PaymasterRpcError`.
+///
 /// Example:
 /// ```dart
 /// final paymaster = createPaymasterClient(

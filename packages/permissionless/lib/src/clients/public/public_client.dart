@@ -13,6 +13,10 @@ import 'types.dart';
 /// Provides access to standard Ethereum RPC methods for reading
 /// chain state, checking balances, and querying contracts.
 ///
+/// RPC failures are thrown as `BundlerRpcError` (see [JsonRpcClient]).
+/// The one exception is [getSenderAddress], which throws [PublicRpcError]
+/// when its helper returns no address.
+///
 /// Example:
 /// ```dart
 /// final public = createPublicClient(
