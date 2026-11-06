@@ -1,11 +1,13 @@
+import 'dart:convert';
+
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
+import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/message_hash.dart';
 import '../../utils/user_operation_hash.dart' as user_op_hash;
 import '../account_owner.dart';
 import '../account_support.dart';
@@ -293,7 +295,10 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   @override
   Future<String> signMessage(String message) async {
     await _ensureDeployedForEip1271();
-    return _config.owner.signHash(hashMessage(message));
+    // Simple7702Account.isValidSignature recovers against hashMessage(message)
+    // with no further prefix, and signHash applies the EIP-191 prefix itself,
+    // so it signs the raw message bytes (viem `signMessage`).
+    return _config.owner.signHash(Hex.fromBytes(utf8.encode(message)));
   }
 
   /// Signs EIP-712 typed data.
