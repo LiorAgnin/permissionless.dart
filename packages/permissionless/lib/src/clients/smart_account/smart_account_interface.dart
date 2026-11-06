@@ -211,6 +211,15 @@ abstract interface class EntryPointVersioned {
   EntryPointVersion get entryPointVersion;
 }
 
+/// The EntryPoint version [account] signs for: its own when it is
+/// [EntryPointVersioned], else the canonical version of its EntryPoint
+/// address (`null` for an unknown address).
+EntryPointVersion? entryPointVersionOfAccount(SmartAccount account) =>
+    switch (account) {
+      final EntryPointVersioned versioned => versioned.entryPointVersion,
+      _ => entryPointVersionOf(account.entryPoint),
+    };
+
 /// Capability of accounts whose first (deploying) UserOperation needs
 /// different call data than later ones, e.g. an ERC-7579 Safe whose launchpad
 /// must receive `setupSafe(initData)` wrapping the user's calls.

@@ -6,7 +6,6 @@ import '../../clients/bundler/user_operation_request.dart';
 import '../../clients/paymaster/types.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
-import '../../constants/entry_point.dart';
 import '../../errors/errors.dart';
 import '../../types/address.dart';
 import '../../types/user_operation.dart';
@@ -136,10 +135,7 @@ extension PimlicoActions on SmartAccountClient {
     Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final currentAccount = account;
-    final entryPointVersion = switch (currentAccount) {
-      final EntryPointVersioned versioned => versioned.entryPointVersion,
-      _ => entryPointVersionOf(currentAccount.entryPoint),
-    };
+    final entryPointVersion = entryPointVersionOfAccount(currentAccount);
     if (entryPointVersion != EntryPointVersion.v07 &&
         entryPointVersion != EntryPointVersion.v08) {
       throw UnsupportedError(

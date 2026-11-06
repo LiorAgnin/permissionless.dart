@@ -816,6 +816,39 @@ void main() {
         }
       });
 
+      // The 0x7702 initCode marker is an EntryPoint v0.8 feature. On v0.7 the
+      // EntryPoint sees non-empty initCode for an EOA that the authorization
+      // already gave code to and reverts AA10 "sender already constructed";
+      // permissionless.js's 7702 Kernel (v0.7) returns no factory, so the
+      // authorization travels alone.
+      test('a first 7702 op on EntryPoint v0.7 carries no factory marker',
+          () async {
+        final publicClient = create7702PublicClientMock();
+        final client = SmartAccountClient(
+          account: createEip7702KernelSmartAccount(
+            owner: PrivateKeyEip7702KernelOwner(testPrivateKey),
+            chainId: BigInt.from(11155111),
+            publicClient: publicClient,
+          ),
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          ),
+          publicClient: publicClient,
+        );
+
+        final prepared = await client.prepareUserOperationWithAuth(
+          calls: [call],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(prepared.needsAuthorization, isTrue);
+        expect(prepared.userOp.factory, isNull);
+        expect(prepared.userOp.factoryData, isNull);
+      });
+
       test('non-7702 paymaster requests carry NO eip7702Auth', () async {
         final paymaster = createPaymasterClient(
           url: 'http://localhost:3001/rpc',

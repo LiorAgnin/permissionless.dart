@@ -294,12 +294,15 @@ class SmartAccountClient {
     var resolvedFactoryData = factoryData;
     if (resolvedFactory == null && resolvedFactoryData == null) {
       if (needsAuth) {
-        // EIP-7702 first-time (no code yet): set factory marker so the bundler
-        // treats this as an EIP-7702 UserOp. Re-delegation (EOA already has
-        // 0xef0100… code to a *different* implementation) must omit factory —
-        // Pimlico rejects factory when the sender is already constructed, and
-        // auth alone is enough to re-point the delegation.
-        if (!isDeployed) {
+        // EIP-7702 first-time (no code yet): on EntryPoint v0.8 set the 0x7702
+        // initCode marker so the EntryPoint applies the delegation. v0.7 has
+        // no marker (non-empty initCode for the delegated EOA reverts AA10)
+        // and the authorization travels alone, like permissionless.js's 7702
+        // Kernel. Re-delegation (EOA already has 0xef0100… code to a
+        // *different* implementation) must omit factory — Pimlico rejects
+        // factory when the sender is already constructed.
+        if (!isDeployed &&
+            entryPointVersionOfAccount(account) == EntryPointVersion.v08) {
           resolvedFactory = eip7702FactoryMarkerAddress;
           resolvedFactoryData = '0x';
         }
