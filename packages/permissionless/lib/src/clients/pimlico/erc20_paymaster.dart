@@ -5,11 +5,11 @@ import '../public/public_client.dart';
 import 'erc20_cost.dart';
 import 'types.dart';
 
-/// Gas buffer for ERC-20 paymaster verification.
+/// A typical postOp gas figure for ERC-20 paymasters (about 75,000).
 ///
-/// ERC-20 paymasters require additional gas for the token transfer
-/// that occurs in the postOp phase. This is typically around 75,000
-/// gas units, though the exact amount is returned in [PimlicoTokenQuote.postOpGas].
+/// Nothing in this library reads it: the ERC-20 cost uses the quote's own
+/// [PimlicoTokenQuote.postOpGas].
+@Deprecated('Unused; the cost uses PimlicoTokenQuote.postOpGas')
 const int erc20PaymasterGasBuffer = 75000;
 
 /// Checks the token allowance for a spender.

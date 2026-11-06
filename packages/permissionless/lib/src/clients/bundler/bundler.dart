@@ -4,6 +4,6 @@
 /// to submit, estimate, and track UserOperations.
 library;
 
+export '../rpc/rpc_client.dart' show JsonRpcClient, RpcRequest, createRpcClient;
 export 'bundler_client.dart';
-export 'rpc_client.dart' show JsonRpcClient, RpcRequest, createRpcClient;
 export 'types.dart';

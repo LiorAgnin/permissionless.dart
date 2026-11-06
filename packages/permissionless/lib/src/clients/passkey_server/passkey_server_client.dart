@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../types/hex.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Client for a permissionless-compatible passkey server (`pks_*` RPC).

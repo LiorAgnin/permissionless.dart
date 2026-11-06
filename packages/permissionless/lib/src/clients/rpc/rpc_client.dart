@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'types.dart';
+import '../bundler/types.dart';
 
 /// Request timeout used when a client is created without one.
 const Duration defaultRpcTimeout = Duration(seconds: 30);
@@ -11,6 +11,11 @@ const Duration defaultRpcTimeout = Duration(seconds: 30);
 ///
 /// Handles request/response formatting and error parsing for
 /// communicating with Ethereum nodes and ERC-4337 bundlers.
+///
+/// It is the transport of every client in this package (bundler, public,
+/// paymaster, Pimlico, Etherspot, passkey server), so a JSON-RPC error from
+/// any of them is thrown as [BundlerRpcError], and a non-200 HTTP status as
+/// [BundlerHttpError] (a subtype of [BundlerRpcError]).
 class JsonRpcClient {
   /// Creates a JSON-RPC client with the given configuration.
   ///
@@ -138,7 +143,6 @@ class JsonRpcClient {
       results[id] = responseMap['result'];
     }
 
-    // Return results in request order
     return [
       for (var i = startId; i <= _requestId; i++) results[i],
     ];

@@ -4,8 +4,8 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/user_operation.dart';
-import '../bundler/rpc_client.dart';
 import '../bundler/user_operation_request.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Client for interacting with ERC-4337 paymasters.
@@ -13,6 +13,9 @@ import 'types.dart';
 /// Paymasters are contracts that can sponsor gas fees for users,
 /// enabling "gasless" transactions. This client supports the
 /// standard paymaster API methods.
+///
+/// RPC failures are thrown as `BundlerRpcError` (see [JsonRpcClient]), not
+/// as the deprecated `PaymasterRpcError`.
 ///
 /// Example:
 /// ```dart
@@ -110,10 +113,15 @@ class PaymasterClient {
   /// separate calls to stub + estimate + data.
   ///
   /// Not all paymasters support this method.
+  ///
+  /// [chainId] is ignored: `pm_sponsorUserOperation` takes
+  /// `[userOperation, entryPoint, context?]` (permissionless.js
+  /// sponsorUserOperation).
   Future<SponsorUserOperationResult> sponsorUserOperation({
     required UserOperation userOp,
     required EthereumAddress entryPoint,
-    required BigInt chainId,
+    @Deprecated('Unused: pm_sponsorUserOperation takes no chain id')
+    BigInt? chainId,
     PaymasterContext? context,
   }) async {
     final params = <dynamic>[
@@ -191,7 +199,6 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
   UserOperationV06 withPaymasterStubV06(PaymasterStubData stub) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([stub.paymaster.hex, stub.paymasterData]);
     return copyWith(paymasterAndData: paymasterAndData);
@@ -202,7 +209,6 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
   UserOperationV06 withPaymasterDataV06(PaymasterData data) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([data.paymaster.hex, data.paymasterData]);
     return copyWith(paymasterAndData: paymasterAndData);
@@ -210,10 +216,10 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
 
   /// Applies sponsored UserOperation result.
   ///
-  /// For v0.6, this applies the paymaster data and gas estimates from
-  /// a sponsorUserOperation call.
+  /// For v0.6, this applies the paymaster data (as `paymasterAndData`, the
+  /// paymaster address followed by the paymaster data) and gas estimates
+  /// from a sponsorUserOperation call.
   UserOperationV06 withSponsorshipV06(SponsorUserOperationResult result) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([result.paymaster.hex, result.paymasterData]);
     return copyWith(

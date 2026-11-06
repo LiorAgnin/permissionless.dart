@@ -5,13 +5,17 @@ import '../../types/hex.dart';
 import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Client for read-only Ethereum JSON-RPC operations.
 ///
 /// Provides access to standard Ethereum RPC methods for reading
 /// chain state, checking balances, and querying contracts.
+///
+/// RPC failures are thrown as `BundlerRpcError` (see [JsonRpcClient]).
+/// The one exception is [getSenderAddress], which throws [PublicRpcError]
+/// when its helper returns no address.
 ///
 /// Example:
 /// ```dart

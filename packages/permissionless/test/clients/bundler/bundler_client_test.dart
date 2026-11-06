@@ -210,6 +210,110 @@ void main() {
       });
     });
 
+    group('per-call entryPoint and authorization', () {
+      final userOp = UserOperationV07(
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+        nonce: BigInt.zero,
+        callData: '0x',
+        callGasLimit: BigInt.zero,
+        verificationGasLimit: BigInt.zero,
+        preVerificationGas: BigInt.zero,
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+      final authorization = Eip7702Authorization(
+        chainId: BigInt.one,
+        address: EthereumAddress.fromHex(
+          '0xe6Cae83BdE06E4c305530e199D7217f42808555B',
+        ),
+        nonce: BigInt.two,
+        v: 27,
+        r: '0x${'11' * 32}',
+        s: '0x${'22' * 32}',
+      );
+      const estimate = {
+        'preVerificationGas': '0x5208',
+        'verificationGasLimit': '0x186a0',
+        'callGasLimit': '0x186a0',
+      };
+
+      setUp(() {
+        client = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createMockClient(
+            (body) =>
+                body['method'] == 'eth_sendUserOperation' ? '0xabcd' : estimate,
+          ),
+        );
+      });
+
+      test('both calls use the given EntryPoint and eip7702Auth', () async {
+        final stateOverride = {
+          '0x1234567890123456789012345678901234567890': {'balance': '0x1'},
+        };
+        await client.estimateUserOperationGas(
+          userOp,
+          stateOverride: stateOverride,
+          entryPoint: EntryPointAddresses.v08,
+          authorization: authorization,
+        );
+        await client.sendUserOperation(
+          userOp,
+          entryPoint: EntryPointAddresses.v08,
+          authorization: authorization,
+        );
+
+        final estimateParams = capturedRequests[0]['params'] as List<dynamic>;
+        final sendParams = capturedRequests[1]['params'] as List<dynamic>;
+        expect(estimateParams, hasLength(3));
+        expect(estimateParams[2], equals(stateOverride));
+        expect(sendParams, hasLength(2));
+        for (final params in [estimateParams, sendParams]) {
+          expect(params[1], equals(EntryPointAddresses.v08.hex));
+          expect(
+            (params[0] as Map<String, dynamic>)['eip7702Auth'],
+            equals(authorization.toRpcFormat()),
+          );
+        }
+      });
+
+      test('without them, both calls use the client EntryPoint and no auth',
+          () async {
+        await client.estimateUserOperationGas(userOp);
+        await client.sendUserOperation(userOp);
+
+        for (final request in capturedRequests) {
+          final params = request['params'] as List<dynamic>;
+          expect(params, hasLength(2));
+          expect(params[1], equals(EntryPointAddresses.v07.hex));
+          expect(params[0], equals(userOp.toJson()));
+        }
+      });
+
+      test('the deprecated *WithAuthorization methods send the same request',
+          () async {
+        // ignore: deprecated_member_use_from_same_package
+        await client.estimateUserOperationGasWithAuthorization(
+          userOp,
+          [authorization],
+        );
+        // ignore: deprecated_member_use_from_same_package
+        await client
+            .sendUserOperationWithAuthorization(userOp, [authorization]);
+        await client.estimateUserOperationGas(
+          userOp,
+          authorization: authorization,
+        );
+        await client.sendUserOperation(userOp, authorization: authorization);
+
+        expect(capturedRequests[0]['params'], capturedRequests[2]['params']);
+        expect(capturedRequests[1]['params'], capturedRequests[3]['params']);
+      });
+    });
+
     group('getUserOperationByHash', () {
       test('returns operation when found', () async {
         final mockClient = createMockClient(

@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 
 import '../../types/address.dart';
 import '../bundler/bundler_client.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Etherspot-specific bundler client with Skandha extensions.

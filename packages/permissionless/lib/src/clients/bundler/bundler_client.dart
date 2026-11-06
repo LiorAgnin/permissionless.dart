@@ -6,7 +6,7 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
-import 'rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 import 'user_operation_request.dart';
 
@@ -53,50 +53,49 @@ class BundlerClient {
   /// The underlying JSON-RPC client.
   final JsonRpcClient rpcClient;
 
-  /// The EntryPoint address to use for operations.
+  /// The default EntryPoint address for operations.
+  ///
+  /// [sendUserOperation] and [estimateUserOperationGas] accept a per-call
+  /// `entryPoint` that overrides it; `SmartAccountClient` always passes the
+  /// account's EntryPoint (viem's bundler actions take
+  /// `account.entryPoint.address`).
   final EthereumAddress entryPoint;
 
   /// Submits a UserOperation to the bundler.
+  ///
+  /// [entryPoint] defaults to [BundlerClient.entryPoint]. [authorization] is
+  /// the signed EIP-7702 authorization of an EIP-7702 account, sent as the
+  /// op's `eip7702Auth` (requires a bundler that supports EIP-7702).
   ///
   /// Returns the UserOperation hash that can be used to track
   /// the operation's status.
   ///
   /// Throws [BundlerRpcError] if validation fails.
-  Future<String> sendUserOperation(UserOperation userOp) async {
+  Future<String> sendUserOperation(
+    UserOperation userOp, {
+    EthereumAddress? entryPoint,
+    Eip7702Authorization? authorization,
+  }) async {
     final result = await rpcClient.call(
       'eth_sendUserOperation',
-      [userOp.toJson(), entryPoint.hex],
+      [
+        userOperationRequestJson(userOp, authorization: authorization),
+        (entryPoint ?? this.entryPoint).hex,
+      ],
     );
     return result as String;
   }
 
   /// Submits a UserOperation with EIP-7702 authorization.
   ///
-  /// This is used for EIP-7702 accounts where the authorization
-  /// must be included in the UserOperation to enable code delegation.
-  ///
-  /// [userOp] is the UserOperation to submit.
-  /// [authorizationList] contains signed EIP-7702 authorizations.
-  ///
-  /// Returns the UserOperation hash.
-  ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// Only the first element of [authorizationList] is sent: the Pimlico API
+  /// and viem take a single `eip7702Auth` object.
+  @Deprecated('Use sendUserOperation(userOp, authorization: ...)')
   Future<String> sendUserOperationWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList,
-  ) async {
-    // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOperationRequestJson(
-      userOp,
-      authorization: authorizationList.firstOrNull,
-    );
-
-    final result = await rpcClient.call(
-      'eth_sendUserOperation',
-      [userOpJson, entryPoint.hex],
-    );
-    return result as String;
-  }
+  ) =>
+      sendUserOperation(userOp, authorization: authorizationList.firstOrNull);
 
   /// Estimates gas limits for a UserOperation.
   ///
@@ -105,50 +104,42 @@ class BundlerClient {
   /// can be used to fill in the UserOperation gas fields.
   ///
   /// For v0.7 with paymasters, also returns paymaster gas limits.
+  ///
+  /// [entryPoint] defaults to [BundlerClient.entryPoint]. [authorization] is
+  /// the signed EIP-7702 authorization of an EIP-7702 account, sent as the
+  /// op's `eip7702Auth` so the estimate covers the delegation.
   Future<UserOperationGasEstimate> estimateUserOperationGas(
     UserOperation userOp, {
     Map<String, dynamic>? stateOverride,
+    EthereumAddress? entryPoint,
+    Eip7702Authorization? authorization,
   }) async {
-    final params = <dynamic>[userOp.toJson(), entryPoint.hex];
-    if (stateOverride != null) {
-      params.add(stateOverride);
-    }
-
     final result = await rpcClient.call(
       'eth_estimateUserOperationGas',
-      params,
+      [
+        userOperationRequestJson(userOp, authorization: authorization),
+        (entryPoint ?? this.entryPoint).hex,
+        if (stateOverride != null) stateOverride,
+      ],
     );
     return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
   }
 
   /// Estimates gas limits for a UserOperation with EIP-7702 authorization.
   ///
-  /// Similar to [estimateUserOperationGas] but includes the authorization
-  /// inside the UserOperation for accurate gas estimation of EIP-7702 accounts.
-  ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// Only the first element of [authorizationList] is sent: the Pimlico API
+  /// and viem take a single `eip7702Auth` object.
+  @Deprecated('Use estimateUserOperationGas(userOp, authorization: ...)')
   Future<UserOperationGasEstimate> estimateUserOperationGasWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList, {
     Map<String, dynamic>? stateOverride,
-  }) async {
-    // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOperationRequestJson(
-      userOp,
-      authorization: authorizationList.firstOrNull,
-    );
-
-    final params = <dynamic>[userOpJson, entryPoint.hex];
-    if (stateOverride != null) {
-      params.add(stateOverride);
-    }
-
-    final result = await rpcClient.call(
-      'eth_estimateUserOperationGas',
-      params,
-    );
-    return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
-  }
+  }) =>
+      estimateUserOperationGas(
+        userOp,
+        stateOverride: stateOverride,
+        authorization: authorizationList.firstOrNull,
+      );
 
   /// Gets a UserOperation by its hash.
   ///
