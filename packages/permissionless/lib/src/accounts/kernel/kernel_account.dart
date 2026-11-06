@@ -321,7 +321,7 @@ class KernelSmartAccount implements SmartAccountV06 {
     final publicClient = _config.publicClient;
     return publicClient != null
         ? await isRip7212Supported(publicClient)
-        : shouldUseP256Precompile(chainId: chainId);
+        : supportsRip7212(chainId: chainId);
   }
 
   /// The WebAuthn stub encodes `usePrecompiled: false`: the Solidity P256

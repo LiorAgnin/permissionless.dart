@@ -208,13 +208,7 @@ bool supportsRip7212({required BigInt chainId}) =>
 
 /// Returns whether to use the P256 precompile for WebAuthn signatures.
 ///
-/// This is a convenience wrapper that handles the common pattern of
-/// checking chain support and returning the appropriate flag.
-///
-/// Example:
-/// ```dart
-/// final usePrecompiled = shouldUseP256Precompile(chainId: chainId);
-/// encodeKernelWebAuthnSignature(sig, usePrecompiled: usePrecompiled);
-/// ```
+/// Same as [supportsRip7212].
+@Deprecated('Use supportsRip7212')
 bool shouldUseP256Precompile({required BigInt chainId}) =>
     supportsRip7212(chainId: chainId);

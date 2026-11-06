@@ -39,8 +39,10 @@ void main() {
       });
     });
 
-    test('shouldUseP256Precompile follows the chain list', () {
+    test('deprecated shouldUseP256Precompile follows the chain list', () {
+      // ignore: deprecated_member_use_from_same_package
       expect(shouldUseP256Precompile(chainId: BigInt.from(10)), isTrue);
+      // ignore: deprecated_member_use_from_same_package
       expect(shouldUseP256Precompile(chainId: BigInt.from(999)), isFalse);
     });
 
