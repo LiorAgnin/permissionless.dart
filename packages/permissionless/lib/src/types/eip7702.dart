@@ -14,13 +14,9 @@ final EthereumAddress eip7702FactoryMarkerAddress = EthereumAddress.fromHex(
   '0x7702000000000000000000000000000000000000',
 );
 
-/// Returns true if [factory] is the EIP-7702 marker (`0x7702` or padded form).
-bool isEip7702FactoryMarker(EthereumAddress? factory) {
-  if (factory == null) return false;
-  final hex = factory.hex.toLowerCase();
-  return hex == eip7702FactoryMarkerAddress.hex.toLowerCase() ||
-      hex == eip7702FactoryMarkerShort;
-}
+/// Returns true if [factory] is the EIP-7702 factory marker.
+bool isEip7702FactoryMarker(EthereumAddress? factory) =>
+    factory != null && factory.hex == eip7702FactoryMarkerAddress.hex;
 
 /// Packs UserOperation initCode with EIP-7702 marker parity (viem `getInitCode`).
 ///

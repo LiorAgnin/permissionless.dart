@@ -5,6 +5,7 @@ import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/user_operation.dart';
 import '../bundler/rpc_client.dart';
+import '../bundler/user_operation_request.dart';
 import 'types.dart';
 
 /// Client for interacting with ERC-4337 paymasters.
@@ -67,7 +68,7 @@ class PaymasterClient {
     // viem always sends 4 positional params (context may be null) and ensures
     // gas fields default to 0x0 when missing.
     final params = <dynamic>[
-      _userOpJsonForPaymaster(userOp, authorization),
+      userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
       context?.toJson(),
@@ -94,7 +95,7 @@ class PaymasterClient {
     // viem always sends 4 positional params (context may be null) and ensures
     // gas fields default to 0x0 when missing.
     final params = <dynamic>[
-      _userOpJsonForPaymaster(userOp, authorization),
+      userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
       context?.toJson(),
@@ -102,26 +103,6 @@ class PaymasterClient {
 
     final result = await rpcClient.call('pm_getPaymasterData', params);
     return PaymasterData.fromJson(result as Map<String, dynamic>);
-  }
-
-  /// Builds paymaster request body matching viem's formatUserOperationRequest
-  /// defaults: gas fields fall back to `0x0` when absent.
-  ///
-  /// When [authorization] is provided (EIP-7702 first op), it is added as the
-  /// separate `eip7702Auth` field — matching viem, which forwards the
-  /// authorization to `pm_getPaymaster*` alongside the op fields.
-  Map<String, dynamic> _userOpJsonForPaymaster(
-    UserOperation userOp,
-    Eip7702Authorization? authorization,
-  ) {
-    final json = userOp.toJson();
-    if (authorization != null) {
-      json['eip7702Auth'] = authorization.toRpcFormat();
-    }
-    json['callGasLimit'] = json['callGasLimit'] ?? '0x0';
-    json['verificationGasLimit'] = json['verificationGasLimit'] ?? '0x0';
-    json['preVerificationGas'] = json['preVerificationGas'] ?? '0x0';
-    return json;
   }
 
   /// Sponsors a UserOperation in a single call.

@@ -270,9 +270,11 @@ class UserOperationV07 implements UserOperation {
       UserOperationV07(
         sender: EthereumAddress.fromHex(json['sender'] as String),
         nonce: Hex.toBigInt(json['nonce'] as String),
-        factory: json['factory'] != null
-            ? EthereumAddress.fromHex(json['factory'] as String)
-            : null,
+        factory: switch (json['factory'] as String?) {
+          null => null,
+          eip7702FactoryMarkerShort => eip7702FactoryMarkerAddress,
+          final hex => EthereumAddress.fromHex(hex),
+        },
         factoryData: json['factoryData'] as String?,
         callData: json['callData'] as String,
         callGasLimit: Hex.toBigInt(json['callGasLimit'] as String),
@@ -393,13 +395,10 @@ class UserOperationV07 implements UserOperation {
 
     if (factory != null) {
       // Bundlers / viem use the short EIP-7702 marker `0x7702`, not the
-      // left-padded 20-byte form. Emitting the short form avoids schema
-      // validation errors on some endpoints.
-      if (isEip7702FactoryMarker(factory)) {
-        result['factory'] = eip7702FactoryMarkerShort;
-      } else {
-        result['factory'] = factory!.hex;
-      }
+      // left-padded 20-byte form; some endpoints reject the padded one.
+      result['factory'] = isEip7702FactoryMarker(factory)
+          ? eip7702FactoryMarkerShort
+          : factory!.hex;
     }
     if (factoryData != null) {
       result['factoryData'] = factoryData;
