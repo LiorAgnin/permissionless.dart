@@ -1346,6 +1346,35 @@ void main() {
         );
       });
 
+      test('accepts an upper-case selector', () {
+        final call = Call(
+          to: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          value: BigInt.from(5),
+          data: '0xabcdef',
+        );
+        final encoded = encode7579Execute(call);
+        final upper = '0xE9AE5C53${encoded.substring(10)}';
+
+        final decoded = decode7579Calls(upper);
+
+        expect(decoded.calls.single.to, equals(call.to));
+        expect(decoded.calls.single.value, equals(call.value));
+        expect(decoded.calls.single.data, equals(call.data));
+      });
+
+      test('throws for a truncated batch payload', () {
+        // Batch mode whose executionCalldata holds only the array offset.
+        const truncated = '0xe9ae5c53'
+            '0100000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000040'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '0000000000000000000000000000000000000000000000000000000000000020';
+
+        expect(() => decode7579Calls(truncated), throwsArgumentError);
+      });
+
       test('throws for invalid call type', () {
         // Valid selector but invalid call type (0x02)
         const invalidCallData = '0x61461954' // execute selector

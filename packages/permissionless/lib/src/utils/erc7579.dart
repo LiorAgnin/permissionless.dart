@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../types/address.dart';
 import '../types/hex.dart';
 import '../types/user_operation.dart';
+import 'abi_parameters.dart';
 import 'encoding.dart';
 
 /// ERC-7579 module types as defined in the specification.
@@ -96,6 +97,12 @@ class Erc7579Selectors {
   /// `keccak256("supportsExecutionMode(bytes32)")[0:4]` = 0xd03c7914
   static const String supportsExecutionMode = '0xd03c7914';
 }
+
+/// `execute(bytes32 mode, bytes executionCalldata)`.
+const String _executeSignature = 'execute(bytes32,bytes)';
+
+/// ERC-7579 batch execution calldata: `abi.encode(Execution[])`.
+const String _executionsAbi = '(address,uint256,bytes)[]';
 
 /// Call type for ERC-7579 execution.
 ///
@@ -805,172 +812,53 @@ class Decoded7579Calls {
 ///
 /// Throws [ArgumentError] if the call data is invalid or not an ERC-7579 execute call.
 Decoded7579Calls decode7579Calls(String callData) {
-  final hex = Hex.strip0x(callData);
-
-  // Minimum length: selector (8) + mode (64) + offset (64) = 136 chars
-  if (hex.length < 136) {
+  if (Hex.byteLength(callData) < 68) {
     throw ArgumentError('Call data too short for ERC-7579 execute');
   }
+  final args = AbiEncoder.decodeFunctionData(_executeSignature, callData);
+  final modeBytes = args[0] as Uint8List;
+  final executionData = Hex.fromBytes(args[1] as Uint8List);
 
-  // Check function selector
-  final selector = '0x${hex.substring(0, 8)}';
-  if (selector != Erc7579Selectors.execute) {
-    throw ArgumentError(
-      'Invalid selector: expected ${Erc7579Selectors.execute}, got $selector',
-    );
-  }
-
-  // Parse mode (bytes32 at offset 8-72)
-  final modeHex = hex.substring(8, 72);
-  final modeBytes = Hex.decode('0x$modeHex');
-
-  // Decode mode components
   final callType = Erc7579CallKind.fromValue(modeBytes[0]);
-  // permissionless.js: revertOnError === (execType == 0x01)
-  final revertOnError = modeBytes[1] == 0x01;
-
-  // Bytes 6-9: selector (4 bytes) — ERC-7579 / JS encoder layout (not JS decode)
-  String? modeSelector;
-  if (modeBytes[6] != 0 ||
-      modeBytes[7] != 0 ||
-      modeBytes[8] != 0 ||
-      modeBytes[9] != 0) {
-    modeSelector = Hex.fromBytes(Uint8List.fromList(modeBytes.sublist(6, 10)));
-  }
-
-  // Bytes 10-31: context (22 bytes)
-  String? modeContext;
-  var hasContext = false;
-  for (var i = 10; i < 32; i++) {
-    if (modeBytes[i] != 0) {
-      hasContext = true;
-      break;
-    }
-  }
-  if (hasContext) {
-    modeContext = Hex.fromBytes(Uint8List.fromList(modeBytes.sublist(10, 32)));
-  }
-
+  // Bytes 6-9 selector / 10-31 context: ERC-7579 / JS encoder layout (not
+  // JS decode).
+  final modeSelector = Hex.fromBytes(modeBytes.sublist(6, 10));
+  final modeContext = Hex.fromBytes(modeBytes.sublist(10, 32));
   final mode = ExecutionMode(
     type: callType,
-    revertOnError: revertOnError,
-    selector: modeSelector,
-    context: modeContext,
+    // permissionless.js: revertOnError === (execType == 0x01)
+    revertOnError: modeBytes[1] == 0x01,
+    selector: _isZero(modeSelector) ? null : modeSelector,
+    context: _isZero(modeContext) ? null : modeContext,
   );
 
-  // Parse execution calldata offset (bytes 72-136)
-  // final offsetHex = hex.substring(72, 136);
-  // Offset should be 64 (0x40) pointing past mode and offset itself
-
-  // Parse execution calldata length (at offset position)
-  final lengthHex = hex.substring(136, 200);
-  final length = int.parse(lengthHex, radix: 16);
-
-  if (length == 0) {
+  if (executionData == '0x') {
     return Decoded7579Calls(mode: mode, calls: []);
   }
-
-  // Extract execution calldata
-  final executionHex = hex.substring(200, 200 + length * 2);
-
-  // Decode based on call type
   if (callType == Erc7579CallKind.batchCall) {
-    final calls = _decodeBatchCalls(executionHex);
-    return Decoded7579Calls(mode: mode, calls: calls);
-  } else {
-    // Single call: packed as (address, value, calldata)
-    final call = _decodeSingleCall(executionHex);
-    return Decoded7579Calls(mode: mode, calls: [call]);
+    final executions = decodeAbiParameters(_executionsAbi, executionData)[0];
+    return Decoded7579Calls(
+      mode: mode,
+      calls: [
+        for (final e in (executions as List).cast<List<dynamic>>())
+          Call(
+            to: e[0] as EthereumAddress,
+            value: e[1] as BigInt,
+            data: Hex.fromBytes(e[2] as Uint8List),
+          ),
+      ],
+    );
   }
+  return Decoded7579Calls(
+    mode: mode,
+    calls: [
+      Call(
+        to: EthereumAddress.fromHex(Hex.slice(executionData, 0, 20)),
+        value: Hex.toBigInt(Hex.slice(executionData, 20, 52)),
+        data: Hex.slice(executionData, 52),
+      ),
+    ],
+  );
 }
 
-/// Decodes a single call from packed format (address || value || data).
-Call _decodeSingleCall(String executionHex) {
-  // Address: 20 bytes (40 hex chars)
-  final addressHex = executionHex.substring(0, 40);
-  final to = EthereumAddress.fromHex('0x$addressHex');
-
-  // Value: 32 bytes (64 hex chars)
-  final valueHex = executionHex.substring(40, 104);
-  final value = BigInt.parse(valueHex, radix: 16);
-
-  // Remaining: calldata
-  final data =
-      executionHex.length > 104 ? '0x${executionHex.substring(104)}' : '0x';
-
-  return Call(to: to, value: value, data: data);
-}
-
-/// Decodes batch calls from ABI-encoded Execution[] array.
-List<Call> _decodeBatchCalls(String executionHex) {
-  // ABI encoded array:
-  // - offset to array data (32 bytes)
-  // - array length (32 bytes)
-  // - offsets to each struct (32 bytes each)
-  // - struct data
-
-  if (executionHex.length < 128) {
-    return [];
-  }
-
-  // Skip array offset, read length
-  final lengthHex = executionHex.substring(64, 128);
-  final arrayLength = int.parse(lengthHex, radix: 16);
-
-  if (arrayLength == 0) {
-    return [];
-  }
-
-  final calls = <Call>[];
-
-  // Read struct offsets
-  final offsets = <int>[];
-  for (var i = 0; i < arrayLength; i++) {
-    final offsetStart = 128 + (i * 64);
-    final offsetHex = executionHex.substring(offsetStart, offsetStart + 64);
-    offsets.add(int.parse(offsetHex, radix: 16));
-  }
-
-  // Decode each struct
-  // Base for offsets is after the length field (position 64 = 32 bytes)
-  const baseOffset = 64; // After array offset + length
-
-  for (var i = 0; i < arrayLength; i++) {
-    final structStart = (baseOffset + offsets[i]) * 2;
-
-    // Each Execution struct: (address, uint256, bytes)
-    // Address (32 bytes padded)
-    final addressHex =
-        executionHex.substring(structStart + 24, structStart + 64);
-    final to = EthereumAddress.fromHex('0x$addressHex');
-
-    // Value (32 bytes)
-    final valueHex =
-        executionHex.substring(structStart + 64, structStart + 128);
-    final value = BigInt.parse(valueHex, radix: 16);
-
-    // Bytes offset (32 bytes) - points to bytes data relative to struct start
-    final bytesOffsetHex =
-        executionHex.substring(structStart + 128, structStart + 192);
-    final bytesOffset = int.parse(bytesOffsetHex, radix: 16);
-
-    // Bytes length
-    final bytesLengthStart = structStart + (bytesOffset * 2);
-    final bytesLengthHex =
-        executionHex.substring(bytesLengthStart, bytesLengthStart + 64);
-    final bytesLength = int.parse(bytesLengthHex, radix: 16);
-
-    // Bytes data
-    var data = '0x';
-    if (bytesLength > 0) {
-      final dataStart = bytesLengthStart + 64;
-      final dataHex =
-          executionHex.substring(dataStart, dataStart + bytesLength * 2);
-      data = '0x$dataHex';
-    }
-
-    calls.add(Call(to: to, value: value, data: data));
-  }
-
-  return calls;
-}
+bool _isZero(String hex) => Hex.toBigInt(hex) == BigInt.zero;
