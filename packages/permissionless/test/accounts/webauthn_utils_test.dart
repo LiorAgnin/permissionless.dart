@@ -84,6 +84,11 @@ void main() {
       (await kernel(ecdsaOwner).getFactoryData())!.factoryData,
     );
     expect(account.isWebAuthn, isFalse);
-    expect(account.getStubSignature(), kernelDummyEcdsaSignature);
+    // permissionless.js Kernel DUMMY_ECDSA_SIGNATURE (not the WebAuthn stub).
+    expect(
+      account.getStubSignature(),
+      '0xfffffffffffffffffffffffffffffff000000000000000000000000000000000'
+      '7aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c',
+    );
   });
 }
