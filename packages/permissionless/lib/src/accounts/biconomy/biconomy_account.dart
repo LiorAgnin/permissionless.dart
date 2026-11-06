@@ -127,7 +127,8 @@ class BiconomySmartAccount implements SmartAccountV06 {
   /// The EntryPoint address (v0.6).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v06;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -265,7 +266,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
       getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
       ),
     );

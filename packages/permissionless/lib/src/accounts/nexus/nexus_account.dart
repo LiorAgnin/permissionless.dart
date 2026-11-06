@@ -136,7 +136,8 @@ class NexusSmartAccount implements SmartAccount {
   /// The EntryPoint address (v0.7).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for Nexus accounts.
   ///

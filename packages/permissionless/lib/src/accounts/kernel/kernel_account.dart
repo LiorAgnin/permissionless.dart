@@ -140,9 +140,7 @@ class KernelSmartAccount implements SmartAccountV06 {
   @override
   EthereumAddress get entryPoint =>
       _config.entryPointAddress ??
-      (entryPointVersion == EntryPointVersion.v06
-          ? EntryPointAddresses.v06
-          : EntryPointAddresses.v07);
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   WebAuthnAccountOwner? get _webAuthnOwner => switch (_config.owner) {
         final WebAuthnAccountOwner owner => owner,

@@ -188,7 +188,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v08;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -282,7 +283,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
       user_op_hash.getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v08,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
         eip7702DelegationAddress: accountLogicAddress,
       );

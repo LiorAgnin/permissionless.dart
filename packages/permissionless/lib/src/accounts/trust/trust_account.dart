@@ -109,10 +109,14 @@ class TrustSmartAccount implements SmartAccountV06 {
   @override
   BigInt get chainId => _config.chainId;
 
+  /// The EntryPoint version (always v0.6 for Trust).
+  EntryPointVersion get entryPointVersion => EntryPointVersion.v06;
+
   /// The EntryPoint address (v0.6).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v06;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -196,7 +200,7 @@ class TrustSmartAccount implements SmartAccountV06 {
         getUserOperationHash(
           userOperation: userOp,
           entryPointAddress: entryPoint,
-          entryPointVersion: EntryPointVersion.v06,
+          entryPointVersion: entryPointVersion,
           chainId: _config.chainId,
         ),
       );

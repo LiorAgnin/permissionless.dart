@@ -17,6 +17,12 @@ import '../standard_execute.dart';
 import '../wrapped_message.dart';
 import 'constants.dart';
 
+// permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
+final _factories = {
+  EntryPointVersion.v06: ThirdwebAddresses.factoryV06,
+  EntryPointVersion.v07: ThirdwebAddresses.factoryV07,
+};
+
 /// Configuration for creating a Thirdweb smart account.
 class ThirdwebSmartAccountConfig {
   /// Creates a configuration for a Thirdweb smart account.
@@ -46,11 +52,10 @@ class ThirdwebSmartAccountConfig {
     this.address,
   }) : entryPointVersion = _supportedEntryPointVersion(entryPointVersion);
 
-  // permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
   static EntryPointVersion _supportedEntryPointVersion(
     EntryPointVersion version,
   ) {
-    if (version == EntryPointVersion.v08) {
+    if (!_factories.containsKey(version)) {
       throw ArgumentError.value(
         version,
         'entryPointVersion',
@@ -111,9 +116,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v06
-                ? ThirdwebAddresses.factoryV06
-                : ThirdwebAddresses.factoryV07);
+            _factories[_config.entryPointVersion]!;
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;

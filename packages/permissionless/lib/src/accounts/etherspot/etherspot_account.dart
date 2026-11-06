@@ -128,9 +128,13 @@ class EtherspotSmartAccount implements SmartAccount {
       _config.customAddresses?.ecdsaValidator ??
       EtherspotAddresses.ecdsaValidator;
 
+  /// The EntryPoint version (always v0.7 for Etherspot).
+  EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
+
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// permissionless.js `getNonceKeyWithEncoding`: validator (20) ‖
   /// mode DEFAULT (1) ‖ type ROOT (1) ‖ nonce key (2).
@@ -229,7 +233,7 @@ class EtherspotSmartAccount implements SmartAccount {
         getUserOperationHash(
           userOperation: userOp,
           entryPointAddress: entryPoint,
-          entryPointVersion: EntryPointVersion.v07,
+          entryPointVersion: entryPointVersion,
           chainId: chainId,
         ),
       );

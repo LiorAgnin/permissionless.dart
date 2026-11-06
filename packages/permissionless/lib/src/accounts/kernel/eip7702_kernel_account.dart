@@ -213,7 +213,8 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for this account.
   ///
