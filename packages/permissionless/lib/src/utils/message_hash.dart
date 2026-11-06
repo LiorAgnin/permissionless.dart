@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:web3dart/web3dart.dart';
 
-import '../types/address.dart';
 import '../types/hex.dart';
 import '../types/typed_data.dart';
 import 'encoding.dart';
@@ -71,38 +70,27 @@ String hashTypedData(TypedData typedData) {
 /// The domain separator is computed by hashing the EIP712Domain struct
 /// with only the fields that are present in the domain.
 String computeDomainSeparator(TypedDataDomain domain) {
-  final fields = <String>[];
-  if (domain.name != null) fields.add('string name');
-  if (domain.version != null) fields.add('string version');
-  if (domain.chainId != null) fields.add('uint256 chainId');
-  if (domain.verifyingContract != null) fields.add('address verifyingContract');
-  if (domain.salt != null) fields.add('bytes32 salt');
-
-  final domainTypeString = 'EIP712Domain(${fields.join(',')})';
-  final domainTypeHash =
-      keccak256(Uint8List.fromList(domainTypeString.codeUnits));
-
-  final encodedParts = <String>[Hex.fromBytes(domainTypeHash)];
-
-  if (domain.name != null) {
-    encodedParts.add(_hashString(domain.name!));
-  }
-  if (domain.version != null) {
-    encodedParts.add(_hashString(domain.version!));
-  }
-  if (domain.chainId != null) {
-    encodedParts.add(AbiEncoder.encodeUint256(domain.chainId!));
-  }
-  if (domain.verifyingContract != null) {
-    encodedParts.add(AbiEncoder.encodeAddress(domain.verifyingContract!));
-  }
-  if (domain.salt != null) {
-    encodedParts.add(AbiEncoder.encodeBytes32(domain.salt!));
-  }
-
-  final encoded = Hex.concat(encodedParts);
-  return Hex.fromBytes(keccak256(Hex.decode(encoded)));
+  final values = <String, Object?>{
+    'name': domain.name,
+    'version': domain.version,
+    'chainId': domain.chainId,
+    'verifyingContract': domain.verifyingContract,
+    'salt': domain.salt,
+  }..removeWhere((_, value) => value == null);
+  final fields = [
+    for (final field in _domainFields)
+      if (values.containsKey(field.name)) field,
+  ];
+  return hashStruct('EIP712Domain', values, {'EIP712Domain': fields});
 }
+
+const _domainFields = [
+  TypedDataField(name: 'name', type: 'string'),
+  TypedDataField(name: 'version', type: 'string'),
+  TypedDataField(name: 'chainId', type: 'uint256'),
+  TypedDataField(name: 'verifyingContract', type: 'address'),
+  TypedDataField(name: 'salt', type: 'bytes32'),
+];
 
 /// Computes the struct hash for EIP-712.
 ///
@@ -119,9 +107,6 @@ String hashStruct(
   return Hex.fromBytes(keccak256(Hex.decode(combined)));
 }
 
-/// Computes the type hash for a struct.
-///
-/// typeHash = keccak256(encodeType(typeOf(s)))
 String _computeTypeHash(
   String primaryType,
   Map<String, List<TypedDataField>> types,
@@ -149,7 +134,6 @@ String _encodeType(
 
   final buffer = StringBuffer()..write(_formatTypeString(primaryType, fields));
 
-  // Append referenced types in alphabetical order
   final sortedRefs = referencedTypes.toList()..sort();
   for (final refType in sortedRefs) {
     buffer.write(_formatTypeString(refType, types[refType]!));
@@ -158,13 +142,11 @@ String _encodeType(
   return buffer.toString();
 }
 
-/// Formats a single type definition string.
 String _formatTypeString(String typeName, List<TypedDataField> fields) {
   final fieldStrings = fields.map((f) => '${f.type} ${f.name}').join(',');
   return '$typeName($fieldStrings)';
 }
 
-/// Recursively finds all types referenced by a given type.
 void _findReferencedTypes(
   String typeName,
   Map<String, List<TypedDataField>> types,
@@ -185,7 +167,6 @@ void _findReferencedTypes(
   }
 }
 
-/// Gets the base type from an array type (e.g., 'Person[]' -> 'Person').
 String _getBaseType(String type) {
   if (type.endsWith('[]')) {
     return type.substring(0, type.length - 2);
@@ -193,7 +174,6 @@ String _getBaseType(String type) {
   return type;
 }
 
-/// Encodes the data according to EIP-712 rules.
 String _encodeData(
   String typeName,
   Map<String, dynamic> data,
@@ -214,7 +194,6 @@ String _encodeData(
   return Hex.concat(encodedParts);
 }
 
-/// Encodes a single value according to its type.
 String _encodeValue(
   String type,
   dynamic value,
@@ -235,66 +214,39 @@ String _encodeValue(
   return _encodePrimitive(type, value);
 }
 
-/// Encodes a primitive Solidity type.
+// The atomic types viem accepts (its bytesRegex / integerRegex). Checked here
+// because web3dart throws a bare Exception for widths like uint7 / bytes33 and
+// silently accepts bytes0.
+final _atomicType = RegExp(
+  '^(address|bool|bytes([1-9]|[12][0-9]|3[0-2])|u?int(8|16|24|32|40|48|56|64'
+  '|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216'
+  r'|224|232|240|248|256)?)$',
+);
+
+/// Encodes a non-struct, non-array value.
+///
+/// `bytes` and `string` are hashed; every atomic type is encoded as
+/// `abi.encode(value)`, which range-checks integers and sign-extends `intN`.
+/// `bytesN` values shorter than N bytes are right-padded with zeros (kept from
+/// earlier releases; viem rejects them).
 String _encodePrimitive(String type, dynamic value) {
   if (type == 'bytes') {
-    final hexValue = value as String;
-    return Hex.fromBytes(keccak256(Hex.decode(hexValue)));
+    return Hex.fromBytes(keccak256(Hex.decode(value as String)));
   }
-
   if (type == 'string') {
-    final stringValue = value as String;
-    return _hashString(stringValue);
+    return _hashString(value as String);
   }
-
-  if (type == 'bool') {
-    final boolValue = value as bool;
-    return AbiEncoder.encodeUint256(boolValue ? BigInt.one : BigInt.zero);
+  final match = _atomicType.firstMatch(type);
+  if (match == null) {
+    throw ArgumentError('Unsupported type: $type');
   }
-
-  if (type == 'address') {
-    if (value is EthereumAddress) {
-      return AbiEncoder.encodeAddress(value);
-    }
-    return AbiEncoder.encodeAddress(EthereumAddress.fromHex(value as String));
-  }
-
-  if (type.startsWith('bytes') && type.length <= 7) {
-    final size = int.tryParse(type.substring(5));
-    if (size != null && size >= 1 && size <= 32) {
-      return AbiEncoder.encodeBytes32(value as String);
-    }
-  }
-
-  if (type.startsWith('uint')) {
-    if (value is BigInt) {
-      return AbiEncoder.encodeUint256(value);
-    }
-    if (value is int) {
-      return AbiEncoder.encodeUint256(BigInt.from(value));
-    }
-    return AbiEncoder.encodeUint256(BigInt.parse(value.toString()));
-  }
-
-  if (type.startsWith('int')) {
-    BigInt bigValue;
-    if (value is BigInt) {
-      bigValue = value;
-    } else if (value is int) {
-      bigValue = BigInt.from(value);
-    } else {
-      bigValue = BigInt.parse(value.toString());
-    }
-    if (bigValue < BigInt.zero) {
-      bigValue = (BigInt.one << 256) + bigValue;
-    }
-    return AbiEncoder.encodeUint256(bigValue);
-  }
-
-  throw ArgumentError('Unsupported type: $type');
+  final bytesSize = match.group(2);
+  final encodable = bytesSize != null && value is String
+      ? Hex.padRight(value, int.parse(bytesSize))
+      : value;
+  return AbiEncoder.encodeParameters([type], [encodable]);
 }
 
-/// Hashes a string value for EIP-712 encoding.
 String _hashString(String value) {
   final bytes = Uint8List.fromList(utf8.encode(value));
   return Hex.fromBytes(keccak256(bytes));
