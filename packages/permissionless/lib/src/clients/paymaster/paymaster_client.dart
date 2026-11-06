@@ -112,7 +112,11 @@ class PaymasterClient {
   /// gas estimates and paymaster data. This is more efficient than
   /// separate calls to stub + estimate + data.
   ///
-  /// Not all paymasters support this method.
+  /// Not all paymasters support this method: `pm_sponsorUserOperation` is a
+  /// Pimlico extension, as in permissionless.js (an explicit Pimlico action).
+  /// `SmartAccountClient` does not call it; its prepare steps use the
+  /// ERC-7677 [getPaymasterStubData] / [getPaymasterData] on every
+  /// EntryPoint version.
   ///
   /// [chainId] is ignored: `pm_sponsorUserOperation` takes
   /// `[userOperation, entryPoint, context?]` (permissionless.js
@@ -198,6 +202,8 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   ///
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
+  /// A v0.6 `pm_getPaymasterStubData` answer parsed by
+  /// [PaymasterStubData.fromJson] round-trips to the same bytes.
   UserOperationV06 withPaymasterStubV06(PaymasterStubData stub) {
     final paymasterAndData =
         Hex.concat([stub.paymaster.hex, stub.paymasterData]);
@@ -208,6 +214,8 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   ///
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
+  /// A v0.6 `pm_getPaymasterData` answer parsed by [PaymasterData.fromJson]
+  /// round-trips to the same bytes.
   UserOperationV06 withPaymasterDataV06(PaymasterData data) {
     final paymasterAndData =
         Hex.concat([data.paymaster.hex, data.paymasterData]);

@@ -428,6 +428,135 @@ void main() {
     });
   });
 
+  // ERC-7677 answers an EntryPoint v0.6 op with a single `paymasterAndData`
+  // (paymaster address ++ paymaster data) instead of `paymaster` +
+  // `paymasterData`: viem `PaymasterRpcSchema` (src/types/eip1193.ts)
+  // `OneOf<{ paymasterAndData } | { paymaster, paymasterData, … }> &
+  // { sponsor?, isFinal? }`, and permissionless.js mock-paymaster relay.ts
+  // returns `{ paymasterAndData, sponsor, isFinal: false }` for 0.6.
+  group('v0.6 paymasterAndData responses (ERC-7677)', () {
+    // cast concat-hex 0x1111222233334444555566667777888899990000 0xc0ffee
+    const paymasterAndData = '0x1111222233334444555566667777888899990000c0ffee';
+    final paymasterAddress =
+        EthereumAddress.fromHex('0x1111222233334444555566667777888899990000');
+
+    UserOperationV06 v06Op() => UserOperationV06(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.zero,
+          verificationGasLimit: BigInt.zero,
+          preVerificationGas: BigInt.zero,
+          maxFeePerGas: BigInt.one,
+          maxPriorityFeePerGas: BigInt.one,
+        );
+
+    test('PaymasterStubData.fromJson splits paymasterAndData', () {
+      final stub = PaymasterStubData.fromJson({
+        'sponsor': {'name': 'Pimlico'},
+        'paymasterAndData': paymasterAndData,
+        'isFinal': true,
+      });
+
+      expect(stub.paymaster, paymasterAddress);
+      expect(stub.paymasterData, '0xc0ffee');
+      expect(stub.paymasterVerificationGasLimit, isNull);
+      expect(stub.paymasterPostOpGasLimit, isNull);
+      expect(stub.isFinal, isTrue);
+    });
+
+    test('PaymasterData.fromJson splits paymasterAndData', () {
+      final data = PaymasterData.fromJson({
+        'paymasterAndData': paymasterAndData,
+      });
+
+      expect(data.paymaster, paymasterAddress);
+      expect(data.paymasterData, '0xc0ffee');
+      expect(data.paymasterVerificationGasLimit, isNull);
+      expect(data.paymasterPostOpGasLimit, isNull);
+    });
+
+    test('a bare 20-byte paymasterAndData has empty paymasterData', () {
+      final data = PaymasterData.fromJson({
+        'paymasterAndData': '0x1111222233334444555566667777888899990000',
+      });
+
+      expect(data.paymaster, paymasterAddress);
+      expect(data.paymasterData, '0x');
+    });
+
+    test('paymasterAndData shorter than an address is a FormatException', () {
+      expect(
+        () => PaymasterStubData.fromJson({'paymasterAndData': '0x'}),
+        throwsFormatException,
+      );
+      expect(
+        () => PaymasterData.fromJson({'paymasterAndData': '0x1234'}),
+        throwsFormatException,
+      );
+    });
+
+    test('withPaymasterStubV06 / withPaymasterDataV06 restore the bytes', () {
+      final stub = PaymasterStubData.fromJson({
+        'paymasterAndData': paymasterAndData,
+      });
+      final data = PaymasterData.fromJson({
+        'paymasterAndData': paymasterAndData,
+      });
+
+      expect(
+        v06Op().withPaymasterStubV06(stub).paymasterAndData,
+        paymasterAndData,
+      );
+      expect(
+        v06Op().withPaymasterDataV06(data).paymasterAndData,
+        paymasterAndData,
+      );
+    });
+
+    test('getPaymasterStubData / getPaymasterData parse a v0.6 answer',
+        () async {
+      final requests = <Map<String, dynamic>>[];
+      final client = createPaymasterClient(
+        url: 'http://localhost:3000/rpc',
+        httpClient: MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          requests.add(body);
+          return http.Response(
+            jsonEncode({
+              'jsonrpc': '2.0',
+              'id': body['id'],
+              'result': {'paymasterAndData': paymasterAndData},
+            }),
+            200,
+          );
+        }),
+      );
+
+      final stub = await client.getPaymasterStubData(
+        userOp: v06Op(),
+        entryPoint: EntryPointAddresses.v06,
+        chainId: BigInt.one,
+      );
+      final data = await client.getPaymasterData(
+        userOp: v06Op(),
+        entryPoint: EntryPointAddresses.v06,
+        chainId: BigInt.one,
+      );
+
+      expect(stub.paymaster, paymasterAddress);
+      expect(data.paymasterData, '0xc0ffee');
+      for (final request in requests) {
+        final params = request['params'] as List<dynamic>;
+        expect(params[0], containsPair('initCode', '0x'));
+        expect(params[0], containsPair('paymasterAndData', '0x'));
+        expect(params[1], EntryPointAddresses.v06.hex);
+      }
+    });
+  });
+
   group('PaymasterContext', () {
     test('toJson includes sponsorshipPolicyId', () {
       const context = PaymasterContext(sponsorshipPolicyId: 'policy-abc');

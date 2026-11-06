@@ -342,20 +342,14 @@ class SmartAccountClient {
       signature: signature ?? account.getStubSignature(),
     );
 
-    // Apply paymaster stub data if using paymaster.
     // The EIP-7702 authorization (when present) is forwarded so the paymaster
     // sees the same `eip7702Auth` context as the bundler (viem parity).
-    PaymasterStubData? stubData;
-    if (paymaster != null) {
-      stubData = await paymaster!.getPaymasterStubData(
-        userOp: userOp,
-        entryPoint: account.entryPoint,
-        chainId: account.chainId,
-        context: resolvedContext,
-        authorization: authorization,
-      );
-      userOp = userOp.withPaymasterStub(stubData);
-    }
+    final stubData = await _paymasterStubData(
+      userOp,
+      resolvedContext,
+      authorization: authorization,
+    );
+    if (stubData != null) userOp = userOp.withPaymasterStub(stubData);
 
     final stateOverrideJson = stateOverride != null && stateOverride.isNotEmpty
         ? stateOverridesToJson(stateOverride)
@@ -382,23 +376,17 @@ class SmartAccountClient {
       );
     }
 
-    // Get final paymaster data if using paymaster and not final.
-    // Skipped when the caller re-requests final data itself (see doc above) —
-    // mirrors permissionless.js, where the prepare step substitutes stub data
-    // and the single real pm_getPaymasterData happens at the end of the helper.
-    if (paymaster != null &&
-        stubData != null &&
-        !stubData.isFinal &&
-        !skipFinalPaymasterData) {
-      final finalData = await paymaster!.getPaymasterData(
-        userOp: userOp,
-        entryPoint: account.entryPoint,
-        chainId: account.chainId,
-        context: resolvedContext,
-        authorization: authorization,
-      );
-      userOp = userOp.withPaymasterData(finalData);
-    }
+    // skipFinalPaymasterData mirrors permissionless.js, where the prepare
+    // step substitutes stub data and the single real pm_getPaymasterData
+    // happens at the end of the helper.
+    final finalData = await _finalPaymasterData(
+      userOp,
+      stubData,
+      resolvedContext,
+      skip: skipFinalPaymasterData,
+      authorization: authorization,
+    );
+    if (finalData != null) userOp = userOp.withPaymasterData(finalData);
 
     return PreparedUserOperation(
       userOp: userOp,
@@ -451,6 +439,41 @@ class SmartAccountClient {
     return FeeEstimate(
       maxFeePerGas: maxFeePerGas ?? baseMax * BigInt.two,
       maxPriorityFeePerGas: maxPriorityFeePerGas ?? basePriority * BigInt.two,
+    );
+  }
+
+  /// ERC-7677 `pm_getPaymasterStubData` for [userOp], or null without a
+  /// [paymaster]. viem `prepareUserOperation` runs it for every EntryPoint
+  /// version.
+  Future<PaymasterStubData?> _paymasterStubData(
+    UserOperation userOp,
+    PaymasterContext? context, {
+    Eip7702Authorization? authorization,
+  }) async =>
+      paymaster?.getPaymasterStubData(
+        userOp: userOp,
+        entryPoint: account.entryPoint,
+        chainId: account.chainId,
+        context: context,
+        authorization: authorization,
+      );
+
+  /// ERC-7677 `pm_getPaymasterData` over the estimated [userOp]; null when
+  /// there is no [stub] (no paymaster), the stub is final, or [skip] is set.
+  Future<PaymasterData?> _finalPaymasterData(
+    UserOperation userOp,
+    PaymasterStubData? stub,
+    PaymasterContext? context, {
+    bool skip = false,
+    Eip7702Authorization? authorization,
+  }) async {
+    if (stub == null || stub.isFinal || skip) return null;
+    return paymaster!.getPaymasterData(
+      userOp: userOp,
+      entryPoint: account.entryPoint,
+      chainId: account.chainId,
+      context: context,
+      authorization: authorization,
     );
   }
 
@@ -646,6 +669,12 @@ class SmartAccountClient {
   /// estimates gas (only for fields that are missing), and applies final
   /// paymaster data. The returned UserOp is ready for signing.
   ///
+  /// The paymaster steps are ERC-7677 (`pm_getPaymasterStubData`, then
+  /// `pm_getPaymasterData` unless the stub is final), the same as
+  /// [prepareUserOperation] and viem `prepareUserOperation` on every
+  /// EntryPoint version; the paymaster answers with `paymasterAndData`.
+  /// Gas limits come from the bundler estimate.
+  ///
   /// Use this for advanced workflows where you need to inspect or modify
   /// the UserOperation before signing.
   ///
@@ -653,6 +682,9 @@ class SmartAccountClient {
   /// This is useful when the local address computation doesn't match
   /// the factory's CREATE2 calculation (use getSenderAddress to get the
   /// correct address from the EntryPoint).
+  ///
+  /// [stateOverride] and [skipFinalPaymasterData] behave as in
+  /// [prepareUserOperationWithAuth].
   Future<UserOperationV06> prepareUserOperationV06({
     List<Call>? calls,
     String? callData,
@@ -666,6 +698,8 @@ class SmartAccountClient {
     String? initCode,
     PaymasterContext? paymasterContext,
     EthereumAddress? sender,
+    List<StateOverride>? stateOverride,
+    bool skipFinalPaymasterData = false,
   }) async {
     _requireCalls(calls, callData);
 
@@ -703,32 +737,19 @@ class SmartAccountClient {
       signature: signature ?? account.getStubSignature(),
     );
 
+    final stubData = await _paymasterStubData(userOp, resolvedContext);
+    if (stubData != null) userOp = userOp.withPaymasterStubV06(stubData);
+
     final needsGasEstimate = callGasLimit == null ||
         verificationGasLimit == null ||
         preVerificationGas == null;
 
-    // For v0.6, use sponsorUserOperation which returns both paymaster data and gas estimates
-    if (paymaster != null) {
-      final sponsorResult = await paymaster!.sponsorUserOperation(
-        userOp: userOp,
-        entryPoint: account.entryPoint,
-        context: resolvedContext,
-      );
-      userOp = userOp.withSponsorshipV06(sponsorResult);
-      // Preserve user-supplied gas fields over sponsorship estimates
-      if (callGasLimit != null ||
-          verificationGasLimit != null ||
-          preVerificationGas != null) {
-        userOp = userOp.copyWith(
-          callGasLimit: callGasLimit ?? userOp.callGasLimit,
-          verificationGasLimit:
-              verificationGasLimit ?? userOp.verificationGasLimit,
-          preVerificationGas: preVerificationGas ?? userOp.preVerificationGas,
-        );
-      }
-    } else if (needsGasEstimate) {
+    if (needsGasEstimate) {
       final gasEstimate = await bundler.estimateUserOperationGas(
         userOp,
+        stateOverride: stateOverride != null && stateOverride.isNotEmpty
+            ? stateOverridesToJson(stateOverride)
+            : null,
         entryPoint: account.entryPoint,
       );
       userOp = _applyGasEstimateV06(
@@ -739,6 +760,14 @@ class SmartAccountClient {
         preservePreVerificationGas: preVerificationGas,
       );
     }
+
+    final finalData = await _finalPaymasterData(
+      userOp,
+      stubData,
+      resolvedContext,
+      skip: skipFinalPaymasterData,
+    );
+    if (finalData != null) userOp = userOp.withPaymasterDataV06(finalData);
 
     return userOp;
   }

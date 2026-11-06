@@ -1411,6 +1411,271 @@ void main() {
       );
       expect(userOp.callData, account.encodeCallsForDeployment(calls));
     });
+
+    // viem prepareUserOperation runs the ERC-7677 flow for every EntryPoint
+    // version (stub → estimate → final data) and fills `paymasterAndData` on
+    // 0.6; permissionless.js keeps pm_sponsorUserOperation as an explicit
+    // Pimlico action only.
+    group('with a paymaster (ERC-7677)', () {
+      // cast concat-hex 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0xabcdef0123456789
+      const stubPaymasterAndData =
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabcdef0123456789';
+      // cast concat-hex 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0xfedcba9876543210
+      const finalPaymasterAndData =
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafedcba9876543210';
+      final calls = [
+        Call(
+          to: EthereumAddress.fromHex(
+            '0x2222222222222222222222222222222222222222',
+          ),
+          value: BigInt.one,
+        ),
+      ];
+
+      // Bundler and paymaster requests, in the order they were sent.
+      late List<Map<String, dynamic>> rpcLog;
+      List<String> methods() => [for (final r in rpcLog) r['method'] as String];
+      Map<String, dynamic> sent(String method) =>
+          (rpcLog.singleWhere((r) => r['method'] == method)['params']
+              as List<dynamic>)[0] as Map<String, dynamic>;
+
+      SmartAccountClient v06Client({bool stubIsFinal = false}) {
+        rpcLog = [];
+        MockClient rpc(
+          Object? Function(String method) result, {
+          bool log = true,
+        }) =>
+            MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              if (log) rpcLog.add(body);
+              final value = result(body['method'] as String);
+              return http.Response(
+                jsonEncode({
+                  'jsonrpc': '2.0',
+                  'id': body['id'],
+                  if (value == null)
+                    'error': {'code': -32601, 'message': 'Method not found'}
+                  else
+                    'result': value,
+                }),
+                200,
+              );
+            });
+
+        return SmartAccountClient(
+          account: createSimpleSmartAccount(
+            owner: PrivateKeyOwner(
+              '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+            ),
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v06,
+            address: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
+          ),
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v06,
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_estimateUserOperationGas' => {
+                    'preVerificationGas': '0x5208',
+                    'verificationGasLimit': '0x186a0',
+                    'callGasLimit': '0x186a0',
+                  },
+                _ => null,
+              },
+            ),
+          ),
+          // A generic ERC-7677 paymaster: no pm_sponsorUserOperation.
+          paymaster: createPaymasterClient(
+            url: 'http://localhost:3001/rpc',
+            httpClient: rpc(
+              (method) => switch (method) {
+                'pm_getPaymasterStubData' => {
+                    'sponsor': {'name': 'Test'},
+                    'paymasterAndData': stubPaymasterAndData,
+                    'isFinal': stubIsFinal,
+                  },
+                'pm_getPaymasterData' => {
+                    'paymasterAndData': finalPaymasterAndData,
+                  },
+                _ => null,
+              },
+            ),
+          ),
+          publicClient: PublicClient(
+            rpcClient: JsonRpcClient(
+              url: Uri.parse('http://localhost:8545'),
+              httpClient: rpc(
+                log: false,
+                (method) => switch (method) {
+                  'eth_getCode' => '0x6080604052',
+                  'eth_call' => '0x${'0' * 64}',
+                  _ => null,
+                },
+              ),
+            ),
+          ),
+        );
+      }
+
+      test('stub → bundler estimate → final paymasterAndData', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          paymasterContext:
+              const PaymasterContext(sponsorshipPolicyId: 'sp_test'),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+          'pm_getPaymasterData',
+        ]);
+        final stubParams = rpcLog[0]['params'] as List<dynamic>;
+        expect(stubParams[0], containsPair('paymasterAndData', '0x'));
+        expect(stubParams[0], containsPair('initCode', '0x'));
+        expect(stubParams.sublist(1), [
+          EntryPointAddresses.v06.hex,
+          '0x1',
+          {'sponsorshipPolicyId': 'sp_test'},
+        ]);
+        // The bundler estimates with the stub data in place.
+        expect(
+          sent('eth_estimateUserOperationGas'),
+          containsPair('paymasterAndData', stubPaymasterAndData),
+        );
+        // Final data is requested over the estimated (1.1× buffered) op:
+        // 0x1adb0 = 110000 = 100000 × 1.1.
+        final finalRequest = sent('pm_getPaymasterData');
+        expect(finalRequest, containsPair('callGasLimit', '0x1adb0'));
+        expect(finalRequest, containsPair('verificationGasLimit', '0x1adb0'));
+        expect(finalRequest, containsPair('preVerificationGas', '0x5208'));
+        expect(
+          finalRequest,
+          containsPair('paymasterAndData', stubPaymasterAndData),
+        );
+
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+        expect(userOp.callGasLimit, BigInt.from(110000));
+        expect(userOp.verificationGasLimit, BigInt.from(110000));
+        expect(userOp.preVerificationGas, BigInt.from(21000));
+      });
+
+      test('a final stub skips pm_getPaymasterData', () async {
+        final client = v06Client(stubIsFinal: true);
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+        ]);
+        expect(userOp.paymasterAndData, stubPaymasterAndData);
+        expect(userOp.callGasLimit, BigInt.from(110000));
+      });
+
+      test('a user-supplied gas field survives the estimate', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(500000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+          'pm_getPaymasterData',
+        ]);
+        expect(userOp.callGasLimit, BigInt.from(500000));
+        expect(userOp.verificationGasLimit, BigInt.from(110000));
+        expect(userOp.preVerificationGas, BigInt.from(21000));
+        // 500000 = 0x7a120
+        expect(
+          sent('pm_getPaymasterData'),
+          containsPair('callGasLimit', '0x7a120'),
+        );
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+      });
+
+      test('all gas fields supplied: no estimate, values kept', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(500000),
+          verificationGasLimit: BigInt.from(400000),
+          preVerificationGas: BigInt.from(60000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'pm_getPaymasterData',
+        ]);
+        expect(userOp.callGasLimit, BigInt.from(500000));
+        expect(userOp.verificationGasLimit, BigInt.from(400000));
+        expect(userOp.preVerificationGas, BigInt.from(60000));
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+      });
+
+      test('skipFinalPaymasterData keeps the stub, like v0.7', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          skipFinalPaymasterData: true,
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+        ]);
+        expect(userOp.paymasterAndData, stubPaymasterAndData);
+      });
+
+      test('stateOverride reaches the bundler estimate, like v0.7', () async {
+        final client = v06Client();
+
+        await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          stateOverride: [
+            StateOverride(
+              address: EthereumAddress.fromHex(
+                '0x3333333333333333333333333333333333333333',
+              ),
+              balance: BigInt.from(100),
+            ),
+          ],
+        );
+
+        final params = rpcLog.singleWhere(
+          (r) => r['method'] == 'eth_estimateUserOperationGas',
+        )['params'] as List<dynamic>;
+        // eth_estimateUserOperationGas [userOp, entryPoint, stateOverride];
+        // 100 = 0x64.
+        expect(params, hasLength(3));
+        expect(params[2], {
+          '0x3333333333333333333333333333333333333333': {'balance': '0x64'},
+        });
+      });
+    });
   });
 
   group('sendUserOperationV06AndWait', () {

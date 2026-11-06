@@ -1,5 +1,33 @@
 import '../../types/address.dart';
+import '../../types/hex.dart';
 import '../../types/parsing.dart';
+
+/// The `(paymaster, paymasterData)` of an ERC-7677 response.
+///
+/// For an EntryPoint v0.6 op the paymaster answers with one
+/// `paymasterAndData` (paymaster address ++ data) instead of `paymaster` and
+/// `paymasterData` (viem `PaymasterRpcSchema`); that value is split at the
+/// 20-byte address so it round-trips through `withPaymasterStubV06` /
+/// `withPaymasterDataV06`.
+(EthereumAddress, String) _paymasterFields(Map<String, dynamic> json) {
+  final paymasterAndData = json['paymasterAndData'];
+  if (json['paymaster'] != null || paymasterAndData is! String) {
+    return (
+      EthereumAddress.fromHex(json['paymaster'] as String),
+      json['paymasterData'] as String,
+    );
+  }
+  if (Hex.byteLength(paymasterAndData) < 20) {
+    throw FormatException(
+      'paymasterAndData must start with a 20-byte paymaster address',
+      paymasterAndData,
+    );
+  }
+  return (
+    EthereumAddress.fromHex(Hex.slice(paymasterAndData, 0, 20)),
+    Hex.slice(paymasterAndData, 20),
+  );
+}
 
 /// Response from pm_getPaymasterStubData.
 ///
@@ -19,17 +47,22 @@ class PaymasterStubData {
 
   /// Creates a [PaymasterStubData] from a JSON response.
   ///
-  /// Parses the `pm_getPaymasterStubData` RPC response.
-  factory PaymasterStubData.fromJson(Map<String, dynamic> json) =>
-      PaymasterStubData(
-        paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
-        paymasterData: json['paymasterData'] as String,
-        paymasterVerificationGasLimit:
-            parseBigIntOrNull(json['paymasterVerificationGasLimit']),
-        paymasterPostOpGasLimit:
-            parseBigIntOrNull(json['paymasterPostOpGasLimit']),
-        isFinal: json['isFinal'] as bool? ?? false,
-      );
+  /// Parses the `pm_getPaymasterStubData` RPC response: `paymaster` +
+  /// `paymasterData` (EntryPoint v0.7+), or `paymasterAndData` (v0.6), which
+  /// is split into [paymaster] and [paymasterData]. A `paymasterAndData`
+  /// shorter than an address throws a [FormatException].
+  factory PaymasterStubData.fromJson(Map<String, dynamic> json) {
+    final (paymaster, paymasterData) = _paymasterFields(json);
+    return PaymasterStubData(
+      paymaster: paymaster,
+      paymasterData: paymasterData,
+      paymasterVerificationGasLimit:
+          parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+      paymasterPostOpGasLimit:
+          parseBigIntOrNull(json['paymasterPostOpGasLimit']),
+      isFinal: json['isFinal'] as bool? ?? false,
+    );
+  }
 
   /// The paymaster contract address.
   final EthereumAddress paymaster;
@@ -63,15 +96,21 @@ class PaymasterData {
 
   /// Creates a [PaymasterData] from a JSON response.
   ///
-  /// Parses the `pm_getPaymasterData` RPC response.
-  factory PaymasterData.fromJson(Map<String, dynamic> json) => PaymasterData(
-        paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
-        paymasterData: json['paymasterData'] as String,
-        paymasterVerificationGasLimit:
-            parseBigIntOrNull(json['paymasterVerificationGasLimit']),
-        paymasterPostOpGasLimit:
-            parseBigIntOrNull(json['paymasterPostOpGasLimit']),
-      );
+  /// Parses the `pm_getPaymasterData` RPC response: `paymaster` +
+  /// `paymasterData` (EntryPoint v0.7+), or `paymasterAndData` (v0.6), which
+  /// is split into [paymaster] and [paymasterData]. A `paymasterAndData`
+  /// shorter than an address throws a [FormatException].
+  factory PaymasterData.fromJson(Map<String, dynamic> json) {
+    final (paymaster, paymasterData) = _paymasterFields(json);
+    return PaymasterData(
+      paymaster: paymaster,
+      paymasterData: paymasterData,
+      paymasterVerificationGasLimit:
+          parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+      paymasterPostOpGasLimit:
+          parseBigIntOrNull(json['paymasterPostOpGasLimit']),
+    );
+  }
 
   /// The paymaster contract address.
   final EthereumAddress paymaster;
