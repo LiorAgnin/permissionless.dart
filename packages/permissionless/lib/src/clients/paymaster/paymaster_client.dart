@@ -110,10 +110,15 @@ class PaymasterClient {
   /// separate calls to stub + estimate + data.
   ///
   /// Not all paymasters support this method.
+  ///
+  /// [chainId] is ignored: `pm_sponsorUserOperation` takes
+  /// `[userOperation, entryPoint, context?]` (permissionless.js
+  /// sponsorUserOperation).
   Future<SponsorUserOperationResult> sponsorUserOperation({
     required UserOperation userOp,
     required EthereumAddress entryPoint,
-    required BigInt chainId,
+    @Deprecated('Unused: pm_sponsorUserOperation takes no chain id')
+    BigInt? chainId,
     PaymasterContext? context,
   }) async {
     final params = <dynamic>[

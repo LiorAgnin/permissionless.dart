@@ -269,6 +269,45 @@ void main() {
           equals('pm_sponsorUserOperation'),
         );
       });
+
+      // permissionless.js sponsorUserOperation sends
+      // [userOperation, entryPoint, sponsorshipPolicyId?]; no chain id.
+      test('needs no chainId and sends [userOp, entryPoint]', () async {
+        client = createPaymasterClient(
+          url: 'http://localhost:3000/rpc',
+          httpClient: createMockClient(
+            (_) => {
+              'paymaster': '0x1234567890123456789012345678901234567890',
+              'paymasterData': '0x',
+              'preVerificationGas': '0x5208',
+              'verificationGasLimit': '0x186a0',
+              'callGasLimit': '0x186a0',
+            },
+          ),
+        );
+        final userOp = UserOperationV07(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.zero,
+          verificationGasLimit: BigInt.zero,
+          preVerificationGas: BigInt.zero,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        await client.sponsorUserOperation(
+          userOp: userOp,
+          entryPoint: EntryPointAddresses.v07,
+        );
+
+        expect(
+          capturedRequests.single['params'],
+          equals([userOp.toJson(), EntryPointAddresses.v07.hex]),
+        );
+      });
     });
   });
 

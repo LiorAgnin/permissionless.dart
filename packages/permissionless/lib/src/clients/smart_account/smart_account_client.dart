@@ -719,10 +719,8 @@ class SmartAccountClient {
       final sponsorResult = await paymaster!.sponsorUserOperation(
         userOp: userOp,
         entryPoint: account.entryPoint,
-        chainId: account.chainId,
         context: resolvedContext,
       );
-      // Apply sponsorship result (includes paymaster data and gas estimates)
       userOp = userOp.withSponsorshipV06(sponsorResult);
       // Preserve user-supplied gas fields over sponsorship estimates
       if (callGasLimit != null ||
