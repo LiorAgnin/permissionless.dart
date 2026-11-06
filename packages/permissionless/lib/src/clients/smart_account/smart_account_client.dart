@@ -1,4 +1,3 @@
-import '../../accounts/safe/safe_account.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/user_operation.dart';
@@ -9,6 +8,7 @@ import '../bundler/types.dart';
 import '../paymaster/paymaster_client.dart';
 import '../paymaster/types.dart';
 import '../public/public_client.dart';
+import 'call_encoding.dart';
 import 'smart_account_interface.dart';
 
 /// A prepared UserOperation ready for signing and submission.
@@ -320,21 +320,12 @@ class SmartAccountClient {
       }
     }
 
-    // Resolve callData: honor override, else encode calls
-    late final String resolvedCallData;
-    if (callData != null) {
-      resolvedCallData = callData;
-    } else {
-      final isDeployment = resolvedFactory != null;
-      if (isDeployment &&
-          account is SafeSmartAccount &&
-          (account as SafeSmartAccount).isErc7579Enabled) {
-        resolvedCallData =
-            (account as SafeSmartAccount).encodeCallsForDeployment(calls!);
-      } else {
-        resolvedCallData = account.encodeCalls(calls!);
-      }
-    }
+    final resolvedCallData = callData ??
+        encodeUserOperationCalls(
+          account,
+          calls!,
+          deploysAccount: resolvedFactory != null,
+        );
 
     // Resolve fees: keep both when supplied; else hook; else 2× getFeeData
     final fees = await _resolveFees(
