@@ -10,9 +10,8 @@ import 'package:test/test.dart';
 /// account signatures (with their prefixes) are pinned in
 /// erc1271_signing_parity_test.dart.
 ///
-/// Vectors marked "kernel.ts" come from
-/// /Users/liorag/.claude/jobs/037f9518/tmp/t2/kernel.ts: permissionless.js
-/// `accounts/kernel/utils/{wrapMessageHash,signMessage}` and
+/// Vectors marked "permissionless.js" come from permissionless.js 0.5.2 (source
+/// at a536891) `accounts/kernel/utils/{wrapMessageHash,signMessage}` and
 /// `toKernelSmartAccount` run with viem 2.21.55.
 void main() {
   const privateKey =
@@ -29,18 +28,18 @@ void main() {
       '0xcc0db94238eec02857c6ed9b7b63da573700091511fa606a132c9e817aecb32b56d14b7db6df7cb7101411368a81c7863c54ba025e27a57ecf734722bb6dcccd1c';
   const jsHelperSignTypedDataV031 =
       '0x482c8a6d24395d2fd86a593003a056d83eb0132d622c3dc5fd56aecc9f38590f0c012b369e907ba35596e428cc398224346a41304f0fc233e118c5978e0784661c';
-  // kernel.ts: wrapMessageHash({hash: hashMessage("hello"), address,
+  // permissionless.js: wrapMessageHash({hash: hashMessage("hello"), address,
   // version, chainId: 11155111})
   const jsWrapV031 =
       '0x334fbef0c7788841791867268be4c9377686802e228eaa91b414a98750c4cf5c';
   const jsWrapV024 =
       '0x4b37882e4d4b8968ea4f29338f3419aed445bfccd2c986f22f82d3081d06cffb';
-  // kernel.ts: signMessage util, version 0.2.1 (owner.signMessage("hello"));
-  // toKernelSmartAccount v0.2.1 (deployed) signMessage returns it unprefixed.
+  // permissionless.js: signMessage util, version 0.2.1
+  // (owner.signMessage("hello")); toKernelSmartAccount v0.2.1 (deployed) signMessage returns it unprefixed.
   const jsSignMessageV021 =
       '0x76930d64d2e5eb4b3f4572ce806eda50e1e2329d51d9ca5a713a9befcb9d2088'
       '3e3d4885c3c5eaf775fc8c9fcf4882a28b582b427bc0270565f3294d935549221b';
-  // kernel.ts: signMessage util with eip7702: true, version 0.3.3,
+  // permissionless.js: signMessage util with eip7702: true, version 0.3.3,
   // address = owner; toKernelSmartAccount({eip7702: true}).signMessage
   // prepends the 0x00 root identifier.
   const jsSignMessage7702V033 =

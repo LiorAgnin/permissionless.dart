@@ -3,8 +3,7 @@ import 'package:test/test.dart';
 
 void main() {
   // Expected values from Foundry 1.5.1 `cast hash-message '<message>'`, matched
-  // by viem 2.21.55 hashMessage:
-  //   /Users/liorag/.claude/jobs/037f9518/tmp/t1/viem/message_hash.ts
+  // by viem 2.21.55 hashMessage(message).
   // 'a' * 1000 has a multi-digit length prefix ("\n1000").
   group('hashMessage (EIP-191)', () {
     for (final (label, message, hash) in [
@@ -40,9 +39,7 @@ void main() {
     }
   });
 
-  // Expected values from viem 2.21.55 `hashMessage({ raw })`:
-  //   /Users/liorag/.claude/jobs/037f9518/tmp/u3/viem/hash_message_raw.ts
-  //   bun run /Users/liorag/.claude/jobs/037f9518/tmp/u3/viem/hash_message_raw.ts
+  // Expected values from viem 2.21.55 `hashMessage({ raw })`.
   // Cross-checked: cast keccak 0x19457468657265756d205369676e6564204d6573736167653a0a34deadbeef
   // (`cast hash-message` can't produce these: it hashes 0x-hex input as text.)
   group('hashMessageBytes (EIP-191 over raw bytes)', () {
@@ -89,9 +86,7 @@ void main() {
   });
 
   // Expected values come from viem 2.21.55 (hashDomain / hashStruct /
-  // hashTypedData), not from this package:
-  //   /Users/liorag/.claude/jobs/037f9518/tmp/a/viem/vectors.ts
-  //   cd /Users/liorag/.claude/jobs/037f9518/tmp/a/viem && bun run vectors.ts
+  // hashTypedData), not from this package.
   // The Dart inputs deliberately mix the accepted input forms (int, BigInt,
   // decimal and 0x strings, EthereumAddress and hex strings) that viem
   // receives as number/bigint/hex.

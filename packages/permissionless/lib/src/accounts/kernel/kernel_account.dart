@@ -33,8 +33,9 @@ class KernelSmartAccountConfig {
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   ///
   /// Throws [ArgumentError] if version-specific requirements aren't met,
-  /// including a WebAuthn [owner] on Kernel v0.2.x or without a
-  /// `webAuthnValidator` address.
+  /// including [customAddresses] without an `ecdsaValidator` (any version),
+  /// or a WebAuthn [owner] on Kernel v0.2.x or without a `webAuthnValidator`
+  /// address.
   KernelSmartAccountConfig({
     required this.owner,
     required this.chainId,
@@ -46,19 +47,8 @@ class KernelSmartAccountConfig {
     this.entryPointAddress,
     this.publicClient,
     this.address,
-  }) : index = index ?? BigInt.zero {
-    final addresses =
-        customAddresses ?? KernelVersionAddresses.getAddresses(version);
-    if (addresses == null) {
-      throw ArgumentError(
-        'No addresses found for Kernel version ${version.value}',
-      );
-    }
-    if (version.hasExternalValidator && addresses.ecdsaValidator == null) {
-      throw ArgumentError(
-        'ECDSA validator address required for Kernel ${version.value}',
-      );
-    }
+  })  : index = index ?? BigInt.zero,
+        _addresses = _resolveAddresses(customAddresses, version) {
     if (owner is WebAuthnAccountOwner) {
       if (version.isV2) {
         throw ArgumentError(
@@ -66,7 +56,7 @@ class KernelSmartAccountConfig {
           'Use Kernel v0.3.x or later.',
         );
       }
-      if (addresses.webAuthnValidator == null) {
+      if (_addresses.webAuthnValidator == null) {
         throw ArgumentError(
           'WebAuthn owner requires webAuthnValidator address. '
           'WebAuthn is only supported on Kernel v0.3.x+',
@@ -74,7 +64,7 @@ class KernelSmartAccountConfig {
       }
     }
     if (version.isV3) checkKernelV3NonceKey(nonceKey, version);
-    if (version.isV3 && useMetaFactory && addresses.metaFactory == null) {
+    if (version.isV3 && useMetaFactory && _addresses.metaFactory == null) {
       throw ArgumentError(
         'Meta factory address required when useMetaFactory is true for '
         'Kernel ${version.value}',
@@ -127,6 +117,30 @@ class KernelSmartAccountConfig {
   /// If provided, this address will be used instead of RPC computation.
   /// Use when you already know the account address.
   final EthereumAddress? address;
+
+  /// [customAddresses] or the built-in table for [version].
+  final KernelAddresses _addresses;
+
+  static KernelAddresses _resolveAddresses(
+    KernelAddresses? customAddresses,
+    KernelVersion version,
+  ) {
+    final addresses =
+        customAddresses ?? KernelVersionAddresses.getAddresses(version);
+    if (addresses == null) {
+      throw ArgumentError(
+        'No addresses found for Kernel version ${version.value}',
+      );
+    }
+    // Every version needs it: v0.2.x passes it to `initialize`, v0.3.x
+    // encodes it in the root validator id.
+    if (addresses.ecdsaValidator == null) {
+      throw ArgumentError(
+        'ECDSA validator address required for Kernel ${version.value}',
+      );
+    }
+    return addresses;
+  }
 }
 
 /// Kernel smart account implementation.
@@ -137,9 +151,7 @@ class KernelSmartAccount implements SmartAccountV06, EntryPointVersioned {
   ///
   /// Prefer using [createKernelSmartAccount] factory function instead
   /// of calling this constructor directly.
-  KernelSmartAccount(this._config)
-      : _addresses = _config.customAddresses ??
-            KernelVersionAddresses.getAddresses(_config.version)!;
+  KernelSmartAccount(this._config) : _addresses = _config._addresses;
 
   final KernelSmartAccountConfig _config;
   final KernelAddresses _addresses;
@@ -236,12 +248,11 @@ class KernelSmartAccount implements SmartAccountV06, EntryPointVersioned {
   }
 
   /// `initialize(validator, owner)`: the ECDSA validator's enable data is the
-  /// owner address. Falls back to the account implementation when no
-  /// validator is configured (backwards compatibility).
+  /// owner address.
   String _encodeInitializeV2() => AbiEncoder.encodeFunctionData(
         kernelV2InitializeSignature,
         [
-          _addresses.ecdsaValidator ?? _addresses.accountImplementation,
+          _addresses.ecdsaValidator!,
           _config.owner.address.hex,
         ],
       );

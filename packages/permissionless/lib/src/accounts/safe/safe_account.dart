@@ -355,35 +355,16 @@ class SafeSmartAccount
     final result = await client.call(
       Call(to: factory, data: SafeSelectors.proxyCreationCode),
     );
-    final code =
-        Hex.byteLength(result) == 0 ? '0x' : _decodeReturnedBytes(result);
-    if (Hex.byteLength(code) == 0) {
+    final code = Hex.byteLength(result) == 0
+        ? Uint8List(0)
+        : AbiEncoder.decodeParameters(['bytes'], result).single as Uint8List;
+    if (code.isEmpty) {
       throw StateError(
         'SafeProxyFactory ${factory.hex} returned no proxyCreationCode(); '
         'is the factory deployed on chain ${_config.chainId}?',
       );
     }
-    return _cachedProxyCreationCode = code;
-  }
-
-  /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
-  static String _decodeReturnedBytes(String data) {
-    final raw = Hex.decode(data);
-    if (raw.length < 64) {
-      throw ArgumentError('proxyCreationCode return data too short');
-    }
-    final offset = Hex.toBigInt(Hex.fromBytes(raw.sublist(0, 32))).toInt();
-    if (offset + 32 > raw.length) {
-      throw ArgumentError('proxyCreationCode return data offset out of range');
-    }
-    final length =
-        Hex.toBigInt(Hex.fromBytes(raw.sublist(offset, offset + 32))).toInt();
-    final start = offset + 32;
-    final end = start + length;
-    if (end > raw.length) {
-      throw ArgumentError('proxyCreationCode return data truncated');
-    }
-    return Hex.fromBytes(raw.sublist(start, end));
+    return _cachedProxyCreationCode = Hex.fromBytes(code);
   }
 
   /// Computes the Safe account address using the CREATE2 formula

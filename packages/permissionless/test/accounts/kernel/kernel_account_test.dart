@@ -18,8 +18,8 @@ void main() {
       EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
 
   // ---- permissionless.js fixtures ----
-  // From /Users/liorag/.claude/jobs/037f9518/tmp/t2/kernel.ts:
-  // permissionless.js toKernelSmartAccount with viem 2.21.55, owner =
+  // permissionless.js 0.5.2 (source at a536891) toKernelSmartAccount with
+  // viem 2.21.55, owner =
   // privateKeyToAccount(testPrivateKey), address = mockAddress, chainId 1.
   //   jsFactoryDataV031Index123 = v0.3.1, index: 123n, getFactoryArgs()
   //     (lower-cased; viem keeps checksummed addresses inside packed bytes)
@@ -562,6 +562,36 @@ void main() {
           ),
         ),
         throwsArgumentError,
+      );
+    });
+  });
+
+  group('custom addresses are checked up front', () {
+    // v0.2 initialize(validator, data) needs the ECDSA validator as its root
+    // validator (permissionless.js getDefaultAddresses always supplies one).
+    test('Kernel v0.2.x requires an ecdsaValidator address', () {
+      expect(
+        () => createKernelSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.one,
+          version: KernelVersion.v0_2_4,
+          customAddresses: KernelAddresses(
+            accountImplementation: EthereumAddress.fromHex(
+              '0x1111111111111111111111111111111111111111',
+            ),
+            factory: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
+          ),
+          address: mockAddress,
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('ECDSA validator'), contains('0.2.4')),
+          ),
+        ),
       );
     });
   });
