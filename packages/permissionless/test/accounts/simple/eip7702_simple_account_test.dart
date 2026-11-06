@@ -67,14 +67,19 @@ void main() {
 
   group('PrivateKeyEip7702Owner', () {
     final owner = PrivateKeyEip7702Owner(privateKey);
-    final reference = PrivateKeyOwner(privateKey);
     const hash =
         '0x1111111111111111111111111111111111111111111111111111111111111111';
 
     test('signHash is the EIP-191 personal sign of the hash', () async {
+      // cast keccak \
+      //   0x19457468657265756d205369676e6564204d6573736167653a0a3332<hash>
+      const prefixedDigest =
+          '0x245a48de257ae28de2b11cb8fc02361fe87a20566dc63bec4492c3854b1aae52';
       expect(
-        await owner.signHash(hash),
-        equals(await reference.signPersonalMessage(hash)),
+        _recover(prefixedDigest, await owner.signHash(hash)),
+        equals(
+          EthereumAddress.fromHex('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'),
+        ),
       );
     });
 
