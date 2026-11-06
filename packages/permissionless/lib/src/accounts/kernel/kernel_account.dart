@@ -130,6 +130,10 @@ class KernelSmartAccount implements SmartAccountV06 {
   final KernelAddresses _addresses;
   EthereumAddress? _cachedAddress;
 
+  /// The P256 precompile flag of the last WebAuthn signature, so the stub
+  /// signature estimates gas on the encoding that will be submitted.
+  bool? _lastUsePrecompiled;
+
   /// Returns the entry point version for this account.
   EntryPointVersion get entryPointVersion =>
       _config.version.isV2 ? EntryPointVersion.v06 : EntryPointVersion.v07;
@@ -315,17 +319,18 @@ class KernelSmartAccount implements SmartAccountV06 {
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  /// Determines if the P256 precompile should be used for WebAuthn signatures.
-  ///
-  /// Uses dynamic detection via [isRip7212Supported] when a [PublicClient]
-  /// is available, falling back to the static chain ID list.
+  /// Probes the chain via [isRip7212Supported] when a [PublicClient] is
+  /// available, else uses the static chain list.
   Future<bool> _shouldUsePrecompile() async {
-    if (_config.publicClient != null) {
-      return isRip7212Supported(_config.publicClient!);
-    }
-    return shouldUseP256Precompile(chainId: chainId);
+    final publicClient = _config.publicClient;
+    return _lastUsePrecompiled = publicClient != null
+        ? await isRip7212Supported(publicClient)
+        : shouldUseP256Precompile(chainId: chainId);
   }
 
+  /// For WebAuthn owners the precompile flag follows the last signature;
+  /// before the first one (this method cannot probe the chain) it comes
+  /// from the static chain list.
   @override
   String getStubSignature() {
     if (_config.version.isV2) {
@@ -333,7 +338,8 @@ class KernelSmartAccount implements SmartAccountV06 {
     }
     if (_isWebAuthn) {
       return getDummyKernelWebAuthnSignature(
-        usePrecompiled: shouldUseP256Precompile(chainId: chainId),
+        usePrecompiled:
+            _lastUsePrecompiled ?? shouldUseP256Precompile(chainId: chainId),
       );
     }
     return ecdsaStubSignature;
