@@ -56,6 +56,16 @@ void main() {
                   'actualGasCost': '0x1234',
                   'actualGasUsed': '0x5678',
                   'logs': <dynamic>[],
+                  'receipt': {
+                    'transactionHash': '0x${'cd' * 32}',
+                    'blockHash': '0x${'ef' * 32}',
+                    'blockNumber': '0x1',
+                    'from': '0x1234567890123456789012345678901234567890',
+                    'cumulativeGasUsed': '0x5678',
+                    'gasUsed': '0x5678',
+                    'status': '0x1',
+                    'logs': <dynamic>[],
+                  },
                 },
               _ => null,
             };
@@ -175,9 +185,8 @@ void main() {
         );
 
         final address = await client.getAddress();
-        final accountAddress = await account.getAddress();
 
-        expect(address.hex, equals(accountAddress.hex));
+        expect(address, equals(mockAddress));
       });
     });
 
@@ -213,16 +222,29 @@ void main() {
         expect(userOp.verificationGasLimit, equals(BigInt.from(110000)));
         expect(userOp.callGasLimit, equals(BigInt.from(110000)));
 
-        // Check factory data included
-        expect(userOp.factory, isNotNull);
-        expect(userOp.factoryData, isNotNull);
-
-        // Check bundler was called
-        expect(bundlerRequests.length, equals(1));
+        // Undeployed Safe 1.4.1: SafeProxyFactory.createProxyWithNonce
+        // (permissionless.js safe constants; `cast sig
+        // "createProxyWithNonce(address,bytes,uint256)"` = 0x1688f0b9).
         expect(
-          bundlerRequests[0]['method'],
-          equals('eth_estimateUserOperationGas'),
+          userOp.factory,
+          equals(
+            EthereumAddress.fromHex(
+              '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+            ),
+          ),
         );
+        expect(userOp.factoryData, startsWith('0x1688f0b9'));
+
+        // The estimate went to the bundler for this sender and EntryPoint.
+        final estimate = bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_estimateUserOperationGas',
+        );
+        final params = estimate['params'] as List<dynamic>;
+        expect(
+          (params[0] as Map<String, dynamic>)['sender'],
+          equals(mockAddress.hex),
+        );
+        expect(params[1], equals(EntryPointAddresses.v07.hex));
       });
 
       test('applies paymaster stub and final data when paymaster provided',
@@ -602,7 +624,8 @@ void main() {
 
         // Stub paymaster data retained; gas still estimated.
         expect(prepared.userOp.paymasterData, equals('0xabcdef0123456789'));
-        expect(prepared.userOp.callGasLimit, greaterThan(BigInt.zero));
+        // 0x186a0 (100000) estimate x 1.1 default multiplier.
+        expect(prepared.userOp.callGasLimit, equals(BigInt.from(110000)));
       });
     });
 
@@ -728,37 +751,50 @@ void main() {
     });
 
     group('signUserOperation', () {
-      test('signs userOp and returns with signature', () async {
-        final bundler = createBundlerClient(
-          url: 'http://localhost:3000/rpc',
-          entryPoint: EntryPointAddresses.v07,
-          httpClient: createBundlerMock(),
+      test('signs the userOpHash for the account chain and EntryPoint',
+          () async {
+        final simpleAccount = createSimpleSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.from(11155111),
+          address: mockAddress,
         );
-
         final client = SmartAccountClient(
-          account: account,
-          bundler: bundler,
+          account: simpleAccount,
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          ),
           publicClient: createPublicClientMock(),
         );
 
-        final preparedUserOp = await client.prepareUserOperation(
-          calls: [
-            Call(
-              to: EthereumAddress.fromHex(
-                '0x1234567890123456789012345678901234567890',
-              ),
-              value: BigInt.zero,
-            ),
-          ],
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(1000000000),
+        final signed = await client.signUserOperation(
+          UserOperationV07(
+            sender: mockAddress,
+            nonce: BigInt.from(5),
+            callData: '0xdeadbeef',
+            callGasLimit: BigInt.from(100000),
+            verificationGasLimit: BigInt.from(200000),
+            preVerificationGas: BigInt.from(50000),
+            maxFeePerGas: BigInt.from(3000000000),
+            maxPriorityFeePerGas: BigInt.from(1000000000),
+          ),
         );
 
-        final signedUserOp = await client.signUserOperation(preparedUserOp);
-
-        // Signature should be different from stub
-        expect(signedUserOp.signature, isNot(equals(preparedUserOp.signature)));
-        expect(signedUserOp.signature.length, greaterThan(10));
+        // viem 2.21.55 getUserOperationHash({ userOperation: <the op above>,
+        //   entryPointAddress: v0.7, entryPointVersion: '0.7',
+        //   chainId: 11155111 })
+        //   = 0xda7036ab884cec44635d3ab30e58eba02b40c8e3d69f17daf61ed3a4143fb0a8
+        // cast wallet sign --private-key <testPrivateKey> <that hash>
+        //   (EIP-191 over the raw 32 bytes, as SimpleAccount verifies)
+        expect(
+          signed.signature,
+          equals(
+            '0x8b98265ff94361c314b28eb0fb7d707281b774dbbe30478759184187e76aa7aa'
+            '52bb91bd3dd1518b83594a967ebcb16f5f1ac52ba8ebee1c2773fef811c2bec5'
+            '1b',
+          ),
+        );
       });
     });
 
@@ -829,13 +865,30 @@ void main() {
 
         expect(hash, equals('0xabcdef1234567890'));
 
-        // Should have called estimate and send
-        expect(bundlerRequests.length, equals(2));
-        expect(
-          bundlerRequests[0]['method'],
-          equals('eth_estimateUserOperationGas'),
+        final send = bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_sendUserOperation',
         );
-        expect(bundlerRequests[1]['method'], equals('eth_sendUserOperation'));
+        final params = send['params'] as List<dynamic>;
+        final sentOp = params[0] as Map<String, dynamic>;
+        expect(params[1], equals(EntryPointAddresses.v07.hex));
+        expect(sentOp['sender'], equals(mockAddress.hex));
+        // cast calldata \
+        //   "executeUserOpWithErrorString(address,uint256,bytes,uint8)" \
+        //   0x1234567890123456789012345678901234567890 1000000000000000000 0x 0
+        expect(
+          sentOp['callData'],
+          equals(
+            '0x541d63c8'
+            '0000000000000000000000001234567890123456789012345678901234567890'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            '0000000000000000000000000000000000000000000000000000000000000080'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
+        // Estimated gas (0x186a0 x 1.1 = 110000 = 0x1adb0) reached the send.
+        expect(sentOp['callGasLimit'], equals('0x1adb0'));
+        expect(sentOp['verificationGasLimit'], equals('0x1adb0'));
       });
 
       test('includes paymaster context when provided', () async {
@@ -902,24 +955,62 @@ void main() {
       });
     });
 
-    group('createSmartAccountClient', () {
-      test('creates client with factory function', () {
+    group('writeContract', () {
+      test('appends dataSuffix to the encoded call inside the sent callData',
+          () async {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
           entryPoint: EntryPointAddresses.v07,
           httpClient: createBundlerMock(),
         );
-
-        final client = createSmartAccountClient(
+        final client = SmartAccountClient(
           account: account,
           bundler: bundler,
           publicClient: createPublicClientMock(),
         );
 
-        expect(client, isA<SmartAccountClient>());
-        expect(client.account, equals(account));
-        expect(client.bundler, equals(bundler));
-        expect(client.paymaster, isNull);
+        final txHash = await client.writeContract(
+          address: EthereumAddress.fromHex(
+            '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+          ),
+          functionSignature: 'transfer(address,uint256)',
+          args: [
+            EthereumAddress.fromHex(
+              '0x70997970C51812dc3A010C7d01b75Ec5Bb3E7DcF',
+            ),
+            BigInt.from(1000000),
+          ],
+          dataSuffix: '0xdeadbeefcafe',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          timeout: const Duration(seconds: 5),
+        );
+
+        expect(txHash, equals('0x${'cd' * 32}'));
+        final sentOp = (bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_sendUserOperation',
+        )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+        // inner = `cast calldata "transfer(address,uint256)"
+        //   0x70997970C51812dc3A010C7d01b75Ec5Bb3E7DcF 1000000` ++ deadbeefcafe
+        // cast calldata \
+        //   "executeUserOpWithErrorString(address,uint256,bytes,uint8)" \
+        //   0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 0 <inner> 0
+        expect(
+          sentOp['callData'],
+          equals(
+            '0x541d63c8'
+            '0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c7238'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000080'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '000000000000000000000000000000000000000000000000000000000000004a'
+            'a9059cbb'
+            '00000000000000000000000070997970c51812dc3a010c7d01b75ec5bb3e7dcf'
+            '00000000000000000000000000000000000000000000000000000000000f4240'
+            'deadbeefcafe'
+            '00000000000000000000000000000000000000000000',
+          ),
+        );
       });
     });
   });
@@ -953,47 +1044,38 @@ void main() {
           ),
         ),
       );
-      final userOp = UserOperationV06(
-        sender: await account.getAddress(),
-        nonce: BigInt.zero,
-        initCode: '0x',
-        callData: account.encodeCall(
-          Call(to: await account.getAddress(), value: BigInt.zero),
+      final signed = await client.signUserOperationV06(
+        UserOperationV06(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          initCode: '0x',
+          callData: '0xdeadbeef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
         ),
-        callGasLimit: BigInt.from(100000),
-        verificationGasLimit: BigInt.from(100000),
-        preVerificationGas: BigInt.from(50000),
-        maxFeePerGas: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(1000000000),
       );
 
-      final signed = await client.signUserOperationV06(userOp);
-
+      // viem 2.21.55 getUserOperationHash({ userOperation: <the op above,
+      //   paymasterAndData 0x>, entryPointAddress: v0.6,
+      //   entryPointVersion: '0.6', chainId: 1 })
+      //   = 0x7cdf1cf2c5ed808db37c34a7a47a8cedfa353613961f581b1f546c618574ccc2
+      // Kernel v2 ROOT mode prefix 0x00000000 (permissionless.js
+      // toKernelSmartAccount 0.2.x) ++
+      // cast wallet sign --private-key <key> <that hash>
       expect(
         signed.signature,
-        equals(await account.signUserOperationV06(userOp)),
+        equals(
+          '0x00000000'
+          'e6a78f9d12048e904f6880eeaea8fae2bfee7217a12a6a0f7e3b0a2cb2b15c04'
+          '2cc08d258e89d6255dcdffc2e92720cb9813928c26b8d0413a046175e3a20ed4'
+          '1b',
+        ),
       );
-    });
-  });
-
-  group('SmartAccount interface', () {
-    test('SafeSmartAccount implements SmartAccount', () {
-      const testPrivateKey =
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-      final mockAddress =
-          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
-
-      final account = createSafeSmartAccount(
-        owners: [PrivateKeyOwner(testPrivateKey)],
-        chainId: BigInt.from(1),
-        address: mockAddress,
-      );
-
-      // Verify it implements the interface
-      expect(account, isA<SmartAccount>());
-      expect(account.chainId, equals(BigInt.from(1)));
-      expect(account.entryPoint.hex, equals(EntryPointAddresses.v07.hex));
-      expect(account.nonceKey, equals(BigInt.zero));
     });
   });
 

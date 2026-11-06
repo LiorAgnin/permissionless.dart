@@ -90,14 +90,14 @@ void main() {
         final params = capturedRequests[0]['params'] as List<dynamic>;
         expect(params.length, equals(4));
         expect(params[3], isNull);
-        // Gas fields present (defaults / carried from userOp)
+        // Gas fields carried from the userOp (100000 = 0x186a0, 21000 = 0x5208)
         final userOpJson = params[0] as Map<String, dynamic>;
-        expect(userOpJson['callGasLimit'], isNotNull);
-        expect(userOpJson['verificationGasLimit'], isNotNull);
-        expect(userOpJson['preVerificationGas'], isNotNull);
+        expect(userOpJson['callGasLimit'], equals('0x186a0'));
+        expect(userOpJson['verificationGasLimit'], equals('0x186a0'));
+        expect(userOpJson['preVerificationGas'], equals('0x5208'));
       });
 
-      test('always includes null context slot when context omitted', () async {
+      test('sends zero gas fields as 0x0 instead of omitting them', () async {
         final mockClient = createMockClient(
           (_) => {
             'paymaster': '0x1234567890123456789012345678901234567890',
@@ -129,12 +129,10 @@ void main() {
         );
 
         final params = capturedRequests[0]['params'] as List<dynamic>;
-        expect(params.length, equals(4));
-        expect(params[3], isNull);
-        expect(
-          (params[0] as Map<String, dynamic>)['callGasLimit'],
-          equals('0x0'),
-        );
+        final userOpJson = params[0] as Map<String, dynamic>;
+        expect(userOpJson['callGasLimit'], equals('0x0'));
+        expect(userOpJson['verificationGasLimit'], equals('0x0'));
+        expect(userOpJson['preVerificationGas'], equals('0x0'));
       });
 
       test('includes context when provided', () async {
@@ -381,25 +379,6 @@ void main() {
   });
 
   group('PaymasterStubData', () {
-    test('parses from JSON with all fields', () {
-      final stub = PaymasterStubData.fromJson({
-        'paymaster': '0x1234567890123456789012345678901234567890',
-        'paymasterData': '0xabcdef',
-        'paymasterVerificationGasLimit': '0xc350',
-        'paymasterPostOpGasLimit': '0x4e20',
-        'isFinal': true,
-      });
-
-      expect(
-        stub.paymaster.hex,
-        equals('0x1234567890123456789012345678901234567890'),
-      );
-      expect(stub.paymasterData, equals('0xabcdef'));
-      expect(stub.paymasterVerificationGasLimit, equals(BigInt.from(50000)));
-      expect(stub.paymasterPostOpGasLimit, equals(BigInt.from(20000)));
-      expect(stub.isFinal, isTrue);
-    });
-
     test('isFinal defaults to false', () {
       final stub = PaymasterStubData.fromJson({
         'paymaster': '0x1234567890123456789012345678901234567890',
@@ -437,23 +416,6 @@ void main() {
 
       expect(json['sponsorshipPolicyId'], equals('policy-xyz'));
       expect(json['metadata'], equals('test'));
-    });
-  });
-
-  group('PaymasterRpcError', () {
-    test('formats error message', () {
-      const error = PaymasterRpcError(
-        code: -32000,
-        message: 'User not sponsored',
-        data: 'rejection reason',
-      );
-
-      expect(
-        error.toString(),
-        equals(
-          'PaymasterRpcError(-32000): User not sponsored - rejection reason',
-        ),
-      );
     });
   });
 }

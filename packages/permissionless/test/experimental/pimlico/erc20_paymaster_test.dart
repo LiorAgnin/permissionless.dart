@@ -84,8 +84,8 @@ void main() {
                     'token': token.hex,
                     'paymaster': '0x888888888888Ec68A58AB8094Cc1AD20Ba3D2402',
                     'postOpGas': '0x124f8',
-                    // 1e18: 1 token wei per 1 wei of gas (keeps math simple)
-                    'exchangeRate': '0xde0b6b3a7640000',
+                    // 3_123_456_789 token units per 1e18 wei (USDC-like)
+                    'exchangeRate': '0xba2c2b15',
                   },
                 ],
               },
@@ -167,14 +167,24 @@ void main() {
         maxPriorityFeePerGas: BigInt.from(1000000000),
       );
 
+      // permissionless.js estimateErc20PaymasterCost over the prepared op,
+      // by hand: estimates vgl/cgl 0x186a0 x 1.1 = 110000 each, pvg 21000,
+      // stub paymaster limits 0xc350 = 50000 and 0x4e20 = 20000:
+      //   (110000 + 110000 + 21000 + 50000 + 20000 + 75000 postOpGas)
+      //     * 1 gwei = 386e12 wei
+      //   386e12 * 3123456789 / 1e18 = 1205654.320554 -> 1205654
+      final maxCost = BigInt.from(1205654);
+      expect(result.maxCostInToken, equals(maxCost));
       expect(result.userOperation.factory, isNotNull);
       expect(
         result.userOperation.callData,
         account.encodeCallsForDeployment([
           encodeErc20Approve(
             token: token,
-            spender: result.tokenQuote.paymaster,
-            amount: result.maxCostInToken,
+            spender: EthereumAddress.fromHex(
+              '0x888888888888Ec68A58AB8094Cc1AD20Ba3D2402',
+            ),
+            amount: maxCost,
           ),
           call,
         ]),
@@ -260,9 +270,12 @@ void main() {
         // ("paymasterValidationGasLimit is required for erc20 mode").
         final dataOpJson = (dataRequests.single['params'] as List<dynamic>)[0]
             as Map<String, dynamic>;
-        expect(dataOpJson['paymasterVerificationGasLimit'], isNotNull);
-        expect(dataOpJson['paymasterPostOpGasLimit'], isNotNull);
-        expect(dataOpJson['paymaster'], isNotNull);
+        expect(dataOpJson['paymasterVerificationGasLimit'], equals('0xc350'));
+        expect(dataOpJson['paymasterPostOpGasLimit'], equals('0x4e20'));
+        expect(
+          dataOpJson['paymaster'],
+          equals('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+        );
       },
     );
 
@@ -313,9 +326,19 @@ void main() {
           );
         }
 
-        // Paymaster data applied to the final op.
-        expect(result.userOperation.paymaster, isNotNull);
-        expect(result.userOperation.paymasterData, isNotNull);
+        // The final pm_getPaymasterData response is applied to the op.
+        expect(
+          result.userOperation.paymaster,
+          equals(
+            EthereumAddress.fromHex(
+              '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            ),
+          ),
+        );
+        expect(
+          result.userOperation.paymasterData,
+          equals('0xfedcba9876543210'),
+        );
 
         // Exactly one paid pm_getPaymasterData for the whole flow (step 9).
         expect(
