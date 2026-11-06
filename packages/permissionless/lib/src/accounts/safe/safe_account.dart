@@ -226,6 +226,12 @@ class SafeSmartAccount
   ///
   /// Prefer using [createSafeSmartAccount] factory function instead
   /// of calling this constructor directly.
+  ///
+  /// Throws [ArgumentError] if [SafeSmartAccountConfig.version] does not
+  /// support its EntryPoint version, or if a [WebAuthnAccountOwner] is given
+  /// and the resolved [SafeAddresses] lack `webAuthnSharedSignerAddress`
+  /// (always needed) or `safeP256VerifierAddress` (needed outside ERC-7579
+  /// mode). The built-in Safe 1.4.1 + EntryPoint v0.6 table has neither.
   SafeSmartAccount(this._config) : _addresses = _resolveAddresses(_config);
 
   final SafeSmartAccountConfig _config;
@@ -238,19 +244,32 @@ class SafeSmartAccount
   static const int _validAfter = 0;
   static const int _validUntil = 0;
 
+  /// permissionless.js only fails on the WebAuthn addresses when it first
+  /// uses them; checking here matches `KernelSmartAccountConfig`.
   static SafeAddresses _resolveAddresses(SafeSmartAccountConfig config) {
-    if (config.customAddresses != null) {
-      return config.customAddresses!;
-    }
-    final addresses = SafeVersionAddresses.getAddresses(
-      config.version,
-      config.entryPointVersion,
-    );
+    final addresses = config.customAddresses ??
+        SafeVersionAddresses.getAddresses(
+          config.version,
+          config.entryPointVersion,
+        );
     if (addresses == null) {
       throw ArgumentError(
         'Safe version ${config.version.value} does not support '
         'EntryPoint version ${config.entryPointVersion.value}',
       );
+    }
+    if (config.owners.any((owner) => owner is WebAuthnAccountOwner)) {
+      if (addresses.webAuthnSharedSignerAddress == null) {
+        throw ArgumentError(
+          'WebAuthn owners require webAuthnSharedSignerAddress. '
+          'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
+        );
+      }
+      // Only the standard setup's configure() call names the verifier.
+      if (!config.isErc7579Enabled &&
+          addresses.safeP256VerifierAddress == null) {
+        throw ArgumentError('WebAuthn owners require safeP256VerifierAddress.');
+      }
     }
     return addresses;
   }
@@ -295,17 +314,10 @@ class SafeSmartAccount
   ///
   /// WebAuthn owners sign through the shared signer contract, so they appear
   /// as its address.
-  EthereumAddress _signerAddress(AccountOwner owner) {
-    if (owner is! WebAuthnAccountOwner) return owner.address;
-    final sharedSigner = _addresses.webAuthnSharedSignerAddress;
-    if (sharedSigner == null) {
-      throw StateError(
-        'WebAuthn owners require webAuthnSharedSignerAddress. '
-        'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
-      );
-    }
-    return sharedSigner;
-  }
+  EthereumAddress _signerAddress(AccountOwner owner) =>
+      owner is WebAuthnAccountOwner
+          ? _addresses.webAuthnSharedSignerAddress!
+          : owner.address;
 
   /// Owners paired with their signer address, in the ascending signer order
   /// Safe's `checkSignatures` requires.
@@ -440,12 +452,6 @@ class SafeSmartAccount
     final webAuthnOwner =
         _config.owners.whereType<WebAuthnAccountOwner>().firstOrNull;
     if (webAuthnOwner != null) {
-      final p256Verifier = _addresses.safeP256VerifierAddress;
-      if (p256Verifier == null) {
-        throw StateError(
-          'WebAuthn owners require safeP256VerifierAddress.',
-        );
-      }
       setupCalls.add(
         MultiSendCall(
           to: _signerAddress(webAuthnOwner),
@@ -453,7 +459,7 @@ class SafeSmartAccount
           data: encodeWebAuthnSignerConfigure(
             x: webAuthnOwner.x,
             y: webAuthnOwner.y,
-            p256VerifierAddress: p256Verifier.hex,
+            p256VerifierAddress: _addresses.safeP256VerifierAddress!.hex,
           ),
           operation: OperationType.delegateCall,
         ),
@@ -993,6 +999,10 @@ String _concatSignatures(List<_SignatureEntry> signatures) {
 /// You must provide either [publicClient] or [address] for address computation:
 /// - [publicClient] - Address will be computed automatically via RPC (recommended)
 /// - [address] - Use a pre-computed address
+///
+/// Throws [ArgumentError] for the invalid configurations listed on
+/// [SafeSmartAccountConfig.new] and [SafeSmartAccount.new], including a
+/// WebAuthn owner on Safe 1.4.1 + EntryPoint v0.6.
 ///
 /// ## Standard Mode (default)
 ///

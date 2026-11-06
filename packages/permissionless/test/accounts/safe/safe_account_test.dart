@@ -766,39 +766,118 @@ void main() {
       });
     });
 
-    // Safe v1.4.1 + EntryPoint v0.6 has no WebAuthn shared signer; the
-    // account must say so instead of failing a null check.
-    group('WebAuthn owner without a shared signer address', () {
-      SafeSmartAccount account() => createSafeSmartAccount(
-            owners: [
-              PrivateKeyOwner(testPrivateKey),
-              _TestWebAuthnOwner(BigInt.one, BigInt.two, Uint8List(1)),
-            ],
+    // A WebAuthn owner is listed as the shared signer, and outside ERC-7579
+    // mode its key is stored via the shared signer's configure(), which names
+    // the P-256 verifier. Both are checked at construction, as
+    // KernelSmartAccountConfig does for webAuthnValidator. permissionless.js
+    // checks them lazily, so this is a deliberate deviation.
+    group('WebAuthn owner address requirements at construction', () {
+      final v07 = SafeVersionAddresses.getAddresses(
+        SafeVersion.v1_4_1,
+        EntryPointVersion.v07,
+      )!;
+      SafeAddresses custom({
+        EthereumAddress? sharedSigner,
+        EthereumAddress? verifier,
+      }) =>
+          SafeAddresses(
+            safeModuleSetupAddress: v07.safeModuleSetupAddress,
+            safe4337ModuleAddress: v07.safe4337ModuleAddress,
+            safeProxyFactoryAddress: v07.safeProxyFactoryAddress,
+            safeSingletonAddress: v07.safeSingletonAddress,
+            multiSendAddress: v07.multiSendAddress,
+            multiSendCallOnlyAddress: v07.multiSendCallOnlyAddress,
+            webAuthnSharedSignerAddress: sharedSigner,
+            safeP256VerifierAddress: verifier,
+          );
+      List<AccountOwner> withWebAuthn() => [
+            PrivateKeyOwner(testPrivateKey),
+            _TestWebAuthnOwner(BigInt.one, BigInt.two, Uint8List(1)),
+          ];
+      Matcher argumentErrorNaming(String field) => throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message.toString(),
+              'message',
+              contains(field),
+            ),
+          );
+
+      test('Safe 1.4.1 + EntryPoint v0.6 (no shared signer) throws', () {
+        expect(
+          () => createSafeSmartAccount(
+            owners: withWebAuthn(),
             chainId: BigInt.one,
             entryPointVersion: EntryPointVersion.v06,
             address: mockAddress,
-          );
-
-      test('getStubSignature throws StateError', () {
-        expect(() => account().getStubSignature(), throwsStateError);
+          ),
+          argumentErrorNaming('webAuthnSharedSignerAddress'),
+        );
       });
 
-      test('signUserOperationV06 throws StateError', () {
-        final userOp = UserOperationV06(
-          sender: mockAddress,
-          nonce: BigInt.zero,
-          initCode: '0x',
-          callData: '0x',
-          callGasLimit: BigInt.one,
-          verificationGasLimit: BigInt.one,
-          preVerificationGas: BigInt.one,
-          maxFeePerGas: BigInt.one,
-          maxPriorityFeePerGas: BigInt.one,
-          paymasterAndData: '0x',
-        );
+      test('custom addresses without a shared signer throw, in 7579 too', () {
+        for (final launchpad in [
+          null,
+          Safe7579Addresses.erc7579LaunchpadAddress,
+        ]) {
+          expect(
+            () => createSafeSmartAccount(
+              owners: withWebAuthn(),
+              chainId: BigInt.one,
+              customAddresses: custom(verifier: v07.safeP256VerifierAddress),
+              erc7579LaunchpadAddress: launchpad,
+            ),
+            argumentErrorNaming('webAuthnSharedSignerAddress'),
+          );
+        }
+      });
+
+      test('custom addresses without a P-256 verifier throw', () {
         expect(
-          () => account().signUserOperationV06(userOp),
-          throwsStateError,
+          () => createSafeSmartAccount(
+            owners: withWebAuthn(),
+            chainId: BigInt.one,
+            customAddresses:
+                custom(sharedSigner: v07.webAuthnSharedSignerAddress),
+          ),
+          argumentErrorNaming('safeP256VerifierAddress'),
+        );
+      });
+
+      // The 7579 launchpad setup never calls configure(), so no verifier.
+      test('ERC-7579 mode does not need a P-256 verifier', () {
+        expect(
+          createSafeSmartAccount(
+            owners: withWebAuthn(),
+            chainId: BigInt.one,
+            customAddresses:
+                custom(sharedSigner: v07.webAuthnSharedSignerAddress),
+            erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+          ).isWebAuthn,
+          isTrue,
+        );
+      });
+
+      test('built-in EntryPoint v0.7 tables construct for every version', () {
+        for (final version in SafeVersion.values) {
+          expect(
+            createSafeSmartAccount(
+              owners: withWebAuthn(),
+              chainId: BigInt.one,
+              version: version,
+            ).isWebAuthn,
+            isTrue,
+          );
+        }
+      });
+
+      test('ECDSA-only owners need neither address', () {
+        expect(
+          createSafeSmartAccount(
+            owners: [PrivateKeyOwner(testPrivateKey)],
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v06,
+          ).isWebAuthn,
+          isFalse,
         );
       });
     });
