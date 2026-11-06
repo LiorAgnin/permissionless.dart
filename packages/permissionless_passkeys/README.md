@@ -7,17 +7,21 @@ Enable biometric authentication (Face ID, Touch ID, Windows Hello) for your smar
 ## Features
 
 - **WebAuthn Smart Accounts** - Create passkey-authenticated smart accounts
-- **Kernel v0.3.x Support** - WebAuthn validator with P256 precompile (RIP-7212)
+- **Kernel v0.3.x Support** - WebAuthn validator; uses the RIP-7212 P256 precompile where the chain has it
 - **Safe v1.4.1/v1.5.0 Support** - Shared WebAuthn signer module
 - **Cross-Platform** - Works on iOS, Android, Web, macOS
 - **Biometric Authentication** - Face ID, Touch ID, Windows Hello, Security Keys
 
 ## Supported Account Types
 
-| Account    | Version        | EntryPoint | WebAuthn Signer           |
-| ---------- | -------------- | ---------- | ------------------------- |
-| **Kernel** | v0.3.0, v0.3.1 | v0.7       | WebAuthn validator module |
-| **Safe**   | v1.4.1, v1.5.0 | v0.7       | Shared WebAuthn signer    |
+| Account    | Version                     | EntryPoint | WebAuthn Signer           |
+| ---------- | --------------------------- | ---------- | ------------------------- |
+| **Kernel** | v0.3.0-beta, v0.3.1, v0.3.3 | v0.7       | WebAuthn validator module |
+| **Safe**   | v1.4.1, v1.5.0              | v0.7       | Shared WebAuthn signer    |
+
+Other Kernel versions (v0.2.x, and v0.3.2, which has no WebAuthn validator)
+throw `ArgumentError` when created with a WebAuthn owner. So does Safe 1.4.1 on
+EntryPoint v0.6, whose address table has no WebAuthn shared signer.
 
 ## Installation
 
@@ -87,6 +91,7 @@ final kernelAccount = createKernelSmartAccount(
   owner: webAuthnAccount,  // WebAuthnAccount IS an AccountOwner
   chainId: BigInt.from(11155111),
   version: KernelVersion.v0_3_1,
+  publicClient: publicClient,  // Kernel resolves its address through RPC
 );
 
 // Or use with Safe v1.4.1/v1.5.0 (supports WebAuthn shared signer)
@@ -96,7 +101,8 @@ final safeAccount = createSafeSmartAccount(
   version: SafeVersion.v1_4_1,
 );
 
-print('Account Address: ${kernelAccount.address.hex}');
+final kernelAddress = await kernelAccount.getAddress();
+print('Account Address: ${kernelAddress.hex}');
 ```
 
 ### 4. Sign and Send Transactions
@@ -156,8 +162,8 @@ final result = await account.sign(hash: userOpHash);
 // - result.signature: Hex signature (r + s, 64 bytes)
 // - result.webauthn.authenticatorData: WebAuthn authenticator data
 // - result.webauthn.clientDataJSON: Client data JSON string
-// - result.webauthn.challengeIndex: Index of challenge in JSON
-// - result.webauthn.typeIndex: Index of type in JSON
+// - result.webauthn.challengeIndex: Offset of the "challenge" key in clientDataJSON
+// - result.webauthn.typeIndex: Offset of the "type" key in clientDataJSON
 // - result.raw: Raw Signature object
 ```
 
@@ -247,8 +253,8 @@ WebAuthn requires platform-specific configuration. See the [example app README](
 
 For gas-efficient signature verification, use chains with the P256 precompile. The library supports two detection methods:
 
-- **Dynamic detection** (recommended): `isRip7212Supported(publicClient)` probes the precompile via `eth_call` with a known-valid P256 test vector. Works on any chain, results are cached per chain ID.
-- **Static detection**: `shouldUseP256Precompile(chainId:)` checks against a curated list of 67 known-supported chain IDs.
+- **Dynamic detection** (recommended): `isRip7212Supported(publicClient)` probes the precompile via `eth_call` with a known-valid P256 test vector. Works on any chain. An answer is cached per chain ID; a failed call returns `false` and is not cached, so the next call probes again.
+- **Static detection**: `supportsRip7212(chainId:)` checks against a curated list of 67 known-supported chain IDs.
 
 Kernel accounts automatically use dynamic detection when a `publicClient` is configured, falling back to the static list otherwise.
 
@@ -259,10 +265,18 @@ import 'package:permissionless/permissionless.dart';
 final supported = await isRip7212Supported(publicClient);
 
 // Static: check against known chain IDs
-final supported = shouldUseP256Precompile(chainId: chainId);
+final supported = supportsRip7212(chainId: chainId);
 ```
 
-Without the precompile, signature verification falls back to Solidity-based P256, which uses ~800k gas vs ~3.5k with the precompile (~6.9k on mainnet).
+Without the precompile, signature verification falls back to a Solidity P256
+verifier, which costs a few hundred thousand gas. The precompile call costs
+3,450 gas (6,900 on Ethereum mainnet).
+
+For Kernel, the gas estimate does not depend on the precompile. The Kernel
+WebAuthn stub signature prices the Solidity verifier, so a chain with the
+precompile gets the same estimate and a larger required prefund than the
+operation uses. `SmartAccountClient` applies no WebAuthn-specific gas floor;
+pass `verificationGasLimit` if you need a minimum.
 
 ## Example
 
@@ -271,6 +285,7 @@ See the [example/](example/) directory for a complete Flutter app demonstrating:
 - Passkey registration with biometrics
 - Kernel and Safe account creation
 - Transaction encoding
+- Sending a sponsored or self-funded UserOperation on Sepolia
 - Credential export/import
 
 Run the example:
@@ -283,10 +298,10 @@ flutter run
 
 ## Testing
 
-Run the unit tests:
+Run the unit tests (the package depends on Flutter):
 
 ```bash
-dart test
+flutter test
 ```
 
 The package includes comprehensive tests for:
