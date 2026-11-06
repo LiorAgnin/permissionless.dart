@@ -431,6 +431,40 @@ void main() {
           signature: '0xsignature',
         );
 
+    // permissionless.js types exchangeRateNativeToUsd as required and
+    // hexToBigInt's it, so a quote without it is an error, not a $0 cost.
+    test(r'a quote without exchangeRateNativeToUsd is an error, not $0',
+        () async {
+      client = createPimlicoClient(
+        url: 'http://localhost:8545',
+        entryPoint: EntryPointAddresses.v07,
+        httpClient: createMockClient(
+          quotesForToken: (t) {
+            final result = tokenQuotesResult(token: t);
+            ((result['quotes'] as List<dynamic>).single as Map<String, dynamic>)
+                .remove('exchangeRateNativeToUsd');
+            return result;
+          },
+        ),
+      );
+
+      await expectLater(
+        client.estimateErc20PaymasterCost(
+          userOperation: sampleV07(),
+          token: EthereumAddress.fromHex(
+            '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('exchangeRateNativeToUsd'),
+          ),
+        ),
+      );
+    });
+
     test('computes cost locally via getTokenQuotes (no fictitious RPC)',
         () async {
       final token = EthereumAddress.fromHex(

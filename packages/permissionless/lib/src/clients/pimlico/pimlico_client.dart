@@ -232,11 +232,13 @@ class PimlicoClient extends BundlerClient {
         erc20PaymasterMaxCostInWei(userOperation, quote.postOpGas);
     final costInToken = weiToTokenUnits(maxCostInWei, quote.exchangeRate);
 
+    // permissionless.js requires the field; a missing rate is not a $0 cost.
+    final usdRate = quote.exchangeRateNativeToUsd ??
+        (throw StateError(
+          'Pimlico quote for ${token.hex} has no exchangeRateNativeToUsd',
+        ));
     // cost in USD with 6 decimals of precision (matches permissionless.js)
-    final costInUsd = weiToTokenUnits(
-      maxCostInWei,
-      quote.exchangeRateNativeToUsd ?? BigInt.zero,
-    );
+    final costInUsd = weiToTokenUnits(maxCostInWei, usdRate);
 
     return PimlicoErc20PaymasterCost(
       costInToken: costInToken,
