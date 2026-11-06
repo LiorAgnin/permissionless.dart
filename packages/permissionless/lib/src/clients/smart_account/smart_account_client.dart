@@ -865,28 +865,13 @@ class SmartAccountClient {
       verificationGasLimit:
           preserveVerificationGasLimit ?? buffered.verificationGasLimit,
       callGasLimit: preserveCallGasLimit ?? buffered.callGasLimit,
-      paymasterVerificationGasLimit: _paymasterGas(
-        userOp.paymasterVerificationGasLimit,
-        buffered.paymasterVerificationGasLimit,
-      ),
-      paymasterPostOpGasLimit: _paymasterGas(
-        userOp.paymasterPostOpGasLimit,
-        buffered.paymasterPostOpGasLimit,
-      ),
+      // viem prepareUserOperation: the paymaster's own value, else the
+      // estimate. The paymaster may have signed its gas fields.
+      paymasterVerificationGasLimit: userOp.paymasterVerificationGasLimit ??
+          buffered.paymasterVerificationGasLimit,
+      paymasterPostOpGasLimit:
+          userOp.paymasterPostOpGasLimit ?? buffered.paymasterPostOpGasLimit,
     );
-  }
-
-  /// Paymaster gas limits below this are treated as obviously wrong.
-  static final BigInt _minPaymasterGas = BigInt.from(10000);
-
-  /// The paymaster's own value (from stub data) unless it is missing or
-  /// implausibly low, in which case a plausible bundler estimate wins.
-  static BigInt? _paymasterGas(BigInt? fromPaymaster, BigInt? estimated) {
-    if (fromPaymaster != null && fromPaymaster >= _minPaymasterGas) {
-      return fromPaymaster;
-    }
-    if (estimated != null && estimated >= _minPaymasterGas) return estimated;
-    return fromPaymaster;
   }
 
   /// Applies gas estimates to a UserOperation v0.6 with multipliers.

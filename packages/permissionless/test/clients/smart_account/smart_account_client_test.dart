@@ -347,6 +347,64 @@ void main() {
         expect(userOp.paymasterData, equals('0x1234567890abcdef'));
       });
 
+      // viem prepareUserOperation: `paymasterPostOpGasLimit:
+      // request.paymasterPostOpGasLimit ?? gas.paymasterPostOpGasLimit`.
+      // A final stub's gas fields are part of what the paymaster signed, so
+      // they must reach the op unchanged, including a 0 postOp limit.
+      test('keeps the paymaster gas limits of a final stub, including 0',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(
+            responseFactory: (body) => {
+              'preVerificationGas': '0x5208',
+              'verificationGasLimit': '0x186a0',
+              'callGasLimit': '0x186a0',
+              'paymasterVerificationGasLimit': '0x9c40',
+              'paymasterPostOpGasLimit': '0x4e20',
+            },
+          ),
+        );
+        final paymaster = createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(
+            responseFactory: (body) => {
+              'paymaster': '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              'paymasterData': '0x1234567890abcdef',
+              'paymasterVerificationGasLimit': '0x7530',
+              'paymasterPostOpGasLimit': '0x0',
+              'isFinal': true,
+            },
+          ),
+        );
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          paymaster: paymaster,
+          publicClient: createPublicClientMock(),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+              value: BigInt.zero,
+            ),
+          ],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(
+          userOp.paymasterVerificationGasLimit,
+          equals(BigInt.from(30000)),
+        );
+        expect(userOp.paymasterPostOpGasLimit, equals(BigInt.zero));
+      });
+
       test('excludes factory data when account is deployed', () async {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
@@ -745,8 +803,11 @@ void main() {
             (r) => r['method'] == method,
           );
           final params = request['params'] as List<dynamic>;
-          expect(params[1], equals(EntryPointAddresses.v08.hex),
-              reason: method);
+          expect(
+            params[1],
+            equals(EntryPointAddresses.v08.hex),
+            reason: method,
+          );
           expect(
             (params[0] as Map<String, dynamic>).containsKey('eip7702Auth'),
             isTrue,
