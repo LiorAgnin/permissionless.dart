@@ -2,7 +2,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -96,7 +95,7 @@ class EtherspotCustomAddresses {
 ///
 /// This implements the ERC-4337 smart account interface for Etherspot's
 /// modular wallet. It uses ERC-7579 for call encoding and EntryPoint v0.7.
-class EtherspotSmartAccount implements SmartAccount {
+class EtherspotSmartAccount implements SmartAccount, EntryPointVersioned {
   /// Creates an Etherspot smart account from the given configuration.
   ///
   /// Prefer using [createEtherspotSmartAccount] factory function instead
@@ -128,9 +127,14 @@ class EtherspotSmartAccount implements SmartAccount {
       _config.customAddresses?.ecdsaValidator ??
       EtherspotAddresses.ecdsaValidator;
 
+  /// The EntryPoint version (always v0.7 for Etherspot).
+  @override
+  EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
+
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// permissionless.js `getNonceKeyWithEncoding`: validator (20) ‖
   /// mode DEFAULT (1) ‖ type ROOT (1) ‖ nonce key (2).
@@ -158,13 +162,7 @@ class EtherspotSmartAccount implements SmartAccount {
       );
 
   @override
-  Future<String> getInitCode() async {
-    final factoryData = await getFactoryData();
-    return packUserOperationInitCode(
-      factory: factoryData?.factory,
-      factoryData: factoryData?.factoryData,
-    );
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   @override
   Future<({EthereumAddress factory, String factoryData})?>
@@ -229,7 +227,7 @@ class EtherspotSmartAccount implements SmartAccount {
         getUserOperationHash(
           userOperation: userOp,
           entryPointAddress: entryPoint,
-          entryPointVersion: EntryPointVersion.v07,
+          entryPointVersion: entryPointVersion,
           chainId: chainId,
         ),
       );

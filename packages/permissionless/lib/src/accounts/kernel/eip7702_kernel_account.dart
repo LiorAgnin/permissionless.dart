@@ -177,7 +177,8 @@ class Eip7702KernelSmartAccountConfig {
 /// // Get authorization for submitting to bundler
 /// final auth = await account.getAuthorization(nonce: BigInt.zero);
 /// ```
-class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
+class Eip7702KernelSmartAccount
+    implements Eip7702SmartAccount, EntryPointVersioned {
   /// Creates an EIP-7702 Kernel smart account from the given configuration.
   ///
   /// Prefer using [createEip7702KernelSmartAccount] factory function instead
@@ -200,6 +201,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   bool get isEip7702 => true;
 
   /// The EntryPoint version (v0.7 for Kernel EIP-7702).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   /// The chain ID.
@@ -209,7 +211,8 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for this account.
   ///
@@ -354,22 +357,11 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     ]);
   }
 
-  /// Checks if the account is deployed (delegated) before EIP-1271 signing.
-  ///
-  /// EIP-7702 accounts are not EIP-1271 compliant before delegation because
-  /// the EOA has no code to execute `isValidSignature`.
-  Future<void> _ensureDeployedForEip1271() async {
-    if (_config.publicClient == null) return;
-
-    final address = await getAddress();
-    final isDeployed = await _config.publicClient!.isDeployed(address);
-    if (!isDeployed) {
-      throw StateError(
-        'Kernel with EIP-7702 is not EIP-1271 compliant before delegation. '
-        'Submit a UserOperation with the EIP-7702 authorization first.',
+  Future<void> _ensureDeployedForEip1271() => ensureEip7702Delegated(
+        accountName: 'Kernel with EIP-7702',
+        publicClient: _config.publicClient,
+        address: getAddress,
       );
-    }
-  }
 }
 
 /// Adapts [Eip7702KernelOwner] to [AccountOwner]: [signRawHash] is the

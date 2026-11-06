@@ -158,7 +158,8 @@ class Eip7702SimpleSmartAccountConfig {
 /// // Get authorization for submitting to bundler
 /// final auth = await account.getAuthorization(nonce: BigInt.zero);
 /// ```
-class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
+class Eip7702SimpleSmartAccount
+    implements Eip7702SmartAccount, EntryPointVersioned {
   /// Creates an EIP-7702 Simple smart account from the given configuration.
   ///
   /// Prefer using [createEip7702SimpleSmartAccount] factory function instead
@@ -179,6 +180,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   bool get isEip7702 => true;
 
   /// The EntryPoint version (always v0.8 for EIP-7702).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v08;
 
   /// The chain ID.
@@ -188,7 +190,8 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v08;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -282,7 +285,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
       user_op_hash.getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v08,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
         eip7702DelegationAddress: accountLogicAddress,
       );
@@ -312,22 +315,11 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
     return _config.owner.signTypedData(typedData);
   }
 
-  /// Checks if the account is deployed (delegated) before EIP-1271 signing.
-  ///
-  /// EIP-7702 accounts are not EIP-1271 compliant before delegation because
-  /// the EOA has no code to execute `isValidSignature`.
-  Future<void> _ensureDeployedForEip1271() async {
-    if (_config.publicClient == null) return;
-
-    final address = await getAddress();
-    final isDeployed = await _config.publicClient!.isDeployed(address);
-    if (!isDeployed) {
-      throw StateError(
-        'EIP-7702 Simple account is not EIP-1271 compliant before delegation. '
-        'Submit a UserOperation with the EIP-7702 authorization first.',
+  Future<void> _ensureDeployedForEip1271() => ensureEip7702Delegated(
+        accountName: 'EIP-7702 Simple account',
+        publicClient: _config.publicClient,
+        address: getAddress,
       );
-    }
-  }
 }
 
 /// Creates an EIP-7702 Simple smart account.

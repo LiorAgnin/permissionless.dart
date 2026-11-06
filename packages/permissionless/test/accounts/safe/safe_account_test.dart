@@ -1040,31 +1040,85 @@ void main() {
         expect(onlineAddress, isNot(equals(offlineAddress)));
       });
 
-      test('RPC failure falls back to hardcoded constant', () async {
+      // permissionless.js reads proxyCreationCode() with readContract and lets
+      // its error propagate; a canonical fallback would compute CREATE2 over
+      // the wrong code whenever the factory is not the canonical one.
+      test('RPC error propagates and is not cached', () async {
         final owner = PrivateKeyOwner(testPrivateKey);
-        final failing = MockClient((request) async {
-          throw Exception('network down');
+        const altProxyCode =
+            '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+        var calls = 0;
+        final flaky = MockClient((request) async {
+          final body = jsonDecode(request.body) as Map<String, dynamic>;
+          calls++;
+          return http.Response(
+            jsonEncode({
+              'jsonrpc': '2.0',
+              'id': body['id'],
+              if (calls == 1)
+                'error': {'code': -32005, 'message': 'rate limited'}
+              else
+                'result': abiEncodeBytes(altProxyCode),
+            }),
+            200,
+          );
         });
-        final offline = createSafeSmartAccount(
-          owners: [owner],
-          chainId: BigInt.one,
-        );
-        final withFailingClient = createSafeSmartAccount(
+        final account = createSafeSmartAccount(
           owners: [owner],
           chainId: BigInt.one,
           publicClient: PublicClient(
             rpcClient: JsonRpcClient(
               url: Uri.parse('http://localhost:8545'),
-              httpClient: failing,
+              httpClient: flaky,
             ),
           ),
         );
 
+        await expectLater(
+          account.getAddress(),
+          throwsA(isA<BundlerRpcError>()),
+        );
         expect(
-          await withFailingClient.getAddress(),
-          equals(await offline.getAddress()),
+          await account.getAddress(),
+          equals(
+            await createSafeSmartAccount(
+              owners: [owner],
+              chainId: BigInt.one,
+              publicClient: publicClientReturning(altProxyCode),
+            ).getAddress(),
+          ),
         );
       });
+
+      // viem's readContract throws on `0x` (no contract at the factory
+      // address); empty bytes would give a wrong CREATE2 address the same way.
+      for (final (name, result) in [
+        ('no data (0x)', '0x'),
+        ('empty bytes', abiEncodeBytes('0x')),
+      ]) {
+        test('$name from proxyCreationCode() throws', () async {
+          final account = createSafeSmartAccount(
+            owners: [PrivateKeyOwner(testPrivateKey)],
+            chainId: BigInt.one,
+            publicClient: PublicClient(
+              rpcClient: JsonRpcClient(
+                url: Uri.parse('http://localhost:8545'),
+                httpClient: MockClient((request) async {
+                  final body = jsonDecode(request.body) as Map<String, dynamic>;
+                  return http.Response(
+                    jsonEncode(
+                      {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+                    ),
+                    200,
+                  );
+                }),
+              ),
+            ),
+          );
+
+          await expectLater(account.getAddress(), throwsStateError);
+        });
+      }
 
       // SafeProxyFactory v1.5.0 (0x14F2…5e7b) returns this from
       // proxyCreationCode() on Ethereum, Sepolia and Base; it differs from

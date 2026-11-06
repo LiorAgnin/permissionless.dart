@@ -6,7 +6,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -14,6 +13,7 @@ import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
 import 'constants.dart';
 
 /// Configuration for creating a Biconomy smart account.
@@ -92,7 +92,7 @@ class BiconomySmartAccountConfig {
 /// );
 /// ```
 @Deprecated('Use NexusSmartAccount instead')
-class BiconomySmartAccount implements SmartAccountV06 {
+class BiconomySmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// Creates a Biconomy smart account from the given configuration.
   ///
   /// Prefer using [createBiconomySmartAccount] factory function instead
@@ -115,6 +115,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version (always v0.6 for Biconomy).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v06;
 
   /// The index/salt used for address derivation.
@@ -127,7 +128,8 @@ class BiconomySmartAccount implements SmartAccountV06 {
   /// The EntryPoint address (v0.6).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v06;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -184,10 +186,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// Gets the init code for deploying this Biconomy account.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _deployCounterFactualAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation.
   @override
@@ -256,7 +255,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
 
   /// Gets a stub signature for gas estimation.
   @override
-  String getStubSignature() => _encodeModuleSignature(_dummyEcdsaSignature);
+  String getStubSignature() => _encodeModuleSignature(moduleEcdsaStubSignature);
 
   /// Signs a UserOperation (v0.6).
   @override
@@ -265,7 +264,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
       getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
+        entryPointVersion: entryPointVersion,
         chainId: _config.chainId,
       ),
     );
@@ -299,10 +298,7 @@ class BiconomySmartAccount implements SmartAccountV06 {
   /// `abi.encode(bytes signature, address moduleAddress)`: Biconomy routes
   /// validation to the module named next to the signature.
   String _encodeModuleSignature(String signature) =>
-      AbiEncoder.encodeWithDynamics([
-        (false, AbiEncoder.encodeBytes(signature)),
-        (true, AbiEncoder.encodeAddress(_ecdsaModuleAddress)),
-      ]);
+      encodeModuleSignature(signature, _ecdsaModuleAddress);
 }
 
 const _executeSignature = 'execute_ncC(address,uint256,bytes)';
@@ -311,11 +307,6 @@ const _deployCounterFactualAccountSignature =
     'deployCounterFactualAccount(address,bytes,uint256)';
 const _initForSmartAccountSignature = 'initForSmartAccount(address)';
 const _initSignature = 'init(address,address,bytes)';
-
-/// 65-byte ECDSA-shaped dummy signature permissionless.js uses for Biconomy
-/// stub signatures (wrapped with the module address).
-const _dummyEcdsaSignature =
-    '0x81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff1b';
 
 /// Creation code of the Biconomy account proxy the factory deploys (the
 /// implementation address is appended as its constructor argument).

@@ -2,7 +2,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
@@ -83,7 +82,7 @@ class TrustSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Trust account: $address');
 /// ```
-class TrustSmartAccount implements SmartAccountV06 {
+class TrustSmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// Creates a Trust smart account from the given configuration.
   ///
   /// Prefer using [createTrustSmartAccount] factory function instead
@@ -109,10 +108,15 @@ class TrustSmartAccount implements SmartAccountV06 {
   @override
   BigInt get chainId => _config.chainId;
 
+  /// The EntryPoint version (always v0.6 for Trust).
+  @override
+  EntryPointVersion get entryPointVersion => EntryPointVersion.v06;
+
   /// The EntryPoint address (v0.6).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v06;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -137,10 +141,7 @@ class TrustSmartAccount implements SmartAccountV06 {
 
   /// Gets the init code for deploying this Trust account.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _createAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   ///
@@ -196,7 +197,7 @@ class TrustSmartAccount implements SmartAccountV06 {
         getUserOperationHash(
           userOperation: userOp,
           entryPointAddress: entryPoint,
-          entryPointVersion: EntryPointVersion.v06,
+          entryPointVersion: entryPointVersion,
           chainId: _config.chainId,
         ),
       );

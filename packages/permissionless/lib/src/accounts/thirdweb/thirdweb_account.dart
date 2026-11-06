@@ -5,7 +5,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
@@ -16,6 +15,12 @@ import '../account_support.dart';
 import '../standard_execute.dart';
 import '../wrapped_message.dart';
 import 'constants.dart';
+
+// permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
+final _factories = {
+  EntryPointVersion.v06: ThirdwebAddresses.factoryV06,
+  EntryPointVersion.v07: ThirdwebAddresses.factoryV07,
+};
 
 /// Configuration for creating a Thirdweb smart account.
 class ThirdwebSmartAccountConfig {
@@ -46,11 +51,10 @@ class ThirdwebSmartAccountConfig {
     this.address,
   }) : entryPointVersion = _supportedEntryPointVersion(entryPointVersion);
 
-  // permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
   static EntryPointVersion _supportedEntryPointVersion(
     EntryPointVersion version,
   ) {
-    if (version == EntryPointVersion.v08) {
+    if (!_factories.containsKey(version)) {
       throw ArgumentError.value(
         version,
         'entryPointVersion',
@@ -104,16 +108,15 @@ class ThirdwebSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Thirdweb account: $address');
 /// ```
-class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
+class ThirdwebSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Thirdweb smart account from the given configuration.
   ///
   /// Prefer using [createThirdwebSmartAccount] factory function instead
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v06
-                ? ThirdwebAddresses.factoryV06
-                : ThirdwebAddresses.factoryV07);
+            _factories[_config.entryPointVersion]!;
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -123,6 +126,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The chain ID.
@@ -158,10 +162,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
 
   /// Gets the init code for deploying this Thirdweb account.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _createAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
@@ -210,43 +211,29 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   ///
   /// For v0.6 accounts, use [signUserOperationV06] instead.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    if (_config.entryPointVersion == EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'Thirdweb account configured for EntryPoint v0.6. '
-        'Use signUserOperationV06 instead.',
-      );
-    }
-
-    return _config.owner.signPersonalMessage(
-      getUserOperationHash(
-        userOperation: userOp,
-        entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v07,
-        chainId: _config.chainId,
-      ),
-    );
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
   /// Uses the v0.6 userOpHash layout (unpacked gas fields) and EIP-191
   /// personal-sign, matching permissionless.js / viem.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
 
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Thirdweb',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
+    );
     return _config.owner.signPersonalMessage(
       getUserOperationHash(
         userOperation: userOp,
         entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
-        chainId: _config.chainId,
+        entryPointVersion: entryPointVersion,
+        chainId: chainId,
       ),
     );
   }

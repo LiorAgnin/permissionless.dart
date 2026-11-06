@@ -217,7 +217,11 @@ class SafeSmartAccountConfig {
 
 /// A Safe smart account implementation for ERC-4337.
 class SafeSmartAccount
-    implements SmartAccount, SmartAccountV06, DeploymentCallsEncoder {
+    implements
+        SmartAccount,
+        SmartAccountV06,
+        DeploymentCallsEncoder,
+        EntryPointVersioned {
   /// Creates a Safe smart account from the given configuration.
   ///
   /// Prefer using [createSafeSmartAccount] factory function instead
@@ -255,6 +259,7 @@ class SafeSmartAccount
   SafeVersion get version => _config.version;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The owners of this Safe.
@@ -333,33 +338,32 @@ class SafeSmartAccount
   /// Resolves proxy creation code for CREATE2 derivation.
   ///
   /// When a [SafeSmartAccountConfig.publicClient] is configured, reads
-  /// `proxyCreationCode()` from the configured SafeProxyFactory (matching
-  /// permissionless.js). Falls back to the canonical code for the configured
-  /// [SafeVersion] when no client is available or the RPC call fails.
+  /// `proxyCreationCode()` from the configured SafeProxyFactory and lets any
+  /// RPC error propagate (permissionless.js reads it with `readContract`).
+  /// Without a client, uses the canonical code for the configured
+  /// [SafeVersion], which is only right for the canonical factory.
+  ///
+  /// Throws [StateError] when the factory returns no code.
   Future<String> _getProxyCreationCode() async {
-    if (_cachedProxyCreationCode != null) {
-      return _cachedProxyCreationCode!;
-    }
+    if (_cachedProxyCreationCode case final cached?) return cached;
 
     final client = _config.publicClient;
-    if (client != null) {
-      try {
-        final result = await client.call(
-          Call(
-            to: _addresses.safeProxyFactoryAddress,
-            data: SafeSelectors.proxyCreationCode,
-          ),
-        );
-        final code = _decodeReturnedBytes(result);
-        if (code.length > 2) {
-          return _cachedProxyCreationCode = code;
-        }
-      } catch (_) {
-        // Fall back to the canonical code below.
-      }
+    if (client == null) {
+      return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
     }
-
-    return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
+    final factory = _addresses.safeProxyFactoryAddress;
+    final result = await client.call(
+      Call(to: factory, data: SafeSelectors.proxyCreationCode),
+    );
+    final code =
+        Hex.byteLength(result) == 0 ? '0x' : _decodeReturnedBytes(result);
+    if (Hex.byteLength(code) == 0) {
+      throw StateError(
+        'SafeProxyFactory ${factory.hex} returned no proxyCreationCode(); '
+        'is the factory deployed on chain ${_config.chainId}?',
+      );
+    }
+    return _cachedProxyCreationCode = code;
   }
 
   /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
@@ -530,10 +534,7 @@ class SafeSmartAccount
   ///
   /// This is used in the UserOperation when the account doesn't exist yet.
   @override
-  Future<String> getInitCode() async {
-    final (:factory, :factoryData) = (await getFactoryData())!;
-    return Hex.concat([factory.hex, factoryData]);
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
@@ -668,15 +669,8 @@ class SafeSmartAccount
   /// Creates an EIP-712 signature over the v0.7 SafeOp typehash for
   /// `userOp.sender`. For v0.6 accounts, use [signUserOperationV06] instead.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    if (_config.entryPointVersion == EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'Safe account configured for EntryPoint v0.6. '
-        'Use signUserOperationV06 instead.',
-      );
-    }
-    return _signSafeOpHash(_safeOpHashV07(userOp));
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
@@ -684,14 +678,21 @@ class SafeSmartAccount
   /// (uint256 gas fields, callGasLimit before verificationGasLimit),
   /// matching permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
-    return _signSafeOpHash(_safeOpHashV06(userOp));
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
+
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Safe',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
+    );
+    return _signSafeOpHash(
+      switch (userOp) {
+        final UserOperationV06 op => _safeOpHashV06(op),
+        final UserOperationV07 op => _safeOpHashV07(op),
+      },
+    );
   }
 
   /// Signs a SafeOp hash with all owners and packs validAfter/validUntil.
@@ -972,20 +973,20 @@ typedef _SignatureEntry = ({
   bool isDynamic,
 });
 
-/// Concatenates Safe signatures in ascending signer order.
+/// Concatenates Safe signatures, which must already be in ascending signer
+/// order (callers build them from [SafeSmartAccount._ownersBySigner]).
 ///
 /// ECDSA signatures (65 bytes) are appended as they are. A contract
 /// signature takes a 65-byte static slot
 /// {signer(32)}{offset of its dynamic part(32)}{signature type 0x00(1)}
 /// and appends {length(32)}{data} after all static slots.
 String _concatSignatures(List<_SignatureEntry> signatures) {
-  final sorted = [...signatures]..sort((a, b) => a.signer.compareTo(b.signer));
-  final dynamicStart = sorted.length * 65;
+  final dynamicStart = signatures.length * 65;
   final statics = <String>[];
   final dynamics = <String>[];
   var dynamicLength = 0;
 
-  for (final sig in sorted) {
+  for (final sig in signatures) {
     if (!sig.isDynamic) {
       statics.add(sig.data);
       continue;

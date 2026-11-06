@@ -2,7 +2,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
@@ -88,7 +87,8 @@ class SimpleSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Simple account: $address');
 /// ```
-class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
+class SimpleSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Simple smart account from the given configuration.
   ///
   /// Prefer using [createSimpleSmartAccount] factory function instead
@@ -107,6 +107,7 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The salt used for address derivation.
@@ -147,10 +148,7 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   ///
   /// This is used in the UserOperation when the account doesn't exist yet.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _createAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
@@ -204,53 +202,41 @@ class SimpleSmartAccount implements SmartAccount, SmartAccountV06 {
   /// - v0.8: EIP-712 typed data over PackedUserOperation (same as 7702 path)
   /// - v0.6: throws — use [signUserOperationV06] instead
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    switch (_config.entryPointVersion) {
-      case EntryPointVersion.v06:
-        throw UnsupportedError(
-          'Simple account configured for EntryPoint v0.6. '
-          'Use signUserOperationV06 instead.',
-        );
-      case EntryPointVersion.v07:
-        return _config.owner.signPersonalMessage(
-          getUserOperationHash(
-            userOperation: userOp,
-            entryPointAddress: entryPoint,
-            entryPointVersion: EntryPointVersion.v07,
-            chainId: _config.chainId,
-          ),
-        );
-      case EntryPointVersion.v08:
-        return _config.owner.signTypedData(
-          getUserOperationTypedData(
-            userOperation: userOp,
-            entryPointAddress: entryPoint,
-            chainId: _config.chainId,
-          ),
-        );
-    }
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
   /// Uses the v0.6 userOpHash layout (unpacked gas fields) and EIP-191
   /// personal-sign, matching permissionless.js / viem.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
-    return _config.owner.signPersonalMessage(
-      getUserOperationHash(
-        userOperation: userOp,
-        entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
-        chainId: _config.chainId,
-      ),
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
+
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Simple',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
     );
+    return switch ((entryPointVersion, userOp)) {
+      (EntryPointVersion.v08, final UserOperationV07 op) =>
+        _config.owner.signTypedData(
+          getUserOperationTypedData(
+            userOperation: op,
+            entryPointAddress: entryPoint,
+            chainId: chainId,
+          ),
+        ),
+      _ => _config.owner.signPersonalMessage(
+          getUserOperationHash(
+            userOperation: userOp,
+            entryPointAddress: entryPoint,
+            entryPointVersion: entryPointVersion,
+            chainId: chainId,
+          ),
+        ),
+    };
   }
 
   /// Signs [message] with the owner's EIP-191 personal_sign.

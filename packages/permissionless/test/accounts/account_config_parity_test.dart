@@ -583,4 +583,39 @@ void main() {
       );
     });
   });
+
+  group('EntryPointVersioned reports the version behind a custom address', () {
+    for (final (name, account, version)
+        in <(String, SmartAccount, EntryPointVersion)>[
+      (
+        'Etherspot',
+        createEtherspotSmartAccount(
+          owner: owner,
+          chainId: chainId,
+          address: mockAddress,
+          entryPointAddress: customEntryPoint,
+        ),
+        EntryPointVersion.v07,
+      ),
+      (
+        'Trust',
+        createTrustSmartAccount(
+          owner: owner,
+          chainId: chainId,
+          address: mockAddress,
+          entryPointAddress: customEntryPoint,
+        ),
+        EntryPointVersion.v06,
+      ),
+    ]) {
+      test(name, () {
+        expect(account.entryPoint, customEntryPoint);
+        expect(
+          account,
+          isA<EntryPointVersioned>()
+              .having((a) => a.entryPointVersion, 'entryPointVersion', version),
+        );
+      });
+    }
+  });
 }

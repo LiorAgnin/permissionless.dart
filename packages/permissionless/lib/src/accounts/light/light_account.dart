@@ -2,7 +2,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -120,7 +119,8 @@ class LightSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Light account: $address');
 /// ```
-class LightSmartAccount implements SmartAccount, SmartAccountV06 {
+class LightSmartAccount
+    implements SmartAccount, SmartAccountV06, EntryPointVersioned {
   /// Creates a Light smart account from the given configuration.
   ///
   /// Prefer using [createLightSmartAccount] factory function instead
@@ -140,6 +140,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
   LightAccountVersion get version => _config.version;
 
   /// The EntryPoint version being used.
+  @override
   EntryPointVersion get entryPointVersion => _config.entryPointVersion;
 
   /// The salt used for address derivation.
@@ -171,10 +172,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
       );
 
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _createAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   @override
   Future<({EthereumAddress factory, String factoryData})?>
@@ -207,45 +205,31 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
   ///
   /// For v0.6 accounts, use [signUserOperationV06] instead.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    if (_config.entryPointVersion == EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'Light account configured for EntryPoint v0.6. '
-        'Use signUserOperationV06 instead.',
-      );
-    }
-
-    final signature = await _config.owner.signPersonalMessage(
-      getUserOperationHash(
-        userOperation: userOp,
-        entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v07,
-        chainId: _config.chainId,
-      ),
-    );
-    return _withSignatureType(signature);
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _signUserOperation(userOp);
 
   /// Signs a UserOperation for EntryPoint v0.6.
   ///
   /// Uses the v0.6 userOpHash layout (unpacked gas fields) and EIP-191
   /// personal-sign, matching permissionless.js / viem.
   @override
-  Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    if (_config.entryPointVersion != EntryPointVersion.v06) {
-      throw UnsupportedError(
-        'signUserOperationV06 requires EntryPoint v0.6. '
-        'This account is configured for ${_config.entryPointVersion.name}.',
-      );
-    }
+  Future<String> signUserOperationV06(UserOperationV06 userOp) =>
+      _signUserOperation(userOp);
 
-    // v1.1.0 (EP v0.6) has no signature-type prefix.
-    return _config.owner.signPersonalMessage(
-      getUserOperationHash(
-        userOperation: userOp,
-        entryPointAddress: entryPoint,
-        entryPointVersion: EntryPointVersion.v06,
-        chainId: _config.chainId,
+  Future<String> _signUserOperation(UserOperation userOp) async {
+    checkUserOperationLayout(
+      accountName: 'Light',
+      entryPointVersion: entryPointVersion,
+      userOperation: userOp,
+    );
+    return _withSignatureType(
+      await _config.owner.signPersonalMessage(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: entryPoint,
+          entryPointVersion: entryPointVersion,
+          chainId: chainId,
+        ),
       ),
     );
   }

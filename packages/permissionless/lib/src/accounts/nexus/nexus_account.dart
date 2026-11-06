@@ -6,7 +6,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -104,7 +103,7 @@ class NexusSmartAccountConfig {
 /// final address = await account.getAddress();
 /// print('Nexus account: $address');
 /// ```
-class NexusSmartAccount implements SmartAccount {
+class NexusSmartAccount implements SmartAccount, EntryPointVersioned {
   /// Creates a Nexus smart account from the given configuration.
   ///
   /// Prefer using [createNexusSmartAccount] factory function instead
@@ -124,6 +123,7 @@ class NexusSmartAccount implements SmartAccount {
   AccountOwner get owner => _config.owner;
 
   /// The EntryPoint version (always v0.7 for Nexus).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   /// The index/salt used for address derivation.
@@ -136,7 +136,8 @@ class NexusSmartAccount implements SmartAccount {
   /// The EntryPoint address (v0.7).
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for Nexus accounts.
   ///
@@ -174,13 +175,7 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Gets the init code for deploying this Nexus account.
   @override
-  Future<String> getInitCode() async {
-    final factoryData = await getFactoryData();
-    return packUserOperationInitCode(
-      factory: factoryData?.factory,
-      factoryData: factoryData?.factoryData,
-    );
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
@@ -212,18 +207,11 @@ class NexusSmartAccount implements SmartAccount {
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  /// Gets a stub signature for gas estimation.
+  /// Gets a stub signature for gas estimation (permissionless.js Nexus
+  /// dummy: the module ECDSA dummy next to the validator).
   @override
-  String getStubSignature() {
-    // permissionless.js Nexus dummy: offset ‖ validator ‖ 65-byte signature.
-    final validator = Hex.strip0x(_validatorAddress.hex);
-    return '0x0000000000000000000000000000000000000000000000000000000000000040'
-        '000000000000000000000000$validator'
-        '0000000000000000000000000000000000000000000000000000000000000041'
-        '81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5'
-        '711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff'
-        '1b00000000000000000000000000000000000000000000000000000000000000';
-  }
+  String getStubSignature() =>
+      encodeModuleSignature(moduleEcdsaStubSignature, _validatorAddress);
 
   /// Signs a UserOperation.
   ///
