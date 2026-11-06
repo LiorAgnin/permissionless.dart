@@ -1377,7 +1377,7 @@ void main() {
 
       test('throws for invalid call type', () {
         // Valid selector but invalid call type (0x02)
-        const invalidCallData = '0x61461954' // execute selector
+        const invalidCallData = '0xe9ae5c53' // execute selector
             '0200000000000000000000000000000000000000000000000000000000000000' // invalid mode
             '0000000000000000000000000000000000000000000000000000000000000040'
             '0000000000000000000000000000000000000000000000000000000000000000';

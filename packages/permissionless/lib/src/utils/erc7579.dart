@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import '../types/address.dart';
 import '../types/hex.dart';
 import '../types/user_operation.dart';
-import 'abi_parameters.dart';
 import 'encoding.dart';
 
 /// ERC-7579 module types as defined in the specification.
@@ -110,7 +109,7 @@ const String _supportsModuleSignature = 'supportsModule(uint256)';
 const String _supportsExecutionModeSignature = 'supportsExecutionMode(bytes32)';
 
 /// ERC-7579 batch execution calldata: `abi.encode(Execution[])`.
-const String _executionsAbi = '(address,uint256,bytes)[]';
+const List<String> _executionsAbi = ['(address,uint256,bytes)[]'];
 
 /// Call type for ERC-7579 execution.
 ///
@@ -277,7 +276,7 @@ String encode7579BatchCallData(List<Call> calls) {
   if (calls.isEmpty) {
     throw ArgumentError('At least one call is required for batch execution');
   }
-  return encodeAbiParameters(_executionsAbi, [
+  return AbiEncoder.encodeParameters(_executionsAbi, [
     [
       for (final call in calls) [call.to, call.value, call.data],
     ],
@@ -687,7 +686,8 @@ Decoded7579Calls decode7579Calls(String callData) {
     return Decoded7579Calls(mode: mode, calls: []);
   }
   if (callType == Erc7579CallKind.batchCall) {
-    final executions = decodeAbiParameters(_executionsAbi, executionData)[0];
+    final executions =
+        AbiEncoder.decodeParameters(_executionsAbi, executionData)[0];
     return Decoded7579Calls(
       mode: mode,
       calls: [

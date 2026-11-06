@@ -6,7 +6,6 @@ import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/abi_parameters.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
@@ -178,8 +177,8 @@ class EtherspotSmartAccount implements SmartAccount {
           );
 
   /// `abi.encode(owner, bootstrap, initMSA(...))`.
-  String _encodeInitCode() => encodeAbiParameters(
-        'address,address,bytes',
+  String _encodeInitCode() => AbiEncoder.encodeParameters(
+        ['address', 'address', 'bytes'],
         [owner.address, bootstrap, _encodeInitMSA()],
       );
 

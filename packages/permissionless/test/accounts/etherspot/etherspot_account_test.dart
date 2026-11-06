@@ -43,7 +43,10 @@ void main() {
     });
 
     test('execute selector is correct', () {
-      expect(EtherspotSelectors.execute, equals('0x61461954'));
+      expect(
+        EtherspotSelectors.execute,
+        AbiEncoder.functionSelector('execute(bytes32,bytes)'),
+      );
     });
   });
 

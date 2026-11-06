@@ -115,7 +115,21 @@ class AbiEncoder {
   ///
   /// Accepts the same argument forms as [encodeFunctionData].
   static String encodeParameters(List<String> types, List<dynamic> values) =>
-      Hex.slice(encodeFunctionData('f(${types.join(',')})', values), 4);
+      Hex.slice(encodeFunctionData(_parametersSignature(types), values), 4);
+
+  /// Inverse of [encodeParameters] (viem `decodeAbiParameters`).
+  static List<dynamic> decodeParameters(List<String> types, String data) {
+    final signature = _parametersSignature(types);
+    return decodeFunctionData(
+      signature,
+      Hex.concat([functionSelector(signature), data]),
+    );
+  }
+
+  // `abi.encode(params)` is the argument block of any function taking those
+  // params, so the parameter codec reuses the function codec.
+  static String _parametersSignature(List<String> types) =>
+      'parameters(${types.join(',')})';
 
   /// Decodes function calldata produced by [encodeFunctionData] (or equivalent).
   ///

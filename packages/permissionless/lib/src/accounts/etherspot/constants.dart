@@ -48,7 +48,7 @@ class EtherspotSelectors {
 
   /// ModularEtherspotWallet: execute(bytes32 mode, bytes executionCalldata)
   /// Same as ERC-7579 standard.
-  static const String execute = '0x61461954';
+  static const String execute = '0xe9ae5c53';
 }
 
 /// Dummy ECDSA signature for gas estimation.
