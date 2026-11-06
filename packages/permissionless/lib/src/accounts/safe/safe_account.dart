@@ -973,20 +973,20 @@ typedef _SignatureEntry = ({
   bool isDynamic,
 });
 
-/// Concatenates Safe signatures in ascending signer order.
+/// Concatenates Safe signatures, which must already be in ascending signer
+/// order (callers build them from [SafeSmartAccount._ownersBySigner]).
 ///
 /// ECDSA signatures (65 bytes) are appended as they are. A contract
 /// signature takes a 65-byte static slot
 /// {signer(32)}{offset of its dynamic part(32)}{signature type 0x00(1)}
 /// and appends {length(32)}{data} after all static slots.
 String _concatSignatures(List<_SignatureEntry> signatures) {
-  final sorted = [...signatures]..sort((a, b) => a.signer.compareTo(b.signer));
-  final dynamicStart = sorted.length * 65;
+  final dynamicStart = signatures.length * 65;
   final statics = <String>[];
   final dynamics = <String>[];
   var dynamicLength = 0;
 
-  for (final sig in sorted) {
+  for (final sig in signatures) {
     if (!sig.isDynamic) {
       statics.add(sig.data);
       continue;

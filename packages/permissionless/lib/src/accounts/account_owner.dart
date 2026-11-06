@@ -92,14 +92,8 @@ class PrivateKeyOwner implements AccountOwner {
   EthereumAddress get address => _privateKey.address;
 
   /// The uncompressed secp256k1 public key (64 bytes, without the `04`
-  /// prefix).
-  Uint8List get publicKey {
-    final fullPubKey = privateKeyBytesToPublic(_privateKey.privateKey);
-    if (fullPubKey.length == 65 && fullPubKey[0] == 0x04) {
-      return Uint8List.fromList(fullPubKey.sublist(1));
-    }
-    return fullPubKey;
-  }
+  /// prefix; web3dart's `privateKeyBytesToPublic` already drops it).
+  Uint8List get publicKey => privateKeyBytesToPublic(_privateKey.privateKey);
 
   @override
   Future<String> signPersonalMessage(String hash) async => Hex.fromBytes(
