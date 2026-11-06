@@ -8,6 +8,7 @@ library;
 
 import '../../clients/paymaster/paymaster_client.dart';
 import '../../clients/paymaster/types.dart';
+import '../../clients/pimlico/erc20_paymaster.dart';
 import '../../clients/pimlico/pimlico_client.dart';
 import '../../clients/pimlico/types.dart';
 import '../../clients/public/public_client.dart';
@@ -133,7 +134,6 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   BigInt? nonce,
   Erc20PaymasterConfig config = const Erc20PaymasterConfig(),
 }) async {
-  // 1. Get token quotes
   final quotes = await pimlicoClient.getTokenQuotes([token]);
   if (quotes.isEmpty) {
     throw ArgumentError(
@@ -144,33 +144,15 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   final quote = quotes.first;
   final paymasterAddress = quote.paymaster;
 
-  // 2. Create calls with dummy max approval for accurate gas estimation
+  // A max approval keeps gas simulation from failing on allowance checks.
   final accountAddress = await smartAccountClient.account.getAddress();
-  final callsWithDummyApproval = [
-    // Dummy max approval to ensure simulation passes
-    encodeErc20Approve(
-      token: token,
-      spender: paymasterAddress,
-      amount: maxUint256,
-    ),
-    ...calls,
-  ];
+  final callsWithDummyApproval = _withApproval(
+    calls,
+    token: token,
+    spender: paymasterAddress,
+    amount: maxUint256,
+  );
 
-  // Handle USDT special case (requires reset to 0 first)
-  final isMainnetUsdt =
-      token.hex.toLowerCase() == _mainnetUsdtAddress.hex.toLowerCase();
-  if (isMainnetUsdt) {
-    callsWithDummyApproval.insert(
-      0,
-      encodeErc20Approve(
-        token: _mainnetUsdtAddress,
-        spender: paymasterAddress,
-        amount: BigInt.zero,
-      ),
-    );
-  }
-
-  // 3. Build state override if balance override is configured
   List<StateOverride>? stateOverride;
   if (config.balanceOverride) {
     final balanceSlot = config.balanceSlot ?? quote.balanceSlot;
@@ -187,13 +169,11 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
     );
   }
 
-  // 4. Prepare initial UserOperation with dummy approval.
-  //
   // Auth-aware variant: for an EIP-7702 account with inactive delegation this
   // also produces the signed authorization, which must accompany every
   // paymaster/bundler request (as `eip7702Auth`) and the final submission.
   //
-  // skipFinalPaymasterData: the op is re-signed by the paymaster at step 9
+  // skipFinalPaymasterData: the paymaster re-signs the op below
   // over the final calldata, so the prepare-time pm_getPaymasterData result
   // would be discarded. Stub data + gas estimation are enough here
   // (permissionless.js parity: its prepare step substitutes stub data).
@@ -211,68 +191,27 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
   final initialUserOp = prepared.userOp;
   final authorization = prepared.authorization;
 
-  // 5. Calculate maximum cost in tokens
-  final userOperationMaxGas = initialUserOp.preVerificationGas +
-      initialUserOp.callGasLimit +
-      initialUserOp.verificationGasLimit +
-      (initialUserOp.paymasterPostOpGasLimit ?? BigInt.zero) +
-      (initialUserOp.paymasterVerificationGasLimit ?? BigInt.zero);
+  final maxCostInToken = estimateTokenCost(quote: quote, userOp: initialUserOp);
 
-  final userOperationMaxCost = userOperationMaxGas * initialUserOp.maxFeePerGas;
-
-  // Formula from Pimlico's singleton paymaster:
-  // maxCostInToken = ((userOpMaxCost + postOpGas * maxFeePerGas) * exchangeRate) / 1e18
-  final maxCostInToken =
-      ((userOperationMaxCost + quote.postOpGas * initialUserOp.maxFeePerGas) *
-              quote.exchangeRate) ~/
-          BigInt.from(10).pow(18);
-
-  // 6. Check existing allowance
-  final allowanceCallData = encodeErc20AllowanceCall(
+  final currentAllowance = await getTokenAllowance(
+    publicClient: publicClient,
+    token: token,
     owner: accountAddress,
     spender: paymasterAddress,
   );
-
-  final allowanceResult = await publicClient.call(
-    Call(to: token, data: allowanceCallData),
-  );
-  final currentAllowance = decodeUint256Result(allowanceResult);
-
-  // 7. Build final calls with approval if needed
-  final hasSufficientApproval = currentAllowance >= maxCostInToken;
-  final finalCalls = List<Call>.from(calls);
-  var approvalInjected = false;
-
-  if (!hasSufficientApproval) {
-    approvalInjected = true;
-
-    // Add approval for exact max cost (not unlimited for security)
-    finalCalls.insert(
-      0,
-      encodeErc20Approve(
-        token: token,
-        spender: paymasterAddress,
-        amount: maxCostInToken,
-      ),
-    );
-
-    // Handle USDT special case
-    if (isMainnetUsdt) {
-      finalCalls.insert(
-        0,
-        encodeErc20Approve(
-          token: _mainnetUsdtAddress,
+  // Approve exactly the max cost (not unlimited) when the allowance is short.
+  final approvalInjected = currentAllowance < maxCostInToken;
+  final finalCalls = approvalInjected
+      ? _withApproval(
+          calls,
+          token: token,
           spender: paymasterAddress,
-          amount: BigInt.zero,
-        ),
-      );
-    }
-  }
+          amount: maxCostInToken,
+        )
+      : calls;
 
-  // 8. Re-encode call data with final calls
   final finalCallData = smartAccountClient.account.encodeCalls(finalCalls);
 
-  // 9. Get final paymaster data
   final paymaster = smartAccountClient.paymaster;
   if (paymaster == null) {
     throw StateError(
@@ -295,7 +234,7 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
     authorization: authorization,
   );
 
-  // 10. Build final UserOperation (permissionless.js parity:
+  // permissionless.js parity:
   // `{...userOperation, ...paymasterData}` — response fields override, gas
   // limits estimated earlier survive if the response omits them).
   final finalUserOp = initialUserOp
@@ -340,19 +279,7 @@ Future<Erc20CostEstimate> estimateErc20PaymasterCost({
   }
 
   final quote = quotes.first;
-
-  final userOperationMaxGas = userOperation.preVerificationGas +
-      userOperation.callGasLimit +
-      userOperation.verificationGasLimit +
-      (userOperation.paymasterPostOpGasLimit ?? BigInt.zero) +
-      (userOperation.paymasterVerificationGasLimit ?? BigInt.zero);
-
-  final userOperationMaxCost = userOperationMaxGas * userOperation.maxFeePerGas;
-
-  final maxCostInToken =
-      ((userOperationMaxCost + quote.postOpGas * userOperation.maxFeePerGas) *
-              quote.exchangeRate) ~/
-          BigInt.from(10).pow(18);
+  final maxCostInToken = estimateTokenCost(quote: quote, userOp: userOperation);
 
   return Erc20CostEstimate(
     maxCostInToken: maxCostInToken,
@@ -390,3 +317,18 @@ class Erc20CostEstimate {
   String toString() =>
       'Erc20CostEstimate(maxCost: $maxCostInToken, rate: $exchangeRate)';
 }
+
+/// [calls] preceded by an ERC-20 approval of [amount] to [spender]. Mainnet
+/// USDT rejects changing a non-zero allowance, so it is reset to 0 first.
+List<Call> _withApproval(
+  List<Call> calls, {
+  required EthereumAddress token,
+  required EthereumAddress spender,
+  required BigInt amount,
+}) =>
+    [
+      if (token.hex == _mainnetUsdtAddress.hex)
+        encodeErc20Approve(token: token, spender: spender, amount: BigInt.zero),
+      encodeErc20Approve(token: token, spender: spender, amount: amount),
+      ...calls,
+    ];

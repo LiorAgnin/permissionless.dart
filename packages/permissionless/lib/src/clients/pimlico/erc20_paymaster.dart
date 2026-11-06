@@ -1,8 +1,9 @@
-import '../clients/pimlico/types.dart';
-import '../clients/public/public_client.dart';
-import '../types/address.dart';
-import '../types/user_operation.dart';
-import 'erc20.dart';
+import '../../types/address.dart';
+import '../../types/user_operation.dart';
+import '../../utils/erc20.dart';
+import '../public/public_client.dart';
+import 'erc20_cost.dart';
+import 'types.dart';
 
 /// Gas buffer for ERC-20 paymaster verification.
 ///
@@ -117,25 +118,12 @@ Call createPaymasterApprovalCall({
 /// ```
 BigInt estimateTokenCost({
   required PimlicoTokenQuote quote,
-  required UserOperationV07 userOp,
-}) {
-  // Total gas = preVerificationGas + verificationGas + callGas + paymasterPostOp
-  final totalGas = userOp.preVerificationGas +
-      userOp.verificationGasLimit +
-      userOp.callGasLimit +
-      (userOp.paymasterPostOpGasLimit ?? BigInt.zero) +
-      quote.postOpGas;
-
-  // Cost in wei
-  final weiCost = totalGas * userOp.maxFeePerGas;
-
-  // Convert to tokens using exchange rate
-  // exchangeRate is token per wei with 18 decimals precision
-  // tokenCost = weiCost * exchangeRate / 10^18
-  final tokenCost = (weiCost * quote.exchangeRate) ~/ BigInt.from(10).pow(18);
-
-  return tokenCost;
-}
+  required UserOperation userOp,
+}) =>
+    weiToTokenUnits(
+      erc20PaymasterMaxCostInWei(userOp, quote.postOpGas),
+      quote.exchangeRate,
+    );
 
 /// Checks if approval is needed and returns an optional approval call.
 ///

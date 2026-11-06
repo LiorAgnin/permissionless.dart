@@ -227,6 +227,42 @@ void main() {
       // With 1:1 exchange rate: tokenCost = 325000 * 10^9
       expect(tokenCost, equals(BigInt.from(325000) * BigInt.from(10).pow(9)));
     });
+
+    test('charges the paymaster verification gas the EntryPoint prefunds', () {
+      final quote = PimlicoTokenQuote(
+        token: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+        paymaster: EthereumAddress.fromHex(
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+        ),
+        postOpGas: BigInt.from(75000),
+        exchangeRate: BigInt.from(10).pow(18),
+      );
+      final userOp = UserOperationV07(
+        sender: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+        nonce: BigInt.zero,
+        callData: '0x',
+        callGasLimit: BigInt.from(100000),
+        verificationGasLimit: BigInt.from(100000),
+        preVerificationGas: BigInt.from(50000),
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        paymaster: quote.paymaster,
+        paymasterVerificationGasLimit: BigInt.from(40000),
+        paymasterPostOpGasLimit: BigInt.from(30000),
+      );
+
+      // permissionless.js: (getRequiredPrefund(op) + postOpGas * maxFee)
+      // * exchangeRate / 1e18, where the prefund covers both paymaster limits.
+      const expectedGas = 50000 + 100000 + 100000 + 40000 + 30000 + 75000;
+      expect(
+        estimateTokenCost(quote: quote, userOp: userOp),
+        BigInt.from(expectedGas) * BigInt.from(10).pow(9),
+      );
+    });
   });
 
   // =========================================================================

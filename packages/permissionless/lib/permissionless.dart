@@ -42,6 +42,7 @@ export 'src/clients/bundler/bundler.dart';
 export 'src/clients/etherspot/etherspot.dart';
 export 'src/clients/passkey_server/passkey_server.dart';
 export 'src/clients/paymaster/paymaster.dart';
+export 'src/clients/pimlico/erc20_paymaster.dart';
 export 'src/clients/pimlico/pimlico.dart';
 export 'src/clients/public/public.dart';
 export 'src/clients/smart_account/smart_account.dart';
@@ -59,7 +60,6 @@ export 'src/types/user_operation.dart';
 // Utilities
 export 'src/utils/encoding.dart';
 export 'src/utils/erc20.dart';
-export 'src/utils/erc20_paymaster.dart';
 export 'src/utils/erc7579.dart';
 export 'src/utils/gas.dart';
 export 'src/utils/message_hash.dart';

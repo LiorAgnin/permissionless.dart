@@ -6,6 +6,7 @@ import '../../types/user_operation.dart';
 import '../../utils/gas.dart';
 import '../bundler/bundler_client.dart';
 import '../bundler/rpc_client.dart';
+import 'erc20_cost.dart';
 import 'types.dart';
 
 /// Pimlico-specific bundler client with enhanced features.
@@ -254,33 +255,15 @@ class PimlicoClient extends BundlerClient {
     }
 
     final quote = quotes.first;
-    final BigInt userOperationMaxCost;
-    final BigInt maxFeePerGas;
-
-    if (userOperation is UserOperationV07) {
-      userOperationMaxCost = getRequiredPrefund(userOperation);
-      maxFeePerGas = userOperation.maxFeePerGas;
-    } else if (userOperation is UserOperationV06) {
-      userOperationMaxCost = getRequiredPrefundV06(userOperation);
-      maxFeePerGas = userOperation.maxFeePerGas;
-    } else {
-      throw ArgumentError(
-        'Unsupported UserOperation type: ${userOperation.runtimeType}',
-      );
-    }
-
-    // max cost in wei including paymaster postOp gas
-    final maxCostInWei = userOperationMaxCost + quote.postOpGas * maxFeePerGas;
-
-    // cost in token denomination (wei-scale exchange rate)
-    final costInToken =
-        (maxCostInWei * quote.exchangeRate) ~/ BigInt.from(10).pow(18);
+    final maxCostInWei =
+        erc20PaymasterMaxCostInWei(userOperation, quote.postOpGas);
+    final costInToken = weiToTokenUnits(maxCostInWei, quote.exchangeRate);
 
     // cost in USD with 6 decimals of precision (matches permissionless.js)
-    final exchangeRateNativeToUsd =
-        quote.exchangeRateNativeToUsd ?? BigInt.zero;
-    final costInUsd =
-        (maxCostInWei * exchangeRateNativeToUsd) ~/ BigInt.from(10).pow(18);
+    final costInUsd = weiToTokenUnits(
+      maxCostInWei,
+      quote.exchangeRateNativeToUsd ?? BigInt.zero,
+    );
 
     return PimlicoErc20PaymasterCost(
       costInToken: costInToken,
