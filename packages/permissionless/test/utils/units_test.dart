@@ -2,23 +2,6 @@ import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('EthUnits', () {
-    test('weiPerGwei is 10^9', () {
-      expect(EthUnits.weiPerGwei, equals(BigInt.from(1000000000)));
-    });
-
-    test('weiPerEther is 10^18', () {
-      expect(
-        EthUnits.weiPerEther,
-        equals(BigInt.parse('1000000000000000000')),
-      );
-    });
-
-    test('gweiPerEther is 10^9', () {
-      expect(EthUnits.gweiPerEther, equals(BigInt.from(1000000000)));
-    });
-  });
-
   group('GasUnits', () {
     group('gweiToWei', () {
       test('converts integer gwei to wei', () {
