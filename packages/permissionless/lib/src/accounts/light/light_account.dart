@@ -28,6 +28,10 @@ class LightSmartAccountConfig {
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   /// - [publicClient]: For RPC-based address computation (recommended)
   /// - [address]: Pre-computed address (alternative to publicClient)
+  ///
+  /// The only supported pairs are v1.1.0 with EntryPoint v0.6 and v2.0.0 with
+  /// EntryPoint v0.7; any other [version] / [entryPointVersion] combination
+  /// throws [ArgumentError].
   LightSmartAccountConfig({
     required this.owner,
     required this.chainId,
@@ -40,8 +44,25 @@ class LightSmartAccountConfig {
     this.publicClient,
     this.address,
   })  : salt = salt ?? BigInt.zero,
-        version =
-            version ?? LightAccountVersion.forEntryPoint(entryPointVersion);
+        version = _supportedVersion(version, entryPointVersion);
+
+  // permissionless.js pairs LightAccount 1.1.0 with EntryPoint 0.6 and 2.0.0
+  // with 0.7; other pairings sign a hash the EntryPoint does not verify.
+  static LightAccountVersion _supportedVersion(
+    LightAccountVersion? version,
+    EntryPointVersion entryPointVersion,
+  ) {
+    final supported = LightAccountVersion.forEntryPoint(entryPointVersion);
+    if (version != null && version != supported) {
+      throw ArgumentError.value(
+        version,
+        'version',
+        'Light Account ${version.version} does not support EntryPoint '
+            '${entryPointVersion.value}; use ${supported.version}',
+      );
+    }
+    return supported;
+  }
 
   /// The owner of this Light account.
   final AccountOwner owner;
