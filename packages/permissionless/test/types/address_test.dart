@@ -1,4 +1,4 @@
-import 'package:permissionless/src/types/address.dart';
+import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {

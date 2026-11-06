@@ -62,11 +62,11 @@ void main() {
             aaGuid: '',
           ),
         ),
-        getFn: (_) async => signers.Signature(
+        getFn: (c) async => signers.Signature(
           testSignatureR,
           testSignatureS,
           authData: testAuthenticatorData,
-          clientDataJson: testClientDataJSON,
+          clientDataJson: clientDataJsonFor(c),
         ),
       );
 
