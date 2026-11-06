@@ -1,19 +1,20 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/hex.dart';
+import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../standard_execute.dart';
+import '../wrapped_message.dart';
 import 'constants.dart';
 
 /// Configuration for creating a Thirdweb smart account.
@@ -27,7 +28,8 @@ class ThirdwebSmartAccountConfig {
   /// - [salt]: Salt for deterministic address generation. Treated as a UTF-8
   ///   string (matching permissionless.js `toHex(salt)`), not as hex. Empty or
   ///   the historical default `"0x"` produce empty salt bytes.
-  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
+  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7); v0.8
+  ///   throws [ArgumentError]
   /// - [nonceKey]: Custom nonce key for parallel transaction support
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   /// - [publicClient]: For RPC-based address computation (recommended)
@@ -36,13 +38,27 @@ class ThirdwebSmartAccountConfig {
     required this.owner,
     required this.chainId,
     this.salt = '0x',
-    this.entryPointVersion = EntryPointVersion.v07,
+    EntryPointVersion entryPointVersion = EntryPointVersion.v07,
     this.customFactoryAddress,
     this.nonceKey,
     this.entryPointAddress,
     this.publicClient,
     this.address,
-  });
+  }) : entryPointVersion = _supportedEntryPointVersion(entryPointVersion);
+
+  // permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
+  static EntryPointVersion _supportedEntryPointVersion(
+    EntryPointVersion version,
+  ) {
+    if (version == EntryPointVersion.v08) {
+      throw ArgumentError.value(
+        version,
+        'entryPointVersion',
+        'Thirdweb accounts support EntryPoint v0.6 and v0.7 only',
+      );
+    }
+    return version;
+  }
 
   /// The owner of this Thirdweb account.
   final AccountOwner owner;
@@ -95,9 +111,9 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v07
-                ? ThirdwebAddresses.factoryV07
-                : ThirdwebAddresses.factoryV06);
+            (_config.entryPointVersion == EntryPointVersion.v06
+                ? ThirdwebAddresses.factoryV06
+                : ThirdwebAddresses.factoryV07);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -117,9 +133,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   @override
   EthereumAddress get entryPoint =>
       _config.entryPointAddress ??
-      (_config.entryPointVersion == EntryPointVersion.v07
-          ? EntryPointAddresses.v07
-          : EntryPointAddresses.v06);
+      EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
@@ -130,75 +144,35 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
 
   /// Gets the deterministic address of this Thirdweb account.
   ///
-  /// Note: Thirdweb uses an on-chain factory call to compute the address.
-  /// This implementation computes a deterministic address locally.
+  /// Uses the configured `address`, otherwise asks the EntryPoint via
+  /// [PublicClient.getSenderAddress].
   @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) {
-      return _cachedAddress!;
-    }
-
-    // Option 1: Use pre-computed address if provided
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address via RPC if publicClient is provided
-    if (_config.publicClient != null) {
-      final initCode = await getInitCode();
-      _cachedAddress = await _config.publicClient!.getSenderAddress(
-        initCode: initCode,
+  Future<EthereumAddress> getAddress() async =>
+      _cachedAddress ??= await resolveCounterfactualAddress(
+        accountName: 'Thirdweb',
+        address: _config.address,
+        publicClient: _config.publicClient,
         entryPoint: entryPoint,
+        initCode: getInitCode,
       );
-      return _cachedAddress!;
-    }
-
-    // Option 3: Neither address nor publicClient provided
-    throw StateError(
-      'Thirdweb account address cannot be computed without a client. '
-      'Either provide `address` or `publicClient` when creating the account.',
-    );
-  }
 
   /// Gets the init code for deploying this Thirdweb account.
   @override
-  Future<String> getInitCode() async {
-    final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
-  }
+  Future<String> getInitCode() async => packUserOperationInitCode(
+        factory: _factoryAddress,
+        factoryData: _createAccountData(),
+      );
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
   Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    final data = _encodeCreateAccount();
-    return (factory: _factoryAddress, factoryData: data);
-  }
+      getFactoryData() async =>
+          (factory: _factoryAddress, factoryData: _createAccountData());
 
-  /// Encodes the createAccount factory call.
-  String _encodeCreateAccount() {
-    // createAccount(address _admin, bytes _salt)
-    // JS: salt ? toHex(salt) : "0x" — toHex UTF-8-encodes the string.
-    final saltBytes = _saltToBytes(_config.salt);
-
-    return Hex.concat([
-      ThirdwebSelectors.createAccount,
-      AbiEncoder.encodeAddress(_config.owner.address),
-      // Dynamic bytes parameter: offset, length, data
-      AbiEncoder.encodeUint256(BigInt.from(64)), // offset to bytes
-      AbiEncoder.encodeUint256(BigInt.from(saltBytes.length)),
-      if (saltBytes.isNotEmpty)
-        Hex.fromBytes(
-          Uint8List.fromList(
-            saltBytes + List.filled((32 - saltBytes.length % 32) % 32, 0),
-          ),
-        ),
-    ]);
-  }
+  String _createAccountData() => AbiEncoder.encodeFunctionData(
+        'createAccount(address,bytes)',
+        [_config.owner.address, _saltToBytes(_config.salt)],
+      );
 
   /// Converts the salt config string to bytes matching permissionless.js.
   ///
@@ -212,125 +186,25 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
     return Uint8List.fromList(utf8.encode(salt));
   }
 
-  /// Encodes a single call.
+  /// Encodes a single call as `execute(address,uint256,bytes)`.
   @override
-  String encodeCall(Call call) {
-    // execute(address dest, uint256 value, bytes func)
-    final dataBytes = Hex.decode(call.data);
+  String encodeCall(Call call) => encodeExecute(call);
 
-    return Hex.concat([
-      ThirdwebSelectors.execute,
-      AbiEncoder.encodeAddress(call.to),
-      AbiEncoder.encodeUint256(call.value),
-      // Dynamic bytes parameter: offset, length, data
-      AbiEncoder.encodeUint256(BigInt.from(96)), // offset to bytes
-      AbiEncoder.encodeUint256(BigInt.from(dataBytes.length)),
-      if (dataBytes.isNotEmpty)
-        Hex.fromBytes(
-          Uint8List.fromList(
-            dataBytes + List.filled((32 - dataBytes.length % 32) % 32, 0),
-          ),
-        ),
-    ]);
-  }
-
-  /// Encodes multiple calls using executeBatch.
+  /// Encodes multiple calls as `executeBatch(address[],uint256[],bytes[])`.
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-
-    // executeBatch(address[] dest, uint256[] values, bytes[] func)
-    return _encodeExecuteBatch(calls);
-  }
+  String encodeCalls(List<Call> calls) =>
+      encodeExecuteCalls(calls, ExecuteBatchAbi.addressesValuesAndBytes);
 
   @override
   List<Call> decodeCalls(String callData) =>
-      CallDataDecoder.decodeStandardExecute(callData: callData);
+      decodeExecuteCalls(callData, ExecuteBatchAbi.addressesValuesAndBytes);
 
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  /// Encodes executeBatch call.
-  String _encodeExecuteBatch(List<Call> calls) {
-    // This is complex ABI encoding with dynamic arrays
-    // Address array, uint256 array, bytes array
-
-    final addresses = calls.map((c) => c.to).toList();
-    final values = calls.map((c) => c.value).toList();
-    final dataList = calls.map((c) => c.data).toList();
-
-    // Calculate offsets
-    const headerSize = 3 * 32; // 3 dynamic array offsets
-    final addressArraySize = 32 + addresses.length * 32; // length + addresses
-    final valuesArraySize = 32 + values.length * 32; // length + values
-
-    final parts = <String>[
-      ThirdwebSelectors.executeBatch,
-      // Offsets to dynamic arrays
-      AbiEncoder.encodeUint256(BigInt.from(headerSize)), // addresses offset
-      AbiEncoder.encodeUint256(
-        BigInt.from(headerSize + addressArraySize),
-      ), // values offset
-      AbiEncoder.encodeUint256(
-        BigInt.from(headerSize + addressArraySize + valuesArraySize),
-      ), // data offset
-      // Addresses array
-      AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
-      ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
-      // Values array
-      AbiEncoder.encodeUint256(BigInt.from(values.length)),
-      ...values.map((v) => Hex.strip0x(AbiEncoder.encodeUint256(v))),
-      // Bytes array
-      AbiEncoder.encodeUint256(BigInt.from(dataList.length)),
-    ];
-
-    // Calculate offsets for each bytes element
-    var currentOffset = dataList.length * 32;
-    final bytesOffsets = <int>[];
-    for (var i = 0; i < dataList.length; i++) {
-      bytesOffsets.add(currentOffset);
-      final bytes = Hex.decode(dataList[i]);
-      final paddedSize = bytes.isEmpty ? 0 : ((bytes.length + 31) ~/ 32) * 32;
-      currentOffset += 32 + paddedSize;
-    }
-
-    // Add offsets
-    for (final offset in bytesOffsets) {
-      parts.add(Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(offset))));
-    }
-
-    // Add each bytes element
-    for (var i = 0; i < dataList.length; i++) {
-      final bytes = Hex.decode(dataList[i]);
-      parts.add(
-        Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(bytes.length))),
-      );
-      if (bytes.isNotEmpty) {
-        final paddedSize = ((bytes.length + 31) ~/ 32) * 32;
-        parts.add(
-          Hex.strip0x(
-            Hex.fromBytes(
-              Uint8List.fromList(
-                bytes + List.filled(paddedSize - bytes.length, 0),
-              ),
-            ),
-          ),
-        );
-      }
-    }
-
-    return Hex.concat(parts);
-  }
-
   /// Gets a stub signature for gas estimation.
   @override
-  String getStubSignature() =>
-      '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+  String getStubSignature() => ecdsaStubSignature;
 
   /// Signs a UserOperation for EntryPoint v0.7.
   ///
@@ -344,8 +218,14 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV07(userOp);
-    return _config.owner.signPersonalMessage(userOpHash);
+    return _config.owner.signPersonalMessage(
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: EntryPointVersion.v07,
+        chainId: _config.chainId,
+      ),
+    );
   }
 
   /// Signs a UserOperation for EntryPoint v0.6.
@@ -361,182 +241,45 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV06(userOp);
-    return _config.owner.signPersonalMessage(userOpHash);
+    return _config.owner.signPersonalMessage(
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: EntryPointVersion.v06,
+        chainId: _config.chainId,
+      ),
+    );
   }
 
   /// Signs a personal message (EIP-191) with Thirdweb wrapper.
   @override
-  Future<String> signMessage(String message) async {
-    final messageHash = hashMessage(message);
-    final accountAddress = await getAddress();
-
-    // Thirdweb wraps messages with Account domain
-    final wrappedTypedData = TypedData(
-      domain: TypedDataDomain(
-        name: 'Account',
-        version: '1',
-        chainId: _config.chainId,
-        verifyingContract: accountAddress,
-      ),
-      types: {
-        'AccountMessage': [
-          const TypedDataField(name: 'message', type: 'bytes'),
-        ],
-      },
-      primaryType: 'AccountMessage',
-      message: {'message': messageHash},
-    );
-
-    // Sign the AccountMessage EIP-712 digest raw (no EIP-191 prefix).
-    return _config.owner.signTypedData(wrappedTypedData);
-  }
+  Future<String> signMessage(String message) =>
+      _signAccountMessage(hashMessage(message));
 
   /// Signs EIP-712 typed data with Thirdweb wrapper.
+  ///
+  /// Typed data whose verifying contract is this account is signed as-is.
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    final accountAddress = await getAddress();
-
-    // Check if self-verifying contract
-    if (typedData.domain.verifyingContract?.hex.toLowerCase() ==
-        accountAddress.hex.toLowerCase()) {
+    if (typedData.domain.verifyingContract == await getAddress()) {
       return _config.owner.signTypedData(typedData);
     }
-
-    // Wrap the typed data hash
-    final typedHash = hashTypedData(typedData);
-    final wrappedHash = Hex.concat([
-      AbiEncoder.encodeUint256(BigInt.parse(Hex.strip0x(typedHash), radix: 16)),
-    ]);
-
-    final wrappedTypedData = TypedData(
-      domain: TypedDataDomain(
-        name: 'Account',
-        version: '1',
-        chainId: _config.chainId,
-        verifyingContract: accountAddress,
-      ),
-      types: {
-        'AccountMessage': [
-          const TypedDataField(name: 'message', type: 'bytes'),
-        ],
-      },
-      primaryType: 'AccountMessage',
-      message: {'message': wrappedHash},
-    );
-
-    // Sign the AccountMessage EIP-712 digest raw (no EIP-191 prefix).
-    return _config.owner.signTypedData(wrappedTypedData);
+    return _signAccountMessage(hashTypedData(typedData));
   }
 
-  /// Computes the userOpHash for EntryPoint v0.7 signing.
-  String _computeUserOpHashV07(UserOperationV07 userOp) {
-    final packed = _packUserOpForHashV07(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.7 hashing.
-  String _packUserOpForHashV07(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(
-        userOp.verificationGasLimit,
-        byteLength: 16,
-        name: 'verificationGasLimit',
-      ),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(
-        userOp.maxPriorityFeePerGas,
-        byteLength: 16,
-        name: 'maxPriorityFeePerGas',
-      ),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterVerificationGasLimit',
+  /// Signs [hashedMessage] through the AccountMessage EIP-712 wrapper.
+  Future<String> _signAccountMessage(String hashedMessage) async =>
+      // Sign the AccountMessage EIP-712 digest raw (no EIP-191 prefix).
+      _config.owner.signTypedData(
+        wrappedMessageTypedData(
+          domainName: 'Account',
+          domainVersion: '1',
+          chainId: _config.chainId,
+          verifyingContract: await getAddress(),
+          primaryType: 'AccountMessage',
+          message: hashedMessage,
         ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterPostOpGasLimit',
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  /// Computes the userOpHash for EntryPoint v0.6 signing.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpForHashV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.6 hashing.
-  String _packUserOpForHashV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+      );
 }
 
 /// Creates a Thirdweb smart account.

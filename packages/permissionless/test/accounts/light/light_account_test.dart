@@ -529,5 +529,53 @@ void main() {
         expect(account, isA<SmartAccountV06>());
       });
     });
+    group('version / EntryPoint combinations', () {
+      // permissionless.js LightAccountVersion<ep>: "0.6" -> "1.1.0",
+      // "0.7" -> "2.0.0"; no other pairing exists.
+      final owner = PrivateKeyOwner(
+        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+      );
+
+      for (final (version, entryPointVersion) in [
+        (LightAccountVersion.v110, EntryPointVersion.v06),
+        (LightAccountVersion.v200, EntryPointVersion.v07),
+      ]) {
+        test(
+            'accepts ${version.version} with EntryPoint '
+            '${entryPointVersion.value}', () {
+          final account = createLightSmartAccount(
+            owner: owner,
+            chainId: BigInt.one,
+            version: version,
+            entryPointVersion: entryPointVersion,
+            address: mockAddress,
+          );
+          expect(account.version, equals(version));
+          expect(account.entryPointVersion, equals(entryPointVersion));
+        });
+      }
+
+      for (final (version, entryPointVersion) in [
+        (LightAccountVersion.v110, EntryPointVersion.v07),
+        (LightAccountVersion.v110, EntryPointVersion.v08),
+        (LightAccountVersion.v200, EntryPointVersion.v06),
+        (LightAccountVersion.v200, EntryPointVersion.v08),
+      ]) {
+        test(
+            'rejects ${version.version} with EntryPoint '
+            '${entryPointVersion.value}', () {
+          expect(
+            () => createLightSmartAccount(
+              owner: owner,
+              chainId: BigInt.one,
+              version: version,
+              entryPointVersion: entryPointVersion,
+              address: mockAddress,
+            ),
+            throwsArgumentError,
+          );
+        });
+      }
+    });
   });
 }

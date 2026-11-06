@@ -47,29 +47,20 @@ abstract class AccountOwner {
   ///
   /// This adds the standard Ethereum prefix before signing:
   /// `"\x19Ethereum Signed Message:\n32" + hash`
-  ///
-  /// Used by: SimpleAccount, Nexus, Biconomy, Light, Trust, Thirdweb, Etherspot
   Future<String> signPersonalMessage(String hash);
 
   /// Signs a hash directly without any prefix.
   ///
   /// This signs the raw hash bytes using ECDSA.
-  ///
-  /// Used by: Kernel
   Future<String> signRawHash(String hash);
 
   /// Signs EIP-712 typed data.
   ///
   /// This computes the EIP-712 hash and signs it directly (no personal prefix).
-  ///
-  /// Used by: Safe, Trust, Light, Thirdweb
   Future<String> signTypedData(TypedData typedData);
 }
 
 /// Private key-based implementation of [AccountOwner].
-///
-/// This single implementation handles all signing modes, replacing the
-/// previously duplicated PrivateKey*Owner classes.
 ///
 /// Example:
 /// ```dart
@@ -100,12 +91,10 @@ class PrivateKeyOwner implements AccountOwner {
   @override
   EthereumAddress get address => _privateKey.address;
 
-  /// The public key (64 bytes, uncompressed without 04 prefix).
-  ///
-  /// Required by TrustAccount for the Barz factory.
+  /// The uncompressed secp256k1 public key (64 bytes, without the `04`
+  /// prefix).
   Uint8List get publicKey {
     final fullPubKey = privateKeyBytesToPublic(_privateKey.privateKey);
-    // Remove the 04 prefix if present (uncompressed point marker)
     if (fullPubKey.length == 65 && fullPubKey[0] == 0x04) {
       return Uint8List.fromList(fullPubKey.sublist(1));
     }
@@ -113,57 +102,26 @@ class PrivateKeyOwner implements AccountOwner {
   }
 
   @override
-  Future<String> signPersonalMessage(String hash) async {
-    final hashBytes = Hex.decode(hash);
-
-    // Use web3dart's signPersonalMessageToUint8List which:
-    // 1. Adds "\x19Ethereum Signed Message:\n{length}" prefix
-    // 2. Hashes with keccak256
-    // 3. Signs with ECDSA
-    // 4. Returns r + s + v (65 bytes)
-    final signature = _privateKey.signPersonalMessageToUint8List(
-      Uint8List.fromList(hashBytes),
-    );
-
-    return Hex.fromBytes(signature);
-  }
+  Future<String> signPersonalMessage(String hash) async => Hex.fromBytes(
+        _privateKey.signPersonalMessageToUint8List(Hex.decode(hash)),
+      );
 
   @override
-  Future<String> signRawHash(String hash) async {
-    final hashBytes = Hex.decode(hash);
-
-    // Sign the hash directly using low-level sign() from web3dart/crypto
-    // This does NOT add any prefix - it signs the raw 32-byte hash
-    final sig = sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
-
-    // Encode as r (32 bytes) + s (32 bytes) + v (1 byte)
-    final r = Hex.fromBigInt(sig.r, byteLength: 32);
-    final s = Hex.fromBigInt(sig.s, byteLength: 32);
-    var v = sig.v;
-    if (v < 27) {
-      v += 27;
-    }
-
-    return Hex.concat([r, s, Hex.fromBigInt(BigInt.from(v), byteLength: 1)]);
-  }
+  Future<String> signRawHash(String hash) async => _signDigest(hash);
 
   @override
-  Future<String> signTypedData(TypedData typedData) async {
-    // Compute EIP-712 hash
-    final hash = hashTypedData(typedData);
-    final hashBytes = Hex.decode(hash);
+  Future<String> signTypedData(TypedData typedData) async =>
+      _signDigest(hashTypedData(typedData));
 
-    // Sign the EIP-712 hash directly (no personal message prefix)
-    final sig = sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
-
-    // Encode as r (32 bytes) + s (32 bytes) + v (1 byte)
-    final r = Hex.fromBigInt(sig.r, byteLength: 32);
-    final s = Hex.fromBigInt(sig.s, byteLength: 32);
-    var v = sig.v;
-    if (v < 27) {
-      v += 27;
-    }
-
-    return Hex.concat([r, s, Hex.fromBigInt(BigInt.from(v), byteLength: 1)]);
+  /// ECDSA over the 32-byte [digest] as `r ‖ s ‖ v` (65 bytes).
+  ///
+  /// web3dart's `sign` already returns `v` as 27 or 28.
+  String _signDigest(String digest) {
+    final sig = sign(Hex.decode(digest), _privateKey.privateKey);
+    return Hex.concat([
+      Hex.fromBigInt(sig.r, byteLength: 32),
+      Hex.fromBigInt(sig.s, byteLength: 32),
+      Hex.fromBigInt(BigInt.from(sig.v), byteLength: 1),
+    ]);
   }
 }
