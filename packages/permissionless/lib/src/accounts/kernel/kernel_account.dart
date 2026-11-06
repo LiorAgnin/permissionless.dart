@@ -126,7 +126,7 @@ class KernelSmartAccountConfig {
 /// Kernel smart account implementation.
 ///
 /// Supports both v0.2.x (EntryPoint v0.6) and v0.3.x (EntryPoint v0.7).
-class KernelSmartAccount implements SmartAccount {
+class KernelSmartAccount implements SmartAccountV06 {
   /// Creates a Kernel smart account from the given configuration.
   ///
   /// Prefer using [createKernelSmartAccount] factory function instead
@@ -698,6 +698,7 @@ class KernelSmartAccount implements SmartAccount {
   ///
   /// This method computes the correct hash for EntryPoint v0.6 format
   /// and returns the signature with ROOT_MODE prefix.
+  @override
   Future<String> signUserOperationV06(UserOperationV06 userOp) async {
     final userOpHash = _computeUserOpHashV06(userOp);
     // EIP-191 personal_sign over the raw userOpHash (matches JS).
