@@ -1,4 +1,6 @@
 import '../../types/address.dart';
+import '../../utils/erc7579.dart';
+import '../account_support.dart';
 
 /// Kernel smart account version.
 ///
@@ -243,7 +245,7 @@ class KernelSelectors {
 
   /// v0.3.x: execute(bytes32,bytes) - ERC-7579 standard
   /// `keccak256("execute(bytes32,bytes)")[0:4]` = 0xe9ae5c53
-  static const String executeV3 = '0xe9ae5c53';
+  static const String executeV3 = Erc7579Selectors.execute;
 
   /// v0.2.x: Factory createAccount(address,bytes,uint256)
   /// `keccak256("createAccount(address,bytes,uint256)")[0:4]` = 0x296601cd
@@ -298,5 +300,4 @@ class KernelValidatorType {
 }
 
 /// Dummy ECDSA signature for gas estimation.
-const String kernelDummyEcdsaSignature =
-    '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+const String kernelDummyEcdsaSignature = ecdsaStubSignature;

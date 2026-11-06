@@ -924,6 +924,58 @@ void main() {
     });
   });
 
+  group('signUserOperationV06', () {
+    test('signs with a Kernel v0.2.x account', () async {
+      final unusedRpc = MockClient(
+        (request) async => throw StateError('no RPC expected'),
+      );
+      final account = createKernelSmartAccount(
+        owner: PrivateKeyOwner(
+          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+        ),
+        chainId: BigInt.from(1),
+        version: KernelVersion.v0_2_4,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: unusedRpc,
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: unusedRpc,
+          ),
+        ),
+      );
+      final userOp = UserOperationV06(
+        sender: await account.getAddress(),
+        nonce: BigInt.zero,
+        initCode: '0x',
+        callData: account.encodeCall(
+          Call(to: await account.getAddress(), value: BigInt.zero),
+        ),
+        callGasLimit: BigInt.from(100000),
+        verificationGasLimit: BigInt.from(100000),
+        preVerificationGas: BigInt.from(50000),
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      final signed = await client.signUserOperationV06(userOp);
+
+      expect(
+        signed.signature,
+        equals(await account.signUserOperationV06(userOp)),
+      );
+    });
+  });
+
   group('SmartAccount interface', () {
     test('SafeSmartAccount implements SmartAccount', () {
       const testPrivateKey =

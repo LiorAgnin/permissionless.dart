@@ -200,10 +200,7 @@ Future<KernelRunResult> runKernelVersion({
         log('Paymaster: None (SELF-FUNDED)');
       }
 
-      // KernelSmartAccount exposes signUserOperationV06 but does not implement
-      // SmartAccountV06; sign via the account directly (matches v0.2.4 example).
-      final signature = await account.signUserOperationV06(userOp);
-      final signed = userOp.copyWith(signature: signature);
+      final signed = await smartAccountClient.signUserOperationV06(userOp);
       log('Signature length: ${signed.signature.length} chars');
 
       hash = await smartAccountClient.sendPreparedUserOperationV06(signed);

@@ -1,6 +1,4 @@
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' show keccak256;
 
 import '../../types/address.dart';
 import '../../types/hex.dart';
@@ -23,40 +21,25 @@ String wrapMessageHash({
   required KernelVersion version,
   required BigInt chainId,
 }) {
-  final domain = TypedDataDomain(
-    name: 'Kernel',
-    version: version.value,
-    chainId: chainId,
-    verifyingContract: address,
-  );
-  final domainSep = computeDomainSeparator(domain);
-
-  final String structHash;
-  if (version.isV2) {
-    structHash = hash;
-  } else {
-    final typeHash = keccak256(
-      Uint8List.fromList('Kernel(bytes32 hash)'.codeUnits),
-    );
-    structHash = Hex.fromBytes(
-      keccak256(
-        Hex.decode(
-          Hex.concat([
-            Hex.fromBytes(typeHash),
-            hash,
-          ]),
-        ),
+  if (version.isV3) {
+    return hashTypedData(
+      _kernelWrapperTypedData(
+        hash: hash,
+        address: address,
+        version: version,
+        chainId: chainId,
       ),
     );
   }
-
+  // v0.2.x uses [hash] itself as the struct hash, which no TypedData can
+  // express (permissionless.js `wrapMessageHash`).
   return Hex.fromBytes(
     keccak256(
       Hex.decode(
         Hex.concat([
           '0x1901',
-          Hex.strip0x(domainSep),
-          Hex.strip0x(structHash),
+          computeDomainSeparator(_kernelDomain(address, version, chainId)),
+          hash,
         ]),
       ),
     ),
@@ -145,12 +128,7 @@ TypedData _kernelWrapperTypedData({
   required BigInt chainId,
 }) =>
     TypedData(
-      domain: TypedDataDomain(
-        name: 'Kernel',
-        version: version.value,
-        chainId: chainId,
-        verifyingContract: address,
-      ),
+      domain: _kernelDomain(address, version, chainId),
       types: {
         'EIP712Domain': [
           const TypedDataField(name: 'name', type: 'string'),
@@ -166,4 +144,16 @@ TypedData _kernelWrapperTypedData({
       message: {
         'hash': hash,
       },
+    );
+
+TypedDataDomain _kernelDomain(
+  EthereumAddress address,
+  KernelVersion version,
+  BigInt chainId,
+) =>
+    TypedDataDomain(
+      name: 'Kernel',
+      version: version.value,
+      chainId: chainId,
+      verifyingContract: address,
     );

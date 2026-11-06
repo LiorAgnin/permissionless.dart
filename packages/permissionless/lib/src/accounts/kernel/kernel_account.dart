@@ -1,28 +1,25 @@
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
+import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/rip7212.dart';
+import '../../utils/user_operation_hash.dart';
 import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../erc7579_calls.dart';
 import '../webauthn_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
+import 'kernel_abi.dart';
 import 'kernel_erc1271.dart';
-
-/// Maximum nonce key for Kernel v0.3.x (2 bytes / maxUint16).
-final BigInt _kernelMaxUint16 = BigInt.from(0xffff);
 
 /// Configuration for creating a Kernel smart account.
 class KernelSmartAccountConfig {
@@ -49,7 +46,6 @@ class KernelSmartAccountConfig {
     this.publicClient,
     this.address,
   }) : index = index ?? BigInt.zero {
-    // Validate version-specific requirements
     final addresses =
         customAddresses ?? KernelVersionAddresses.getAddresses(version);
     if (addresses == null) {
@@ -62,12 +58,7 @@ class KernelSmartAccountConfig {
         'ECDSA validator address required for Kernel ${version.value}',
       );
     }
-    if (version.isV3 && nonceKey != null && nonceKey! > _kernelMaxUint16) {
-      throw ArgumentError(
-        'nonce key must be equal or less than 2 bytes(maxUint16) for '
-        'Kernel version ${version.value}',
-      );
-    }
+    if (version.isV3) checkKernelV3NonceKey(nonceKey, version);
     if (version.isV3 && useMetaFactory && addresses.metaFactory == null) {
       throw ArgumentError(
         'Meta factory address required when useMetaFactory is true for '
@@ -126,7 +117,7 @@ class KernelSmartAccountConfig {
 /// Kernel smart account implementation.
 ///
 /// Supports both v0.2.x (EntryPoint v0.6) and v0.3.x (EntryPoint v0.7).
-class KernelSmartAccount implements SmartAccount {
+class KernelSmartAccount implements SmartAccountV06 {
   /// Creates a Kernel smart account from the given configuration.
   ///
   /// Prefer using [createKernelSmartAccount] factory function instead
@@ -153,13 +144,11 @@ class KernelSmartAccount implements SmartAccount {
           ? EntryPointAddresses.v06
           : EntryPointAddresses.v07);
 
-  /// Whether the owner is a WebAuthn account.
   bool get _isWebAuthn => isWebAuthnAccount(_config.owner);
 
   @override
   bool get isWebAuthn => _isWebAuthn;
 
-  /// Gets the validator address based on owner type.
   EthereumAddress get _validatorAddress {
     if (_isWebAuthn) {
       final webAuthnValidator = _addresses.webAuthnValidator;
@@ -177,7 +166,6 @@ class KernelSmartAccount implements SmartAccount {
   @override
   BigInt get nonceKey {
     final userKey = _config.nonceKey ?? BigInt.zero;
-
     if (_config.version.isV2) {
       if (_isWebAuthn) {
         throw StateError(
@@ -189,448 +177,138 @@ class KernelSmartAccount implements SmartAccount {
       return userKey;
     }
 
-    if (userKey > _kernelMaxUint16) {
-      throw StateError(
-        'nonce key must be equal or less than 2 bytes(maxUint16) for '
-        'Kernel version ${_config.version.value}',
-      );
-    }
-
-    // v0.3.x: 24-byte encoding
-    // mode (1) + type (1) + validator (20) + salt (2)
-    final validator = _validatorAddress;
-    final bytes = Uint8List(24);
-
-    // Mode: sudo (0x00)
-    bytes[0] = KernelValidatorMode.sudo;
-    // Type: root (0x00)
-    bytes[1] = KernelValidatorType.root;
-    // Validator address (20 bytes)
-    bytes.setRange(2, 22, validator.bytes);
-    // Nonce salt (2 bytes) from user key
-    final saltBytes = Hex.decode(Hex.fromBigInt(userKey, byteLength: 2));
-    bytes[22] = saltBytes[0];
-    bytes[23] = saltBytes[1];
-
-    return Hex.toBigInt(Hex.fromBytes(bytes));
-  }
-
-  @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) return _cachedAddress!;
-
-    // Option 1: Use pre-computed address if provided
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address via RPC if publicClient is provided
-    if (_config.publicClient != null) {
-      final initCode = await getInitCode();
-      _cachedAddress = await _config.publicClient!.getSenderAddress(
-        initCode: initCode,
-        entryPoint: entryPoint,
-      );
-      return _cachedAddress!;
-    }
-
-    // Option 3: Neither address nor publicClient provided
-    throw StateError(
-      'Kernel account address cannot be computed without a client. '
-      'Either provide `address` or `publicClient` when creating the account.',
+    return encodeKernelV3NonceKey(
+      validator: _validatorAddress,
+      nonceKey: userKey,
     );
   }
 
-  // Future<EthereumAddress> _computeAddressV2() async {
-  //   // v0.2.x uses ERC1967 proxy via AdminLessERC1967Factory
-  //   // Salt = bytes32(uint256(keccak256(abi.encodePacked(data, index))) & type(uint96).max)
-  //   //
-  //   // NOTE: Local address computation may not match the factory's CREATE2 output
-  //   // due to variations in Solady's ERC1967 init code hash across versions.
-  //   // For production use, always verify with PublicClient.getSenderAddress().
-
-  //   // Get the initialize calldata (with selector)
-  //   final initializeCalldata = _encodeInitializeV2();
-
-  //   // Compute salt: keccak256(data, index) then mask to 96 bits
-  //   final saltPreImage = Hex.concat([
-  //     initializeCalldata,
-  //     Hex.fromBigInt(_config.index, byteLength: 32),
-  //   ]);
-  //   final saltHash = keccak256(Hex.decode(saltPreImage));
-  //   final saltBigInt = Hex.toBigInt(Hex.fromBytes(saltHash));
-
-  //   // Mask to 96 bits (type(uint96).max = 2^96 - 1)
-  //   final uint96Max = (BigInt.one << 96) - BigInt.one;
-  //   final maskedSalt = saltBigInt & uint96Max;
-  //   final salt = Hex.fromBigInt(maskedSalt, byteLength: 32);
-
-  //   // Init code hash for the ERC1967 proxy
-  //   final initCodeHash =
-  //       _computeERC1967InitCodeHash(_addresses.accountImplementation);
-
-  //   // CREATE2: keccak256(0xff ++ factory ++ salt ++ initCodeHash)[12:]
-  //   final preImage = Hex.concat([
-  //     '0xff',
-  //     Hex.strip0x(_addresses.factory.hex),
-  //     Hex.strip0x(salt),
-  //     Hex.fromBytes(initCodeHash),
-  //   ]);
-
-  //   final addressHash = keccak256(Hex.decode(preImage));
-  //   return EthereumAddress.fromHex(Hex.slice(Hex.fromBytes(addressHash), 12));
-  // }
-
-  // Future<EthereumAddress> _computeAddressV3() async {
-  //   // v0.3.x uses meta factory pattern
-  //   // The inner factory (KernelFactory) computes the address using:
-  //   // actualSalt = keccak256(abi.encodePacked(initializeCalldata, index))
-  //   // Then deploys an ERC1967 proxy with that salt
-
-  //   final initializeData = _encodeInitializeV3();
-  //   final initializeCalldata = Hex.concat([
-  //     KernelSelectors.initializeV3,
-  //     Hex.strip0x(initializeData),
-  //   ]);
-
-  //   // The inner factory computes actualSalt = keccak256(data, salt)
-  //   // where data = initializeCalldata and salt = index
-  //   final saltPreImage = Hex.concat([
-  //     initializeCalldata,
-  //     Hex.fromBigInt(_config.index, byteLength: 32),
-  //   ]);
-  //   final actualSalt = keccak256(Hex.decode(saltPreImage));
-
-  //   // Kernel v0.3.x uses Solady's LibClone.createDeterministicERC1967
-  //   // The init code hash is computed using initCodeHashERC1967
-  //   final initCodeHash =
-  //       _computeERC1967InitCodeHash(_addresses.accountImplementation);
-
-  //   // CREATE2 from inner factory (not meta factory)
-  //   final preImage = Hex.concat([
-  //     '0xff',
-  //     Hex.strip0x(_addresses.factory.hex),
-  //     Hex.fromBytes(actualSalt),
-  //     Hex.fromBytes(initCodeHash),
-  //   ]);
-
-  //   final addressHash = keccak256(Hex.decode(preImage));
-  //   return EthereumAddress.fromHex(Hex.slice(Hex.fromBytes(addressHash), 12));
-  // }
-
-  // /// Computes the ERC1967 init code hash as Solady's LibClone does.
-  // /// See: https://github.com/Vectorized/solady/blob/main/src/utils/LibClone.sol
-  // Uint8List _computeERC1967InitCodeHash(EthereumAddress implementation) {
-  //   // Simulate the Solady assembly that builds the init code
-  //   final memory = Uint8List(0x80);
-  //   final impl = BigInt.parse(Hex.strip0x(implementation.hex), radix: 16);
-
-  //   // mstore(0x60, 0xcc3735a920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3)
-  //   _mstore(
-  //     memory,
-  //     0x60,
-  //     BigInt.parse(
-  //       'cc3735a920a3ca505d382bbc545af43d6000803e6038573d6000fd5b3d6000f3',
-  //       radix: 16,
-  //     ),
-  //   );
-
-  //   // mstore(0x40, 0x5155f3363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076)
-  //   _mstore(
-  //     memory,
-  //     0x40,
-  //     BigInt.parse(
-  //       '5155f3363d3d373d3d363d7f360894a13ba1a3210667c828492db98dca3e2076',
-  //       radix: 16,
-  //     ),
-  //   );
-
-  //   // mstore(0x20, 0x6009)
-  //   _mstore(memory, 0x20, BigInt.from(0x6009));
-
-  //   // mstore(0x1e, implementation)
-  //   _mstore(memory, 0x1e, impl);
-
-  //   // mstore(0x0a, 0x603d3d8160223d3973)
-  //   _mstore(memory, 0x0a, BigInt.parse('603d3d8160223d3973', radix: 16));
-
-  //   // Extract bytes from 0x21 for 0x5f (95) bytes and hash
-  //   return keccak256(memory.sublist(0x21, 0x21 + 0x5f));
-  // }
-
-  // void _mstore(Uint8List memory, int offset, BigInt value) {
-  //   for (var i = 31; i >= 0 && offset + (31 - i) < memory.length; i--) {
-  //     memory[offset + (31 - i)] =
-  //         ((value >> (i * 8)) & BigInt.from(0xff)).toInt();
-  //   }
-  // }
+  @override
+  Future<EthereumAddress> getAddress() async =>
+      _cachedAddress ??= await resolveCounterfactualAddress(
+        accountName: 'Kernel',
+        address: _config.address,
+        publicClient: _config.publicClient,
+        entryPoint: entryPoint,
+        initCode: getInitCode,
+      );
 
   @override
   Future<String> getInitCode() async {
     final factoryData = await getFactoryData();
-    if (factoryData == null) return '0x';
-
-    return Hex.concat([
-      factoryData.factory.hex,
-      Hex.strip0x(factoryData.factoryData),
-    ]);
+    return packUserOperationInitCode(
+      factory: factoryData?.factory,
+      factoryData: factoryData?.factoryData,
+    );
   }
 
   @override
-  Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    if (_config.version.isV2) {
-      return _getFactoryDataV2();
-    } else {
-      return _getFactoryDataV3();
-    }
-  }
+  Future<({EthereumAddress factory, String factoryData})?> getFactoryData() =>
+      _config.version.isV2 ? _getFactoryDataV2() : _getFactoryDataV3();
 
   Future<({EthereumAddress factory, String factoryData})>
-      _getFactoryDataV2() async {
-    // Build the full initialize calldata including selector
-    final initializeCalldata = _encodeInitializeV2();
-
-    // createAccount(address implementation, bytes data, uint256 index)
-    // The data is the full initialize calldata that will be called on the deployed kernel
-    final factoryData = Hex.concat([
-      KernelSelectors.createAccountV2,
-      AbiEncoder.encodeAddress(_addresses.accountImplementation),
-      AbiEncoder.encodeUint256(BigInt.from(3 * 32)), // offset to bytes
-      AbiEncoder.encodeUint256(_config.index),
-      Hex.strip0x(AbiEncoder.encodeBytes(initializeCalldata)),
-    ]);
-
-    return (factory: _addresses.factory, factoryData: factoryData);
-  }
+      _getFactoryDataV2() async => (
+            factory: _addresses.factory,
+            factoryData: AbiEncoder.encodeFunctionData(
+              kernelV2CreateAccountSignature,
+              [
+                _addresses.accountImplementation,
+                _encodeInitializeV2(),
+                _config.index,
+              ],
+            ),
+          );
 
   Future<({EthereumAddress factory, String factoryData})>
       _getFactoryDataV3() async {
-    final initializeCalldata = _encodeInitializeV3Calldata();
+    final initializeCalldata = _encodeInitializeV3();
     final salt = Hex.fromBigInt(_config.index, byteLength: 32);
-
     if (!_config.useMetaFactory) {
-      // Direct factory: createAccount(bytes data, bytes32 salt)
-      final factoryData = Hex.concat([
-        KernelSelectors.createAccountV3,
-        AbiEncoder.encodeUint256(BigInt.from(2 * 32)), // offset to bytes
-        Hex.strip0x(salt),
-        Hex.strip0x(AbiEncoder.encodeBytes(initializeCalldata)),
-      ]);
-      return (factory: _addresses.factory, factoryData: factoryData);
-    }
-
-    // Meta factory: deployWithFactory(address factory, bytes createData, bytes32 salt)
-    final factoryData = Hex.concat([
-      KernelSelectors.deployWithFactory,
-      AbiEncoder.encodeAddress(_addresses.factory),
-      AbiEncoder.encodeUint256(BigInt.from(3 * 32)), // offset to bytes (96)
-      Hex.strip0x(salt),
-      Hex.strip0x(AbiEncoder.encodeBytes(initializeCalldata)),
-    ]);
-
-    return (factory: _addresses.metaFactory!, factoryData: factoryData);
-  }
-
-  String _encodeInitializeV2() {
-    // initialize(IKernelValidator defaultValidator, bytes enableData)
-    // For ECDSA validator, enableData is the owner address
-
-    // Use ECDSA validator address (or account implementation as fallback for backwards compat)
-    final validatorAddress =
-        _addresses.ecdsaValidator ?? _addresses.accountImplementation;
-
-    // Enable data for ECDSA validator is the owner address
-    final enableData = _config.owner.address.hex;
-
-    // Encode initialize call with selector
-    return Hex.concat([
-      KernelSelectors.initializeV2, // 0xd1f57894
-      AbiEncoder.encodeAddress(validatorAddress),
-      AbiEncoder.encodeUint256(BigInt.from(2 * 32)), // offset to bytes
-      Hex.strip0x(AbiEncoder.encodeBytes(enableData)),
-    ]);
-  }
-
-  /// Full initialize calldata (selector + args) for v0.3.x factory deploy.
-  String _encodeInitializeV3Calldata() {
-    final selector = _config.version.usesBetaInitialize
-        ? KernelSelectors.initializeV3Beta
-        : KernelSelectors.initializeV3;
-    return Hex.concat([
-      selector,
-      Hex.strip0x(_encodeInitializeV3Args()),
-    ]);
-  }
-
-  String _encodeInitializeV3Args() {
-    // Root validator ID: type (1) + validator address (20) = 21 bytes
-    // Type 0x01 = VALIDATOR (not 0x00 which is ROOT/sudo mode)
-    final validatorId = Hex.concat([
-      Hex.fromBigInt(BigInt.from(KernelValidatorType.validator), byteLength: 1),
-      _validatorAddress.hex,
-    ]);
-
-    // Validator data depends on owner type:
-    // - ECDSA: raw owner address (20 bytes)
-    // - WebAuthn: ABI(tuple(x,y), authenticatorIdHash) where hash = keccak256(credentialId)
-    final String validatorData;
-    if (_isWebAuthn) {
-      final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
-      validatorData = encodeKernelWebAuthnValidatorData(
-        x: webAuthnOwner.x,
-        y: webAuthnOwner.y,
-        credentialId: webAuthnOwner.credentialId,
+      return (
+        factory: _addresses.factory,
+        factoryData: AbiEncoder.encodeFunctionData(
+          kernelV3CreateAccountSignature,
+          [initializeCalldata, salt],
+        ),
       );
-    } else {
-      // ECDSA validator expects: address owner = address(bytes20(_data[0:20]))
-      validatorData = _config.owner.address.hex;
     }
-
-    // Hook address (none)
-    final hookAddress = zeroAddress;
-
-    // Hook data (empty)
-    const hookData = '0x';
-
-    final validatorDataEncoded = AbiEncoder.encodeBytes(validatorData);
-    final hookDataEncoded = AbiEncoder.encodeBytes(hookData);
-
-    if (_config.version.usesBetaInitialize) {
-      // initialize(bytes21, address, bytes, bytes) — 4 args, no initConfig
-      const validatorDataOffset = 4 * 32;
-      final hookDataOffset =
-          validatorDataOffset + Hex.byteLength(validatorDataEncoded);
-
-      return Hex.concat([
-        Hex.padRight(validatorId, 32),
-        AbiEncoder.encodeAddress(hookAddress),
-        AbiEncoder.encodeUint256(BigInt.from(validatorDataOffset)),
-        AbiEncoder.encodeUint256(BigInt.from(hookDataOffset)),
-        Hex.strip0x(validatorDataEncoded),
-        Hex.strip0x(hookDataEncoded),
-      ]);
-    }
-
-    // initialize(bytes21, address, bytes, bytes, bytes[]) — 5 args
-    const validatorDataOffset = 5 * 32;
-    final hookDataOffset =
-        validatorDataOffset + Hex.byteLength(validatorDataEncoded);
-    final initConfigOffset = hookDataOffset + Hex.byteLength(hookDataEncoded);
-
-    return Hex.concat([
-      Hex.padRight(validatorId, 32),
-      AbiEncoder.encodeAddress(hookAddress),
-      AbiEncoder.encodeUint256(BigInt.from(validatorDataOffset)),
-      AbiEncoder.encodeUint256(BigInt.from(hookDataOffset)),
-      AbiEncoder.encodeUint256(BigInt.from(initConfigOffset)),
-      Hex.strip0x(validatorDataEncoded),
-      Hex.strip0x(hookDataEncoded),
-      AbiEncoder.encodeUint256(BigInt.zero), // initConfig length = 0
-    ]);
+    return (
+      factory: _addresses.metaFactory!,
+      factoryData: AbiEncoder.encodeFunctionData(
+        kernelDeployWithFactorySignature,
+        [_addresses.factory, initializeCalldata, salt],
+      ),
+    );
   }
 
-  @override
-  String encodeCall(Call call) {
-    if (_config.version.isV2) {
-      return _encodeCallV2(call);
-    } else {
-      return encode7579Execute(call);
-    }
+  /// `initialize(validator, owner)`: the ECDSA validator's enable data is the
+  /// owner address. Falls back to the account implementation when no
+  /// validator is configured (backwards compatibility).
+  String _encodeInitializeV2() => AbiEncoder.encodeFunctionData(
+        kernelV2InitializeSignature,
+        [
+          _addresses.ecdsaValidator ?? _addresses.accountImplementation,
+          _config.owner.address.hex,
+        ],
+      );
+
+  /// v0.3.x `initialize` with no hook: 0.3.0-beta takes four arguments,
+  /// later versions add an empty `bytes[] initConfig`.
+  String _encodeInitializeV3() {
+    final args = [
+      _rootValidatorId,
+      zeroAddress,
+      _rootValidatorData,
+      '0x',
+    ];
+    return _config.version.usesBetaInitialize
+        ? AbiEncoder.encodeFunctionData(kernelV3BetaInitializeSignature, args)
+        : AbiEncoder.encodeFunctionData(
+            kernelV3InitializeSignature,
+            [...args, <String>[]],
+          );
   }
 
-  // execute(address to, uint256 value, bytes data, uint8 operation)
-  String _encodeCallV2(Call call) => Hex.concat([
-        KernelSelectors.executeV2,
-        AbiEncoder.encodeAddress(call.to),
-        AbiEncoder.encodeUint256(call.value),
-        AbiEncoder.encodeUint256(BigInt.from(4 * 32)), // offset to bytes
-        AbiEncoder.encodeUint256(BigInt.zero), // operation = call
-        Hex.strip0x(AbiEncoder.encodeBytes(call.data)),
+  /// Validator data: the owner address for ECDSA; for WebAuthn
+  /// `abi.encode((x, y), keccak256(credentialId))`.
+  String get _rootValidatorData {
+    if (!_isWebAuthn) return _config.owner.address.hex;
+    final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
+    return encodeKernelWebAuthnValidatorData(
+      x: webAuthnOwner.x,
+      y: webAuthnOwner.y,
+      credentialId: webAuthnOwner.credentialId,
+    );
+  }
+
+  /// Root validator identifier `0x01 ‖ validator` (type VALIDATOR, not the
+  /// 0x00 ROOT/sudo nonce mode), used by `initialize` and as the ERC-1271
+  /// signature prefix.
+  String get _rootValidatorId => Hex.concat([
+        Hex.fromBigInt(
+          BigInt.from(KernelValidatorType.validator),
+          byteLength: 1,
+        ),
+        _validatorAddress.hex,
       ]);
 
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-
-    if (_config.version.isV2) {
-      return _encodeCallsV2(calls);
-    } else {
-      return encode7579ExecuteBatch(calls);
-    }
-  }
+  String encodeCall(Call call) => _config.version.isV2
+      ? encodeKernelV2Execute(call)
+      : encode7579Execute(call);
 
   @override
-  List<Call> decodeCalls(String callData) {
-    if (_config.version.isV2) {
-      final selector = Hex.strip0x(callData).substring(0, 8).toLowerCase();
-      if (selector ==
-          Hex.strip0x(KernelSelectors.executeBatchV2).toLowerCase()) {
-        return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
-      }
-      if (selector == Hex.strip0x(KernelSelectors.executeV2).toLowerCase()) {
-        return CallDataDecoder.decodeKernelV2Execute(callData);
-      }
-      try {
-        return CallDataDecoder.decodeExecuteBatchTupleArray(callData);
-      } catch (_) {
-        return CallDataDecoder.decodeKernelV2Execute(callData);
-      }
-    }
-    return decode7579Calls(callData).calls;
-  }
+  String encodeCalls(List<Call> calls) => _config.version.isV2
+      ? encodeKernelV2Calls(calls)
+      : encodeErc7579AccountCalls(calls);
+
+  @override
+  List<Call> decodeCalls(String callData) => _config.version.isV2
+      ? decodeKernelV2Calls(callData)
+      : decode7579Calls(callData).calls;
 
   @override
   Future<String> sign(String hash) => signMessage(hash);
-
-  String _encodeCallsV2(List<Call> calls) {
-    // executeBatch((address,uint256,bytes)[])
-    // Each element is a struct with to, value, data
-
-    const structsOffset = 32; // offset to array
-    final arrayLength = AbiEncoder.encodeUint256(BigInt.from(calls.length));
-
-    // Calculate offsets for each struct
-    final structOffsets = <String>[];
-    final structData = <String>[];
-
-    var currentOffset = calls.length * 32;
-
-    for (final call in calls) {
-      structOffsets.add(AbiEncoder.encodeUint256(BigInt.from(currentOffset)));
-
-      final encoded = _encodeCallStructV2(call);
-      structData.add(encoded);
-      currentOffset += Hex.byteLength(encoded);
-    }
-
-    return Hex.concat([
-      KernelSelectors.executeBatchV2,
-      AbiEncoder.encodeUint256(BigInt.from(structsOffset)),
-      arrayLength,
-      ...structOffsets,
-      ...structData,
-    ]);
-  }
-
-  String _encodeCallStructV2(Call call) {
-    // (address to, uint256 value, bytes data)
-    const dataOffset = 3 * 32;
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(call.to),
-      AbiEncoder.encodeUint256(call.value),
-      AbiEncoder.encodeUint256(BigInt.from(dataOffset)),
-      Hex.strip0x(AbiEncoder.encodeBytes(call.data)),
-    ]);
-  }
 
   /// Determines if the P256 precompile should be used for WebAuthn signatures.
   ///
@@ -646,29 +324,21 @@ class KernelSmartAccount implements SmartAccount {
   @override
   String getStubSignature() {
     if (_config.version.isV2) {
-      // v0.2.x: ROOT_MODE (4 bytes) + ECDSA signature (65 bytes)
-      // WebAuthn not supported on v0.2.x
-      return Hex.concat([
-        '0x00000000', // ROOT_MODE
-        Hex.strip0x(kernelDummyEcdsaSignature),
-      ]);
-    } else {
-      // v0.3.x: signature format depends on owner type
-      if (_isWebAuthn) {
-        final usePrecompiled = shouldUseP256Precompile(chainId: chainId);
-        return getDummyKernelWebAuthnSignature(usePrecompiled: usePrecompiled);
-      } else {
-        return kernelDummyEcdsaSignature;
-      }
+      return Hex.concat([kernelV2RootMode, ecdsaStubSignature]);
     }
+    if (_isWebAuthn) {
+      return getDummyKernelWebAuthnSignature(
+        usePrecompiled: shouldUseP256Precompile(chainId: chainId),
+      );
+    }
+    return ecdsaStubSignature;
   }
 
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = await _computeUserOpHash(userOp);
+    final userOpHash = _userOperationHash(userOp);
 
     if (_isWebAuthn) {
-      // WebAuthn signing with P256 and special encoding
       final usePrecompiled = await _shouldUsePrecompile();
       final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
       final sigData = await webAuthnOwner.signP256(userOpHash);
@@ -680,68 +350,19 @@ class KernelSmartAccount implements SmartAccount {
 
     // ECDSA: EIP-191 personal_sign over the raw userOpHash (matches
     // permissionless.js owner.signMessage({ message: { raw: hash } })).
-    final signature = await _config.owner.signPersonalMessage(userOpHash);
-
-    if (_config.version.isV2) {
-      // v0.2.x: ROOT_MODE (4 bytes) + signature
-      return Hex.concat([
-        '0x00000000',
-        Hex.strip0x(signature),
-      ]);
-    } else {
-      // v0.3.x: just the signature (no prefix)
-      return signature;
-    }
+    return _config.owner.signPersonalMessage(userOpHash);
   }
 
   /// Signs a v0.6 UserOperation (for Kernel v0.2.x).
   ///
   /// This method computes the correct hash for EntryPoint v0.6 format
   /// and returns the signature with ROOT_MODE prefix.
+  @override
   Future<String> signUserOperationV06(UserOperationV06 userOp) async {
-    final userOpHash = _computeUserOpHashV06(userOp);
+    final userOpHash = _userOperationHash(userOp);
     // EIP-191 personal_sign over the raw userOpHash (matches JS).
     final signature = await _config.owner.signPersonalMessage(userOpHash);
-
-    // v0.2.x: ROOT_MODE (4 bytes) + signature
-    return Hex.concat([
-      '0x00000000',
-      Hex.strip0x(signature),
-    ]);
-  }
-
-  /// Computes the userOpHash for v0.6 UserOperation.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a v0.6 UserOperation for hashing.
-  String _packUserOpV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
+    return Hex.concat([kernelV2RootMode, signature]);
   }
 
   /// Signs a personal message (EIP-191) with Kernel EIP-712 wrapping.
@@ -809,95 +430,16 @@ class KernelSmartAccount implements SmartAccount {
   /// v0.2.x: unprefixed helper bytes. v0.3.x: `0x01 ‖ validatorAddress`.
   String _prefixKernelErc1271Signature(String signature) => _config.version.isV2
       ? signature
-      : Hex.concat([_getEcdsaRootIdentifier(), Hex.strip0x(signature)]);
+      : Hex.concat([_rootValidatorId, signature]);
 
-  /// Root validator identifier for Kernel v0.3.x: `0x01 ‖ validatorAddress`.
-  String _getEcdsaRootIdentifier() => Hex.concat([
-        Hex.fromBigInt(
-          BigInt.from(KernelValidatorType.validator),
-          byteLength: 1,
-        ),
-        _validatorAddress.hex,
-      ]);
-
-  Future<String> _computeUserOpHash(UserOperationV07 userOp) async {
-    // Pack the UserOperation according to ERC-4337
-    final packedUserOp = _packUserOp(userOp);
-    final userOpHashInner = keccak256(Hex.decode(packedUserOp));
-
-    // Final hash: keccak256(userOpHash, entryPoint, chainId)
-    final finalPreImage = Hex.concat([
-      Hex.fromBytes(userOpHashInner),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(finalPreImage)));
-  }
-
-  String _packUserOp(UserOperationV07 userOp) {
-    // Pack initCode
-    final initCode = userOp.factory != null
-        ? Hex.concat([
-            userOp.factory!.hex,
-            Hex.strip0x(userOp.factoryData ?? '0x'),
-          ])
-        : '0x';
-    final initCodeHash = keccak256(Hex.decode(initCode));
-
-    // Pack callData
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    // Pack accountGasLimits (v0.7 packing)
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(
-        userOp.verificationGasLimit,
-        byteLength: 16,
-        name: 'verificationGasLimit',
-      ),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
-    ]);
-
-    // Pack gasFees
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(
-        userOp.maxPriorityFeePerGas,
-        byteLength: 16,
-        name: 'maxPriorityFeePerGas',
-      ),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-    ]);
-
-    // Pack paymasterAndData
-    final paymasterAndData = userOp.paymaster != null
-        ? Hex.concat([
-            userOp.paymaster!.hex,
-            Hex.fromBigInt(
-              userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-              byteLength: 16,
-              name: 'paymasterVerificationGasLimit',
-            ),
-            Hex.fromBigInt(
-              userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-              byteLength: 16,
-              name: 'paymasterPostOpGasLimit',
-            ),
-            Hex.strip0x(userOp.paymasterData ?? '0x'),
-          ])
-        : '0x';
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// Hash of [userOp] as this account's EntryPoint computes it; throws
+  /// [ArgumentError] when the layout does not match that EntryPoint version.
+  String _userOperationHash(UserOperation userOp) => getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: entryPointVersion,
+        chainId: chainId,
+      );
 }
 
 /// Creates a Kernel smart account.

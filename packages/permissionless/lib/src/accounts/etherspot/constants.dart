@@ -1,4 +1,5 @@
 import '../../types/address.dart';
+import '../account_support.dart';
 
 /// Etherspot ModularEtherspotWallet contract addresses.
 ///
@@ -51,5 +52,4 @@ class EtherspotSelectors {
 }
 
 /// Dummy ECDSA signature for gas estimation.
-const String etherspotDummyEcdsaSignature =
-    '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+const String etherspotDummyEcdsaSignature = ecdsaStubSignature;
