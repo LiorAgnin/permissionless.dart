@@ -777,16 +777,13 @@ class SafeSmartAccount
     );
   }
 
-  /// Guards matching permissionless.js Safe signMessage/signTypedData.
+  /// permissionless.js checks the 7579 / v1.5.0 incompatibility only in
+  /// signMessage/signTypedData, not when deploying or signing UserOperations.
   ///
-  /// permissionless.js checks the 7579 / v1.5.0 incompatibility only here,
-  /// not when deploying or signing UserOperations.
+  /// Its other guard there (fewer local owners than the threshold) cannot
+  /// fail here: every owner signs locally and the config rejects a threshold
+  /// above the owner count.
   void _assertCanSignMessage() {
-    if (_config.owners.length < _config.threshold.toInt()) {
-      throw StateError(
-        'Owners length mismatch, currently not supported',
-      );
-    }
     if (isErc7579Enabled && _config.version == SafeVersion.v1_5_0) {
       throw StateError('Safe 7579 & version 1.5.0 are not compatible');
     }
