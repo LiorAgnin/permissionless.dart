@@ -899,7 +899,7 @@ void main() {
     });
 
     test('factory and initialize selectors match their signatures', () {
-      final expected = {
+      const expected = {
         KernelSelectors.createAccountV2: 'createAccount(address,bytes,uint256)',
         KernelSelectors.createAccountV3: 'createAccount(bytes,bytes32)',
         KernelSelectors.deployWithFactory:
@@ -910,13 +910,14 @@ void main() {
         KernelSelectors.initializeV3:
             'initialize(bytes21,address,bytes,bytes,bytes[])',
       };
-      expected.forEach((selector, signature) {
+      for (final MapEntry(key: selector, value: signature)
+          in expected.entries) {
         expect(
           selector,
           equals(AbiEncoder.functionSelector(signature)),
           reason: signature,
         );
-      });
+      }
     });
   });
 }

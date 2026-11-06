@@ -1,11 +1,12 @@
-import 'dart:typed_data';
+import 'dart:convert';
 
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' show keccak256;
 
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
+import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -13,7 +14,10 @@ import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/sort_addresses.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../erc7579_calls.dart';
 import 'constants.dart';
 
 /// Configuration for creating a Nexus smart account.
@@ -140,18 +144,18 @@ class NexusSmartAccount implements SmartAccount {
   /// Layout: `(key % 16777215)` (3 bytes) ‖ validationMode (1) ‖ validator (20).
   @override
   BigInt get nonceKey {
-    // TIMESTAMP_ADJUSTMENT = 16777215 (max value for 3 bytes)
+    // permissionless.js TIMESTAMP_ADJUSTMENT (max 3-byte value).
     const timestampAdjustment = 16777215;
     final defaultedKey =
         (_config.nonceKey ?? BigInt.zero) % BigInt.from(timestampAdjustment);
-
-    // Pack: key (3 bytes) || validationMode (1 byte) || validator (20 bytes)
-    final keyHex = Hex.fromBigInt(defaultedKey, byteLength: 3);
     const validationMode = '0x00';
-    final validatorHex = Hex.strip0x(_validatorAddress.hex);
-
-    final packed = Hex.concat([keyHex, validationMode, validatorHex]);
-    return Hex.toBigInt(packed);
+    return Hex.toBigInt(
+      Hex.concat([
+        Hex.fromBigInt(defaultedKey, byteLength: 3),
+        validationMode,
+        _validatorAddress.hex,
+      ]),
+    );
   }
 
   @override
@@ -159,78 +163,40 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Gets the deterministic address of this Nexus account.
   @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) {
-      return _cachedAddress!;
-    }
-
-    // Option 1: Use pre-computed address if provided
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address via RPC if publicClient is provided
-    if (_config.publicClient != null) {
-      final initCode = await getInitCode();
-      _cachedAddress = await _config.publicClient!.getSenderAddress(
-        initCode: initCode,
+  Future<EthereumAddress> getAddress() async =>
+      _cachedAddress ??= await resolveCounterfactualAddress(
+        accountName: 'Nexus',
+        address: _config.address,
+        publicClient: _config.publicClient,
         entryPoint: entryPoint,
+        initCode: getInitCode,
       );
-      return _cachedAddress!;
-    }
-
-    // Option 3: Neither address nor publicClient provided
-    throw StateError(
-      'Nexus account address cannot be computed without a client. '
-      'Either provide `address` or `publicClient` when creating the account.',
-    );
-  }
 
   /// Gets the init code for deploying this Nexus account.
   @override
   Future<String> getInitCode() async {
-    final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    final factoryData = await getFactoryData();
+    return packUserOperationInitCode(
+      factory: factoryData?.factory,
+      factoryData: factoryData?.factoryData,
+    );
   }
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
   Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    final data = _encodeCreateAccount();
-    return (factory: _factoryAddress, factoryData: data);
-  }
-
-  /// Encodes the createAccount factory call.
-  String _encodeCreateAccount() {
-    final sortedAttesters = sortAddresses(_config.attesters);
-
-    // createAccount(address eoaOwner, uint256 index, address[] attesters, uint8 threshold)
-    // This is a complex ABI encoding with a dynamic array
-
-    // Calculate offsets
-    const attestersOffset = 4 * 32; // 4 static params before dynamic array
-    final attestersEncoded = _encodeAddressArray(sortedAttesters);
-
-    return Hex.concat([
-      NexusSelectors.createAccount,
-      AbiEncoder.encodeAddress(_config.owner.address),
-      AbiEncoder.encodeUint256(_config.index),
-      AbiEncoder.encodeUint256(BigInt.from(attestersOffset)),
-      AbiEncoder.encodeUint256(BigInt.from(_config.threshold)),
-      Hex.strip0x(attestersEncoded),
-    ]);
-  }
-
-  /// Encodes an array of addresses.
-  String _encodeAddressArray(List<EthereumAddress> addresses) => Hex.concat([
-        AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
-        ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
-      ]);
+      getFactoryData() async => (
+            factory: _factoryAddress,
+            factoryData: AbiEncoder.encodeFunctionData(
+              'createAccount(address,uint256,address[],uint8)',
+              [
+                _config.owner.address,
+                _config.index,
+                sortAddresses(_config.attesters),
+                _config.threshold,
+              ],
+            ),
+          );
 
   /// Encodes a single call using ERC-7579 execute mode.
   @override
@@ -238,15 +204,7 @@ class NexusSmartAccount implements SmartAccount {
 
   /// Encodes multiple calls using ERC-7579 execute batch mode.
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-    return encode7579ExecuteBatch(calls);
-  }
+  String encodeCalls(List<Call> calls) => encodeErc7579AccountCalls(calls);
 
   @override
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
@@ -257,10 +215,10 @@ class NexusSmartAccount implements SmartAccount {
   /// Gets a stub signature for gas estimation.
   @override
   String getStubSignature() {
-    // Nexus stub signature format: offset + validator address + signature
-    final dynamicPart = Hex.strip0x(_validatorAddress.hex).padRight(40, '0');
+    // permissionless.js Nexus dummy: offset ‖ validator ‖ 65-byte signature.
+    final validator = Hex.strip0x(_validatorAddress.hex);
     return '0x0000000000000000000000000000000000000000000000000000000000000040'
-        '000000000000000000000000$dynamicPart'
+        '000000000000000000000000$validator'
         '0000000000000000000000000000000000000000000000000000000000000041'
         '81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5'
         '711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff'
@@ -280,163 +238,61 @@ class NexusSmartAccount implements SmartAccount {
   /// address prefix). The validator prefix is only used for ERC-1271
   /// [signMessage] / [signTypedData] packing.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = _computeUserOpHash(userOp);
-
-    // K1 validator uses EIP-191 personal sign of userOpHash (bare, 65 bytes)
-    return _config.owner.signPersonalMessage(userOpHash);
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _config.owner.signPersonalMessage(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: entryPoint,
+          entryPointVersion: entryPointVersion,
+          chainId: chainId,
+        ),
+      );
 
   /// Signs a personal message (EIP-191) with Nexus wrapper.
   @override
-  Future<String> signMessage(String message) async {
-    final messageHash = hashMessage(message);
-    final wrappedHash = await _wrapMessageHash(messageHash);
-    final signature = await _config.owner.signPersonalMessage(wrappedHash);
-
-    // Return packed: validator address + signature
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
-  }
+  Future<String> signMessage(String message) =>
+      _signWrapped(hashMessage(message));
 
   /// Signs EIP-712 typed data with Nexus wrapper.
   @override
-  Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    final wrappedHash = await _wrapMessageHash(hash);
-    final signature = await _config.owner.signPersonalMessage(wrappedHash);
+  Future<String> signTypedData(TypedData typedData) =>
+      _signWrapped(hashTypedData(typedData));
 
-    // Return packed: validator address + signature
-    return Hex.concat([
-      _validatorAddress.hex,
-      Hex.strip0x(signature),
-    ]);
+  /// ERC-1271 signature: `validator ‖ personal_sign(wrap(hash))`.
+  Future<String> _signWrapped(String hash) async {
+    final signature = await _config.owner.signPersonalMessage(
+      await _wrapMessageHash(hash),
+    );
+    return Hex.concat([_validatorAddress.hex, signature]);
   }
 
   /// Wraps a message hash with Nexus-specific EIP-712 domain.
+  ///
+  /// Mirrors permissionless.js `wrapMessageHash`: the struct hash is
+  /// `keccak256(PERSONAL_SIGN_TYPEHASH ‖ messageHash)`, i.e. EIP-712
+  /// `PersonalSign(bytes prefixed)` with [messageHash] standing in for
+  /// `keccak256(prefixed)`. hashTypedData would need the prefixed preimage,
+  /// which callers only have as a hash.
   Future<String> _wrapMessageHash(String messageHash) async {
-    final accountAddress = await getAddress();
-
-    // Domain separator for Nexus
-    final domain = TypedDataDomain(
-      name: 'Nexus',
-      version: _config.version,
-      chainId: _config.chainId,
-      verifyingContract: accountAddress,
-    );
-
-    final domainSep = computeDomainSeparator(domain);
-
-    // PersonalSign struct hash
-    // keccak256("PersonalSign(bytes prefixed)")
-    final typeHash = keccak256(
-      Uint8List.fromList('PersonalSign(bytes prefixed)'.codeUnits),
-    );
-
-    final structHash = keccak256(
-      Hex.decode(
-        Hex.concat(
-          [
-            Hex.fromBytes(typeHash),
-            messageHash,
-          ],
-        ),
+    final domainSeparator = computeDomainSeparator(
+      TypedDataDomain(
+        name: 'Nexus',
+        version: _config.version,
+        chainId: _config.chainId,
+        verifyingContract: await getAddress(),
       ),
     );
-
-    // Final hash: keccak256(0x1901 + domainSeparator + structHash)
-    return Hex.fromBytes(
-      keccak256(
-        Hex.decode(
-          Hex.concat(
-            [
-              '0x1901',
-              Hex.strip0x(domainSep),
-              Hex.fromBytes(structHash),
-            ],
-          ),
-        ),
-      ),
+    final structHash = _keccak(
+      Hex.concat([
+        _keccak(Hex.fromBytes(utf8.encode('PersonalSign(bytes prefixed)'))),
+        messageHash,
+      ]),
     );
-  }
-
-  /// Computes the userOpHash for signing.
-  String _computeUserOpHash(UserOperationV07 userOp) {
-    final packed = _packUserOpForHash(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for hashing.
-  String _packUserOpForHash(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(
-        userOp.verificationGasLimit,
-        byteLength: 16,
-        name: 'verificationGasLimit',
-      ),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(
-        userOp.maxPriorityFeePerGas,
-        byteLength: 16,
-        name: 'maxPriorityFeePerGas',
-      ),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterVerificationGasLimit',
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterPostOpGasLimit',
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
+    return _keccak(Hex.concat(['0x1901', domainSeparator, structHash]));
   }
 }
+
+String _keccak(String hex) => Hex.fromBytes(keccak256(Hex.decode(hex)));
 
 /// Creates a Nexus smart account.
 ///
