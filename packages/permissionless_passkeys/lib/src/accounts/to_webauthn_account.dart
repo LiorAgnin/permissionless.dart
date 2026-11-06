@@ -77,6 +77,8 @@ WebAuthnAccount toWebAuthnAccount(ToWebAuthnAccountParameters params) {
 ///
 /// This is the recommended way to create WebAuthn accounts in Dart,
 /// using idiomatic named parameters instead of a parameters object.
+/// The account can be passed as an owner to smart accounts that support
+/// WebAuthn, such as Kernel v0.3.x and Safe.
 ///
 /// Example:
 /// ```dart
@@ -100,38 +102,8 @@ WebAuthnAccount createWebAuthnAccount({
 
 /// Creates a WebAuthn account from a credential.
 ///
-/// Same as [createWebAuthnAccount]; kept under this name for existing
-/// callers.
-///
-/// The account can be passed as an owner to smart accounts like
-/// Kernel or Safe that support WebAuthn authentication.
-///
-/// [credential] - The WebAuthn credential (from `createPasskeyCredential`)
-/// [rpId] - Relying Party identifier (must match credential registration)
-/// [getFn] - Optional custom signing function for testing
-///
-/// Example:
-/// ```dart
-/// final webAuthnAccount = createWebAuthnAccountFromCredential(
-///   credential: credential,
-///   rpId: 'myapp.com',
-/// );
-///
-/// // Use with Kernel smart account (v0.3.x supports WebAuthn)
-/// final kernelAccount = createKernelSmartAccount(
-///   owner: webAuthnAccount,
-///   chainId: BigInt.from(11155111),
-///   version: KernelVersion.v0_3_1,
-///   publicClient: publicClient,
-/// );
-///
-/// // Use with Safe smart account
-/// final safeAccount = createSafeSmartAccount(
-///   owners: [webAuthnAccount],
-///   chainId: BigInt.from(11155111),
-///   publicClient: publicClient,
-/// );
-/// ```
+/// Same as [createWebAuthnAccount], which new code should call instead.
+@Deprecated('Use createWebAuthnAccount')
 WebAuthnAccount createWebAuthnAccountFromCredential({
   required WebAuthnCredential credential,
   String? rpId,
