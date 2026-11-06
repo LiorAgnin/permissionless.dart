@@ -39,7 +39,11 @@ enum Erc7579ModuleType {
   final int id;
 }
 
-/// ERC-7579 call types for smart account execution.
+/// ERC-7579 call type bytes (mode word byte 0), for the int-based
+/// [encode7579ExecuteMode].
+///
+/// [Erc7579CallKind] is the typed form of the same values and takes its byte
+/// values from these constants.
 class Erc7579CallType {
   Erc7579CallType._();
 
@@ -53,7 +57,10 @@ class Erc7579CallType {
   static const int delegateCall = 0xff;
 }
 
-/// ERC-7579 execution types.
+/// ERC-7579 execution type bytes (mode word byte 1).
+///
+/// [ExecutionMode.revertOnError] maps `false` to [defaultExec] and `true` to
+/// [tryExec].
 class Erc7579ExecType {
   Erc7579ExecType._();
 
@@ -109,7 +116,7 @@ const String _supportsExecutionModeSignature = 'supportsExecutionMode(bytes32)';
 /// ERC-7579 batch execution calldata: `abi.encode(Execution[])`.
 const List<String> _executionsAbi = ['(address,uint256,bytes)[]'];
 
-/// Call type for ERC-7579 execution.
+/// Call type for ERC-7579 execution: the typed form of [Erc7579CallType].
 ///
 /// Determines how the execution calldata is interpreted.
 enum Erc7579CallKind {
@@ -119,7 +126,7 @@ enum Erc7579CallKind {
   /// Batch call execution (array of Execution structs).
   batchCall(Erc7579CallType.batchCall),
 
-  /// Delegate call execution (target, calldata only, no value).
+  /// Delegate call execution.
   delegateCall(Erc7579CallType.delegateCall);
 
   const Erc7579CallKind(this.value);
@@ -209,27 +216,16 @@ class ExecutionMode {
   /// - Bytes 2-5: padding (zeros)
   /// - Bytes 6-9: selector (or zeros)
   /// - Bytes 10-31: context (or zeros)
-  String encode() {
-    final mode = Uint8List(32);
-    mode[0] = type.value;
-    mode[1] = revertOnError ? 0x01 : 0x00;
-    if (selector != null && selector!.isNotEmpty && selector != '0x') {
-      final selectorBytes = Hex.decode(selector!);
-      final len = selectorBytes.length.clamp(0, 4);
-      for (var i = 0; i < len; i++) {
-        mode[6 + i] = selectorBytes[i];
-      }
-    }
-    if (context != null && context!.isNotEmpty && context != '0x') {
-      final contextBytes = Hex.decode(context!);
-      final len = contextBytes.length.clamp(0, 22);
-      for (var i = 0; i < len; i++) {
-        mode[10 + i] = contextBytes[i];
-      }
-    }
-
-    return Hex.fromBytes(mode);
-  }
+  ///
+  /// A shorter [selector] or [context] is left-aligned in its field.
+  String encode() => _encodeExecutionMode(
+        callType: type.value,
+        execType: revertOnError
+            ? Erc7579ExecType.tryExec
+            : Erc7579ExecType.defaultExec,
+        selector: selector,
+        context: context,
+      );
 
   @override
   String toString() =>
@@ -247,11 +243,28 @@ class ExecutionMode {
 String encode7579ExecuteMode({
   int callType = Erc7579CallType.call,
   int execType = Erc7579ExecType.defaultExec,
-}) {
-  final mode = Uint8List(32);
-  mode[0] = callType;
-  mode[1] = execType;
-  return Hex.fromBytes(mode);
+}) =>
+    _encodeExecutionMode(callType: callType, execType: execType);
+
+String _encodeExecutionMode({
+  required int callType,
+  required int execType,
+  String? selector,
+  String? context,
+}) =>
+    Hex.fromBytes(
+      Uint8List(32)
+        ..[0] = _modeByte(callType, 'callType')
+        ..[1] = _modeByte(execType, 'execType')
+        ..setAll(6, _modeField(selector, 4, 'selector'))
+        ..setAll(10, _modeField(context, 22, 'context')),
+    );
+
+int _modeByte(int value, String name) => value & 0xff;
+
+Uint8List _modeField(String? hex, int size, String name) {
+  final bytes = hex == null ? Uint8List(0) : Hex.decode(hex);
+  return bytes.length > size ? bytes.sublist(0, size) : bytes;
 }
 
 /// Encodes a single call for ERC-7579 execution.
@@ -260,7 +273,7 @@ String encode7579ExecuteMode({
 String encode7579SingleCallData(Call call) {
   final callDataBytes = Hex.decode(call.data);
   return Hex.concat([
-    call.to.hex, // 20 bytes (no padding)
+    call.to.hex,
     Hex.fromBigInt(call.value, byteLength: 32),
     Hex.fromBytes(callDataBytes),
   ]);
@@ -285,7 +298,7 @@ String encode7579BatchCallData(List<Call> calls) {
 ///
 /// Generates: execute(mode, executionCalldata) with single call encoding.
 String encode7579Execute(Call call) =>
-    _encodeExecute(Erc7579CallType.call, encode7579SingleCallData(call));
+    _encodeExecute(Erc7579CallKind.call, encode7579SingleCallData(call));
 
 /// Encodes a complete ERC-7579 execute call (batch calls).
 ///
@@ -301,7 +314,7 @@ String encode7579ExecuteBatch(List<Call> calls) {
     throw ArgumentError('At least one call is required');
   }
   return _encodeExecute(
-    Erc7579CallType.batchCall,
+    Erc7579CallKind.batchCall,
     encode7579BatchCallData(calls),
   );
 }
@@ -312,13 +325,13 @@ String encode7579ExecuteBatch(List<Call> calls) {
 /// packed single-call execution data (`to || value || data`), matching
 /// permissionless.js `encode7579Calls` when `mode.type === "delegatecall"`.
 String encode7579ExecuteDelegateCall(Call call) => _encodeExecute(
-      Erc7579CallType.delegateCall,
+      Erc7579CallKind.delegateCall,
       encode7579SingleCallData(call),
     );
 
-String _encodeExecute(int callType, String executionData) =>
+String _encodeExecute(Erc7579CallKind callType, String executionData) =>
     AbiEncoder.encodeFunctionData(_executeSignature, [
-      encode7579ExecuteMode(callType: callType),
+      ExecutionMode(type: callType).encode(),
       executionData,
     ]);
 
