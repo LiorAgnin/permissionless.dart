@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 /// Test fixtures for WebAuthn passkeys tests.
@@ -48,10 +49,25 @@ final Uint8List testAuthenticatorData = Uint8List.fromList([
   0x00, 0x00, 0x00, 0x01,
 ]);
 
-/// Mock client data JSON for WebAuthn assertion.
+/// The hash the account tests sign.
+const String testHash =
+    '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+/// Mock client data JSON for a WebAuthn assertion over [testHash].
+///
+/// The challenge is base64url([testHash] bytes), unpadded:
+/// python3 -c "import base64;print(base64.urlsafe_b64encode(bytes.fromhex(
+///   '1234567890abcdef'*4)).decode().rstrip('='))"
 const String testClientDataJSON =
     '{"type":"webauthn.get",'
-    '"challenge":"dGVzdC1jaGFsbGVuZ2U",'
+    '"challenge":"EjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJCrze8",'
+    '"origin":"https://example.com",'
+    '"crossOrigin":false}';
+
+/// Mock client data JSON for a WebAuthn assertion over [challenge].
+String clientDataJsonFor(List<int> challenge) =>
+    '{"type":"webauthn.get",'
+    '"challenge":"${base64Url.encode(challenge).replaceAll('=', '')}",'
     '"origin":"https://example.com",'
     '"crossOrigin":false}';
 

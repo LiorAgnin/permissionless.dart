@@ -187,6 +187,16 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
         'verified on-chain.',
       );
     }
+    // web3_signers returns -1 (indexOf), not null, for a missing value.
+    final challengeIndex = signature.getChallengeLocation(challenge)!;
+    final typeIndex = signature.getTypeLocation()!;
+    if (challengeIndex < 0 || typeIndex < 0) {
+      throw StateError(
+        'The authenticator clientDataJSON has no '
+        '${challengeIndex < 0 ? 'challenge for this hash' : '"type" key'}; '
+        'the signature cannot be verified on-chain.',
+      );
+    }
 
     return WebAuthnSignReturnType(
       signature: Hex.concat([
@@ -196,8 +206,8 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
       webauthn: WebAuthnSignMetadata(
         authenticatorData: authenticatorData,
         clientDataJSON: clientDataJSON,
-        challengeIndex: signature.getChallengeLocation(challenge)!,
-        typeIndex: signature.getTypeLocation()!,
+        challengeIndex: challengeIndex,
+        typeIndex: typeIndex,
       ),
       raw: signature,
     );

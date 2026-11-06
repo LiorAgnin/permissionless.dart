@@ -243,6 +243,47 @@ void main() {
       });
     });
 
+    group('authenticator response with incomplete clientDataJSON', () {
+      Future<WebAuthnSignReturnType> signWith(String clientDataJSON) =>
+          createWebAuthnAccount(
+            credential: credential,
+            getFn: (_) async => Signature(
+              testSignatureR,
+              testSignatureS,
+              authData: testAuthenticatorData,
+              clientDataJson: clientDataJSON,
+            ),
+          ).sign(hash: testHash);
+
+      test('without the challenge throws StateError', () async {
+        await expectLater(
+          signWith('{"type":"webauthn.get","challenge":"AAAA"}'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('challenge'),
+            ),
+          ),
+        );
+      });
+
+      test('without the "type" key throws StateError', () async {
+        await expectLater(
+          signWith(
+            testClientDataJSON.replaceFirst('"type":"webauthn.get",', ''),
+          ),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('"type"'),
+            ),
+          ),
+        );
+      });
+    });
+
     group('signP256', () {
       test('returns the authenticator signature and metadata', () async {
         final account = createWebAuthnAccount(
@@ -273,7 +314,7 @@ void main() {
           credential: credential,
           getFn: (c) async {
             challenge = c;
-            return _createMockSignature();
+            return _createMockSignature(c);
           },
         );
         await account.signMessage(message: message);
@@ -306,7 +347,7 @@ void main() {
           credential: credential,
           getFn: (c) async {
             challenge = c;
-            return _createMockSignature();
+            return _createMockSignature(c);
           },
         );
 
@@ -405,11 +446,14 @@ WebAuthnCredential _createMockCredential() {
   );
 }
 
-Signature _createMockSignature() {
+/// An authenticator response over [challenge], or over [testHash] if omitted.
+Signature _createMockSignature([List<int>? challenge]) {
   return Signature(
     testSignatureR,
     testSignatureS,
     authData: testAuthenticatorData,
-    clientDataJson: testClientDataJSON,
+    clientDataJson: challenge == null
+        ? testClientDataJSON
+        : clientDataJsonFor(challenge),
   );
 }
