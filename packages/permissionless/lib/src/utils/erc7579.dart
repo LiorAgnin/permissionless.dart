@@ -218,6 +218,8 @@ class ExecutionMode {
   /// - Bytes 10-31: context (or zeros)
   ///
   /// A shorter [selector] or [context] is left-aligned in its field.
+  /// Throws [ArgumentError] if [selector] is over 4 bytes or [context] is
+  /// over 22 bytes (permissionless.js throws too).
   String encode() => _encodeExecutionMode(
         callType: type.value,
         execType: revertOnError
@@ -240,6 +242,8 @@ class ExecutionMode {
 /// - unused (4 bytes): 0x00000000
 /// - modeSelector (4 bytes): 0x00000000
 /// - modePayload (22 bytes): 0x0...
+///
+/// Throws [ArgumentError] if [callType] or [execType] does not fit in a byte.
 String encode7579ExecuteMode({
   int callType = Erc7579CallType.call,
   int execType = Erc7579ExecType.defaultExec,
@@ -260,11 +264,19 @@ String _encodeExecutionMode({
         ..setAll(10, _modeField(context, 22, 'context')),
     );
 
-int _modeByte(int value, String name) => value & 0xff;
+int _modeByte(int value, String name) {
+  if (value < 0 || value > 0xff) {
+    throw ArgumentError.value(value, name, 'must fit in one byte');
+  }
+  return value;
+}
 
 Uint8List _modeField(String? hex, int size, String name) {
   final bytes = hex == null ? Uint8List(0) : Hex.decode(hex);
-  return bytes.length > size ? bytes.sublist(0, size) : bytes;
+  if (bytes.length > size) {
+    throw ArgumentError.value(hex, name, 'must be at most $size bytes');
+  }
+  return bytes;
 }
 
 /// Encodes a single call for ERC-7579 execution.

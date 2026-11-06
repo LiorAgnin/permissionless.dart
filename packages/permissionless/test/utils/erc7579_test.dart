@@ -1506,6 +1506,41 @@ void main() {
         );
       });
 
+      // permissionless.js `encodeExecutionMode` throws (viem SizeOverflowError)
+      // for a selector over 4 bytes or a context over 22 bytes.
+      test('ExecutionMode.encode rejects a selector over 4 bytes', () {
+        expect(
+          () => const ExecutionMode(
+            type: Erc7579CallKind.call,
+            selector: '0xaabbccddee',
+          ).encode(),
+          throwsArgumentError,
+        );
+      });
+
+      test('ExecutionMode.encode rejects a context over 22 bytes', () {
+        expect(
+          () => ExecutionMode(
+            type: Erc7579CallKind.call,
+            context: '0x${'11' * 23}',
+          ).encode(),
+          throwsArgumentError,
+        );
+      });
+
+      test('encode7579ExecuteMode rejects a callType or execType over 1 byte',
+          () {
+        expect(
+          () => encode7579ExecuteMode(callType: 0x100),
+          throwsArgumentError,
+        );
+        expect(() => encode7579ExecuteMode(callType: -1), throwsArgumentError);
+        expect(
+          () => encode7579ExecuteMode(execType: 0x101),
+          throwsArgumentError,
+        );
+      });
+
       test('Erc7579CallKind and Erc7579CallType carry the same bytes', () {
         expect(Erc7579CallKind.call.value, Erc7579CallType.call);
         expect(Erc7579CallKind.batchCall.value, Erc7579CallType.batchCall);
