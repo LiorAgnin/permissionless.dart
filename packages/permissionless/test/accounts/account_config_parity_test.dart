@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
@@ -83,7 +81,9 @@ void main() {
   });
 
   group('configurable nonceKey (passthrough accounts)', () {
-    final key = BigInt.from(0x1234);
+    // nonceKey is what SmartAccountClient passes to EntryPoint.getNonce.
+    // The full uint192 range must pass through untouched.
+    final key = (BigInt.one << 192) - BigInt.one;
 
     test('Simple uses full key', () {
       final account = createSimpleSmartAccount(
@@ -157,16 +157,15 @@ void main() {
         nonceKey: userKey,
       );
 
-      // validator (20) || mode 00 || type 00 || key (2)
-      final validatorHex =
-          Hex.strip0x(EtherspotAddresses.ecdsaValidator.hex).toLowerCase();
-      final expected = BigInt.parse(
-        '${validatorHex}00'
-        '00'
-        '${Hex.strip0x(Hex.fromBigInt(userKey, byteLength: 2))}',
-        radix: 16,
+      // permissionless.js getNonceKeyWithEncoding: validator (20) ‖ mode 00
+      // ‖ type 00 ‖ key (2). cast concat-hex \
+      //   0x0740Ed7c11b9da33d9C80Bd76b826e4E90CC1906 0x00 0x00 0x00ab
+      expect(
+        account.nonceKey,
+        equals(
+          BigInt.parse('0x0740ed7c11b9da33d9c80bd76b826e4e90cc1906000000ab'),
+        ),
       );
-      expect(account.nonceKey, equals(expected));
     });
 
     test('Nexus: 3-byte key slot (key % 16777215) || mode || validator', () {
@@ -178,12 +177,15 @@ void main() {
         nonceKey: userKey,
       );
 
-      const timestampAdjustment = 16777215;
-      final defaultedKey = userKey % BigInt.from(timestampAdjustment);
-      final keyHex = Hex.fromBigInt(defaultedKey, byteLength: 3);
-      final validatorHex = Hex.strip0x(NexusAddresses.k1Validator.hex);
-      final packed = Hex.concat([keyHex, '0x00', validatorHex]);
-      expect(account.nonceKey, equals(Hex.toBigInt(packed)));
+      // permissionless.js toNexusSmartAccount getNonce: key (3) ‖ mode 00
+      // ‖ K1 validator. cast concat-hex \
+      //   0x123456 0x00 0x00000004171351c442B202678c48D8AB5B321E8f
+      expect(
+        account.nonceKey,
+        equals(
+          BigInt.parse('0x1234560000000004171351c442b202678c48d8ab5b321e8f'),
+        ),
+      );
     });
 
     test('Nexus wraps key above 3-byte max', () {
@@ -196,11 +198,14 @@ void main() {
         nonceKey: userKey,
       );
 
-      final defaultedKey = BigInt.from(5);
-      final keyHex = Hex.fromBigInt(defaultedKey, byteLength: 3);
-      final validatorHex = Hex.strip0x(NexusAddresses.k1Validator.hex);
-      final packed = Hex.concat([keyHex, '0x00', validatorHex]);
-      expect(account.nonceKey, equals(Hex.toBigInt(packed)));
+      // cast concat-hex \
+      //   0x000005 0x00 0x00000004171351c442B202678c48D8AB5B321E8f
+      expect(
+        account.nonceKey,
+        equals(
+          BigInt.parse('0x0000050000000004171351c442b202678c48d8ab5b321e8f'),
+        ),
+      );
     });
 
     test('Kernel v0.3.x: mode||type||validator||2-byte salt', () {
@@ -213,17 +218,15 @@ void main() {
         nonceKey: userKey,
       );
 
-      final validator =
-          KernelVersionAddresses.getAddresses(KernelVersion.v0_3_1)!
-              .ecdsaValidator!;
-      final bytes = Uint8List(24)
-        ..[0] = 0x00 // sudo
-        ..[1] = 0x00 // root
-        ..setRange(2, 22, validator.bytes);
-      final salt = Hex.decode(Hex.fromBigInt(userKey, byteLength: 2));
-      bytes[22] = salt[0];
-      bytes[23] = salt[1];
-      expect(account.nonceKey, equals(Hex.toBigInt(Hex.fromBytes(bytes))));
+      // permissionless.js kernel getNonceKeyWithEncoding: mode 00 ‖ type 00
+      // ‖ v0.3.1 ECDSA validator ‖ key (2). cast concat-hex \
+      //   0x00 0x00 0x845ADb2C711129d4f3966735eD98a9F09fC4cE57 0x00ab
+      expect(
+        account.nonceKey,
+        equals(
+          BigInt.parse('0x0000845adb2c711129d4f3966735ed98a9f09fc4ce5700ab'),
+        ),
+      );
     });
 
     test('Kernel v0.3.x rejects nonceKey > maxUint16', () {
@@ -252,55 +255,94 @@ void main() {
     });
   });
 
-  group('EntryPoint address override', () {
-    test('Simple honors entryPointAddress', () {
+  group('EntryPoint address override reaches the signed userOp hash', () {
+    // Expected values: published permissionless.js 0.3.5 (viem 2.44.4),
+    // to<Account>SmartAccount({ client /* mainnet */, owner(s): Hardhat #0,
+    //   address: 0x1111…1111,
+    //   entryPoint: { address: 0x2222…2222, version } })
+    //   .signUserOperation(op)
+    UserOperationV07 op07() => UserOperationV07(
+          sender: mockAddress,
+          nonce: BigInt.one,
+          callData: '0xabcdef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(100000000),
+        );
+
+    // personal_sign(getUserOperationHash(op, ep: 0x2222…, v0.7, chainId 1))
+    const personalSignedV07 =
+        '0xbe374421b82771da251b6368f9649cfbb28dffc496fbcfd0f217c9430b9b28be77748dbbf19036d2203c0d40dc4571f6a2333028ba64790608aa7b00691f1ea81c';
+
+    test('Simple', () async {
       final account = createSimpleSmartAccount(
         owner: owner,
         chainId: chainId,
         address: mockAddress,
         entryPointAddress: customEntryPoint,
       );
-      expect(account.entryPoint, equals(customEntryPoint));
+      expect(await account.signUserOperation(op07()), personalSignedV07);
     });
 
-    test('Nexus honors entryPointAddress', () {
+    test('Nexus', () async {
       final account = createNexusSmartAccount(
         owner: owner,
         chainId: chainId,
         address: mockAddress,
         entryPointAddress: customEntryPoint,
       );
-      expect(account.entryPoint, equals(customEntryPoint));
+      expect(await account.signUserOperation(op07()), personalSignedV07);
     });
 
-    test('Etherspot honors entryPointAddress', () {
+    test('Etherspot', () async {
       final account = createEtherspotSmartAccount(
         owner: owner,
         chainId: chainId,
         address: mockAddress,
         entryPointAddress: customEntryPoint,
       );
-      expect(account.entryPoint, equals(customEntryPoint));
+      expect(await account.signUserOperation(op07()), personalSignedV07);
     });
 
-    test('Trust honors entryPointAddress', () {
+    test('Trust (v0.6)', () async {
       final account = createTrustSmartAccount(
         owner: owner,
         chainId: chainId,
         address: mockAddress,
         entryPointAddress: customEntryPoint,
       );
-      expect(account.entryPoint, equals(customEntryPoint));
+      final op = UserOperationV06(
+        sender: mockAddress,
+        nonce: BigInt.one,
+        initCode: '0x',
+        callData: '0xabcdef',
+        callGasLimit: BigInt.from(100000),
+        verificationGasLimit: BigInt.from(200000),
+        preVerificationGas: BigInt.from(50000),
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(100000000),
+        paymasterAndData: '0x',
+      );
+      expect(
+        await account.signUserOperationV06(op),
+        '0xfc80394a60fc31945a42c8f9e1b695a8ff5209f770da1d176a50e4985a2390ef487e14cf079724ecc109c94b51b6324824e07ebb39b24567e92b44b30ebda46c1b',
+      );
     });
 
-    test('Safe honors entryPointAddress', () {
+    test('Safe 1.4.1 (SafeOp entryPoint field)', () async {
       final account = createSafeSmartAccount(
         owners: [owner],
         chainId: chainId,
         address: mockAddress,
         entryPointAddress: customEntryPoint,
       );
-      expect(account.entryPoint, equals(customEntryPoint));
+      // validAfter (6) ‖ validUntil (6) ‖ EIP-712 SafeOp signature
+      expect(
+        await account.signUserOperation(op07()),
+        '0x000000000000000000000000476588e5a0dc4e7e8b9ebfd25f3ec90b8673fe85f3df31a0a0c1213095ec9ff770b429f8083d1d0dbc741e65d95b498e6cf1d53c65caf6f27d2e816d888613261c',
+      );
     });
   });
 
@@ -491,6 +533,10 @@ void main() {
     });
   });
 
+  // No permissionless.js vector for Simple: JS Simple throws on signMessage
+  // ("isn't 1271 compliant"), while Dart personal-signs hashMessage(message),
+  // applying EIP-191 twice. Which behavior is right is open, so only the
+  // sign → signMessage delegation is checked here.
   group('sign(hash) matches signMessage(hash)', () {
     test('Simple', () async {
       final account = createSimpleSmartAccount(
@@ -504,31 +550,37 @@ void main() {
       final viaMessage = await account.signMessage(hash);
       expect(viaSign, equals(viaMessage));
     });
+  });
 
-    test('Safe', () async {
+  group('sign(hash) matches permissionless.js sign({ hash })', () {
+    // permissionless.js 0.3.5 (viem 2.44.4): sign({ hash }) is
+    // signMessage({ message: hash }), the hash taken as UTF-8 text. Account
+    // 0x1111…1111 on mainnet, reported as deployed (no ERC-6492 wrapper).
+    const hash =
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+    test('Safe 1.4.1', () async {
       final account = createSafeSmartAccount(
         owners: [owner],
         chainId: chainId,
         address: mockAddress,
       );
-      const hash =
-          '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      final viaSign = await account.sign(hash);
-      final viaMessage = await account.signMessage(hash);
-      expect(viaSign, equals(viaMessage));
+      expect(
+        await account.sign(hash),
+        '0x3ee7704168486ab02e3e50004775942c39d7a8897a3e8095ec0eaeb923c0efa723f217a266c8951551d005bf37e04b436760a976bbfb9bca897c08d7ed7eca2420',
+      );
     });
 
-    test('Light', () async {
+    test('Light 2.0.0', () async {
       final account = createLightSmartAccount(
         owner: owner,
         chainId: chainId,
         address: mockAddress,
       );
-      const hash =
-          '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-      final viaSign = await account.sign(hash);
-      final viaMessage = await account.signMessage(hash);
-      expect(viaSign, equals(viaMessage));
+      expect(
+        await account.sign(hash),
+        '0x00fe3ab0b644ca84701f2aae7c325b0f81c175ca99632d932126a2e5a1794e2ac9201b768e9c46b3513aa25266e657bdb61f2c24db315981065cd45af018a2d6f61b',
+      );
     });
   });
 }
