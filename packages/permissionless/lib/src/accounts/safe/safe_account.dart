@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' show keccak256;
 
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
@@ -9,21 +9,58 @@ import '../../types/address.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
-import '../../utils/multisend.dart';
+import '../../utils/packed_user_operation.dart' as packing;
 import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
 import '../webauthn_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
+import 'multisend.dart';
+import 'safe_encoding.dart';
 
-/// Safe proxy creation code for CREATE2 address calculation.
-/// This is the standard Safe proxy bytecode used by SafeProxyFactory.
-const String _proxyCreationCode =
-    '0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564';
+/// `SafeProxyFactory.proxyCreationCode()` per Safe version, used for the
+/// CREATE2 address when no public client is configured or the call fails.
+///
+/// Read from the canonical factories (v1.4.1 0x4e1D…ec67, v1.5.0 0x14F2…5e7b)
+/// on Ethereum, Sepolia and Base; the two versions' proxies differ.
+const Map<SafeVersion, String> _proxyCreationCodes = {
+  SafeVersion.v1_4_1:
+      '0x608060405234801561001057600080fd5b506040516101e63803806101e68339'
+          '818101604052602081101561003357600080fd5b810190808051906020019092'
+          '9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff'
+          'ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3'
+          '79a0000000000000000000000000000000000000000000000000000000008152'
+          '6004018080602001828103825260228152602001806101c46022913960400191'
+          '505060405180910390fd5b806000806101000a81548173ffffffffffffffffff'
+          'ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff'
+          'ffffffffff1602179055505060ab806101196000396000f3fe608060405273ff'
+          'ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000'
+          '0000000000000000000000000000000000000000000000006000351415605057'
+          '8060005260206000f35b3660008037600080366000845af43d6000803e600081'
+          '14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08'
+          'fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c634300'
+          '07060033496e76616c69642073696e676c65746f6e2061646472657373207072'
+          '6f7669646564',
+  SafeVersion.v1_5_0:
+      '0x608060405234801561001057600080fd5b506040516101b63803806101b68339'
+          '818101604052602081101561003357600080fd5b810190808051906020019092'
+          '9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff'
+          'ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3'
+          '79a0000000000000000000000000000000000000000000000000000000008152'
+          '6004018080602001828103825260228152602001806101946022913960400191'
+          '505060405180910390fd5b806000806101000a81548173ffffffffffffffffff'
+          'ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff'
+          'ffffffffff16021790555050607b806101196000396000f3fe60806040526000'
+          '5463a619486e60003560e01c14156024578060601b606c5260206060f35b3660'
+          '008037600080366000845af43d6000803e806040573d6000fd5b3d6000f3fea2'
+          '646970667358221220e61834ebd2d8cd909d362bf67c47ef58fd665df38e6dd0'
+          '36ce65611101d072e964736f6c63430007060033496e76616c69642073696e67'
+          '6c65746f6e20616464726573732070726f7669646564',
+};
 
 /// Configuration parameters for creating a Safe smart account.
 class SafeSmartAccountConfig {
@@ -50,7 +87,6 @@ class SafeSmartAccountConfig {
     this.entryPointAddress,
     this.publicClient,
     this.address,
-    // ERC-7579 parameters
     this.erc7579LaunchpadAddress,
     this.validators = const [],
     this.executors = const [],
@@ -107,10 +143,6 @@ class SafeSmartAccountConfig {
 
   /// Pre-computed account address (optional).
   final EthereumAddress? address;
-
-  // ============================================================================
-  // ERC-7579 Configuration
-  // ============================================================================
 
   /// The ERC-7579 launchpad address for deploying modular Safe accounts.
   ///
@@ -174,7 +206,8 @@ class SafeSmartAccountConfig {
 }
 
 /// A Safe smart account implementation for ERC-4337.
-class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
+class SafeSmartAccount
+    implements SmartAccount, SmartAccountV06, DeploymentCallsEncoder {
   /// Creates a Safe smart account from the given configuration.
   ///
   /// Prefer using [createSafeSmartAccount] factory function instead
@@ -186,13 +219,10 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   EthereumAddress? _cachedAddress;
   String? _cachedProxyCreationCode;
 
-  /// ECDSA dummy signature used for gas estimation (permissionless.js parity).
-  ///
-  /// Fixed 65-byte stub that exercises the ecrecover path in Safe's
-  /// `checkSignatures` (v = 0x1c), not the approved-hash branch.
-  static const String _ecdsaStubSignature =
-      '0xfffffffffffffffffffffffffffffff000000000000000000000000000000000'
-      '7aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+  /// Signatures carry no validity window (permissionless.js default
+  /// `validAfter = validUntil = 0`).
+  static const int _validAfter = 0;
+  static const int _validUntil = 0;
 
   static SafeAddresses _resolveAddresses(SafeSmartAccountConfig config) {
     if (config.customAddresses != null) {
@@ -243,22 +273,42 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// Whether ERC-7579 mode is enabled.
   bool get isErc7579Enabled => _config.isErc7579Enabled;
 
-  /// Whether any owner is a WebAuthn account.
   bool get _hasWebAuthnOwner => _config.owners.any(isWebAuthnAccount);
 
-  /// Gets the WebAuthn owners from the owner list.
-  List<WebAuthnAccountOwner> get _webAuthnOwners => _config.owners
-      .where(isWebAuthnAccount)
-      .cast<WebAuthnAccountOwner>()
-      .toList();
-
-  /// The Safe 4337 module address.
+  /// The address that signs for [owner] in the Safe owner list.
   ///
-  /// In ERC-7579 mode, this returns the Safe7579 module address.
-  /// Otherwise, it returns the standard Safe 4337 module.
+  /// WebAuthn owners sign through the shared signer contract, so they appear
+  /// as its address.
+  EthereumAddress _signerAddress(AccountOwner owner) {
+    if (!isWebAuthnAccount(owner)) return owner.address;
+    final sharedSigner = _addresses.webAuthnSharedSignerAddress;
+    if (sharedSigner == null) {
+      throw StateError(
+        'WebAuthn owners require webAuthnSharedSignerAddress. '
+        'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
+      );
+    }
+    return sharedSigner;
+  }
+
+  /// Owners paired with their signer address, in the ascending signer order
+  /// Safe's `checkSignatures` requires.
+  List<(AccountOwner, EthereumAddress)> get _ownersBySigner => [
+        for (final owner in _config.owners) (owner, _signerAddress(owner)),
+      ]..sort((a, b) => a.$2.compareTo(b.$2));
+
+  /// The module that validates UserOperations and is the SafeOp EIP-712
+  /// verifying contract: the Safe7579 adapter in ERC-7579 mode, otherwise
+  /// the Safe 4337 module.
   EthereumAddress get _safe4337ModuleAddress => isErc7579Enabled
       ? Safe7579Addresses.safe7579ModuleAddress
       : _addresses.safe4337ModuleAddress;
+
+  /// The implementation the proxy is created with. In ERC-7579 mode that is
+  /// the launchpad, which installs the Safe singleton during the first
+  /// UserOperation.
+  EthereumAddress get _proxySingleton =>
+      _config.erc7579LaunchpadAddress ?? _addresses.safeSingletonAddress;
 
   /// Gets the deterministic address of this Safe account.
   ///
@@ -266,31 +316,15 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// it can be known before the account is actually deployed and works even
   /// for accounts that are already deployed.
   @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) {
-      return _cachedAddress!;
-    }
-
-    // Option 1: Use pre-computed address if provided
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address locally using CREATE2 formula
-    // This is the same approach as permissionless.js and works regardless
-    // of whether the account is deployed or not.
-    final proxyCode = await _getProxyCreationCode();
-    _cachedAddress = _computeCreate2Address(proxyCode);
-    return _cachedAddress!;
-  }
+  Future<EthereumAddress> getAddress() async => _cachedAddress ??=
+      _config.address ?? _computeCreate2Address(await _getProxyCreationCode());
 
   /// Resolves proxy creation code for CREATE2 derivation.
   ///
   /// When a [SafeSmartAccountConfig.publicClient] is configured, reads
   /// `proxyCreationCode()` from the configured SafeProxyFactory (matching
-  /// permissionless.js). Falls back to the verified Safe v1.4.1 constant
-  /// when no client is available or the RPC call fails.
+  /// permissionless.js). Falls back to the canonical code for the configured
+  /// [SafeVersion] when no client is available or the RPC call fails.
   Future<String> _getProxyCreationCode() async {
     if (_cachedProxyCreationCode != null) {
       return _cachedProxyCreationCode!;
@@ -307,16 +341,14 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         );
         final code = _decodeReturnedBytes(result);
         if (code.length > 2) {
-          _cachedProxyCreationCode = code;
-          return code;
+          return _cachedProxyCreationCode = code;
         }
       } catch (_) {
-        // Fall through to hardcoded constant.
+        // Fall back to the canonical code below.
       }
     }
 
-    _cachedProxyCreationCode = _proxyCreationCode;
-    return _proxyCreationCode;
+    return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
   }
 
   /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
@@ -325,7 +357,6 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     if (raw.length < 64) {
       throw ArgumentError('proxyCreationCode return data too short');
     }
-    // Standard ABI encoding: offset (32) + length (32) + payload
     final offset = Hex.toBigInt(Hex.fromBytes(raw.sublist(0, 32))).toInt();
     if (offset + 32 > raw.length) {
       throw ArgumentError('proxyCreationCode return data offset out of range');
@@ -340,61 +371,41 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     return Hex.fromBytes(raw.sublist(start, end));
   }
 
-  /// Computes the Safe account address using the CREATE2 formula.
+  /// Computes the Safe account address using the CREATE2 formula
+  /// (permissionless.js `getAccountAddress`):
   ///
-  /// address = keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))[12:]
-  ///
-  /// Where:
-  /// - factory = safeProxyFactoryAddress
   /// - salt = keccak256(keccak256(initializer) ++ saltNonce)
-  /// - bytecode = proxyCreationCode ++ abi.encode(singleton)
-  ///
-  /// In ERC-7579 mode, the singleton is the launchpad address (not the Safe singleton).
+  /// - bytecode = proxyCreationCode ++ uint256(singleton)
+  /// - address = keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))[12:]
   EthereumAddress _computeCreate2Address(String proxyCreationCode) {
-    final salt = _computeSalt();
-
-    // In 7579 mode, the proxy points to the launchpad which handles setup
-    // before transferring to the actual Safe singleton
-    final singletonAddress = isErc7579Enabled
-        ? _config.erc7579LaunchpadAddress!
-        : _addresses.safeSingletonAddress;
-
-    // deploymentCode = proxyCreationCode ++ uint256(singletonAddress)
-    // This matches permissionless.js: encodePacked(["bytes", "uint256"], [proxyCreationCode, singleton])
-    final deploymentCode = Hex.concat([
-      proxyCreationCode,
-      AbiEncoder.encodeUint256(Hex.toBigInt(singletonAddress.hex)),
-    ]);
-
-    // CREATE2 address = keccak256(0xff ++ factory ++ salt ++ keccak256(bytecode))[12:]
-    final bytecodeHash = keccak256(Hex.decode(deploymentCode));
-
-    final preImage = Hex.concat([
-      '0xff',
-      Hex.strip0x(_addresses.safeProxyFactoryAddress.hex),
-      Hex.strip0x(salt),
-      Hex.fromBytes(bytecodeHash),
-    ]);
-
-    final addressHash = keccak256(Hex.decode(preImage));
-    // Take last 20 bytes (40 hex chars) of the hash
-    final addressHex = '0x${Hex.fromBytes(addressHash).substring(26)}';
-
-    return EthereumAddress.fromHex(addressHex);
-  }
-
-  /// Computes the salt for CREATE2 address derivation.
-  String _computeSalt() {
-    // Salt = keccak256(keccak256(initializer) ++ saltNonce)
-    final initializer = _getInitializer();
-    final initializerHash = keccak256(Hex.decode(initializer));
-
-    final saltPreImage = Hex.concat([
-      Hex.fromBytes(initializerHash),
-      Hex.fromBigInt(_config.saltNonce, byteLength: 32),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(saltPreImage)));
+    final initializerHash = keccak256(Hex.decode(_getInitializer()));
+    final salt = keccak256(
+      Hex.decode(
+        Hex.concat([
+          Hex.fromBytes(initializerHash),
+          Hex.fromBigInt(_config.saltNonce, byteLength: 32),
+        ]),
+      ),
+    );
+    final bytecodeHash = keccak256(
+      Hex.decode(
+        Hex.concat([
+          proxyCreationCode,
+          AbiEncoder.encodeAddress(_proxySingleton),
+        ]),
+      ),
+    );
+    final addressHash = keccak256(
+      Hex.decode(
+        Hex.concat([
+          '0xff',
+          _addresses.safeProxyFactoryAddress.hex,
+          Hex.fromBytes(salt),
+          Hex.fromBytes(bytecodeHash),
+        ]),
+      ),
+    );
+    return EthereumAddress(addressHash.sublist(12));
   }
 
   /// Gets the initializer calldata for Safe setup.
@@ -407,35 +418,19 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   ///
   /// In ERC-7579 mode:
   /// Uses the launchpad's preValidationSetup function with the hash of the
-  /// initSafe7579 call data. The actual setup happens during the first UserOp.
-  String _getInitializer() {
-    if (isErc7579Enabled) {
-      return _get7579Initializer();
-    }
-    return _getStandardInitializer();
-  }
+  /// launchpad InitData. The actual setup happens during the first UserOp.
+  String _getInitializer() => isErc7579Enabled
+      ? encodePreValidationSetup(
+          initHash: safe7579InitHash(_safe7579InitData()),
+          to: zeroAddress,
+          preInit: '0x',
+        )
+      : _getStandardInitializer();
 
-  /// Gets the standard (non-7579) initializer.
   String _getStandardInitializer() {
-    // Build owner addresses list
-    // For WebAuthn owners, use the shared signer address instead of owner.address
-    final ownerAddresses = _config.owners.map((o) {
-      if (isWebAuthnAccount(o)) {
-        final sharedSigner = _addresses.webAuthnSharedSignerAddress;
-        if (sharedSigner == null) {
-          throw StateError(
-            'WebAuthn owners require webAuthnSharedSignerAddress. '
-            'WebAuthn is only supported on Safe v1.4.1/v1.5.0 with EntryPoint v0.7.',
-          );
-        }
-        return sharedSigner;
-      }
-      return o.address;
-    }).toList();
+    final ownerAddresses = _config.owners.map(_signerAddress).toList();
 
-    // Build MultiSend calls
-    final multiSendCalls = <MultiSendCall>[
-      // 1. Enable the Safe 4337 module
+    final setupCalls = <MultiSendCall>[
       MultiSendCall(
         to: _addresses.safeModuleSetupAddress,
         value: BigInt.zero,
@@ -444,61 +439,48 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       ),
     ];
 
-    // 2. Configure WebAuthn shared signer for each WebAuthn owner
-    if (_hasWebAuthnOwner) {
-      final sharedSignerAddress = _addresses.webAuthnSharedSignerAddress!;
+    // Each WebAuthn owner's key is stored in the Safe's storage by
+    // delegatecalling the shared signer's configure().
+    final webAuthnOwners =
+        _config.owners.where(isWebAuthnAccount).cast<WebAuthnAccountOwner>();
+    if (webAuthnOwners.isNotEmpty) {
       final p256Verifier = _addresses.safeP256VerifierAddress;
       if (p256Verifier == null) {
         throw StateError(
           'WebAuthn owners require safeP256VerifierAddress.',
         );
       }
-
-      for (final webAuthnOwner in _webAuthnOwners) {
-        multiSendCalls.add(
+      for (final webAuthnOwner in webAuthnOwners) {
+        setupCalls.add(
           MultiSendCall(
-            to: sharedSignerAddress,
+            to: _signerAddress(webAuthnOwner),
             value: BigInt.zero,
             data: encodeWebAuthnSignerConfigure(
               x: webAuthnOwner.x,
               y: webAuthnOwner.y,
               p256VerifierAddress: p256Verifier.hex,
             ),
-            operation: OperationType
-                .delegateCall, // DELEGATECALL to store in Safe's storage
+            operation: OperationType.delegateCall,
           ),
         );
       }
     }
 
-    // Fast path: when opting out of MultiSend AND there is exactly one
-    // setup call (the default enableModules call, no WebAuthn, no extras),
-    // call Safe.setup directly with the single call's to/data. This matches
-    // permissionless.js@0.3.5's `useMultiSendForSetup: false` branch and
-    // produces CREATE2 addresses compatible with Safe Protocol Kit / relay-kit.
-    if (!_config.useMultiSendForSetup &&
-        multiSendCalls.length == 1 &&
-        !_hasWebAuthnOwner) {
-      final only = multiSendCalls.first;
-      return encodeSafeSetup(
-        owners: ownerAddresses,
-        threshold: _config.threshold,
-        to: only.to,
-        data: only.data,
-        fallbackHandler: _addresses.safe4337ModuleAddress,
-        paymentToken: zeroAddress,
-        payment: BigInt.zero,
-        paymentReceiver: zeroAddress,
-      );
-    }
-
-    final multiSendCallData = encodeMultiSendWithOperations(multiSendCalls);
+    // A single setup call may skip MultiSend (permissionless.js@0.3.5
+    // `useMultiSendForSetup: false`), producing the CREATE2 address Safe
+    // Protocol Kit / relay-kit derive.
+    final callSetupDirectly =
+        !_config.useMultiSendForSetup && setupCalls.length == 1;
 
     return encodeSafeSetup(
       owners: ownerAddresses,
       threshold: _config.threshold,
-      to: _addresses.multiSendAddress, // MultiSend contract
-      data: multiSendCallData, // Wrapped setup calls
+      to: callSetupDirectly
+          ? setupCalls.single.to
+          : _addresses.multiSendAddress,
+      data: callSetupDirectly
+          ? setupCalls.single.data
+          : encodeMultiSendWithOperations(setupCalls),
       fallbackHandler: _addresses.safe4337ModuleAddress,
       paymentToken: zeroAddress,
       payment: BigInt.zero,
@@ -506,212 +488,55 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     );
   }
 
-  /// Gets the ERC-7579 launchpad initializer.
+  /// The launchpad InitData. Its hash goes into the initializer; the full
+  /// struct, with the first UserOperation's [callData], into `setupSafe`.
   ///
-  /// The launchpad uses a two-phase initialization:
-  /// 1. preValidationSetup: Called with hash of full InitData struct
-  /// 2. setupSafe: Called during first UserOp with full init data
-  String _get7579Initializer() {
-    // Compute initHash from the FULL InitData struct, not just initSafe7579
-    final initHash = _computeInitHash();
+  /// Validators are installed by `setupSafe`, the other modules by the
+  /// `initSafe7579` setup call.
+  Safe7579InitData _safe7579InitData({String callData = '0x'}) =>
+      Safe7579InitData(
+        singleton: _addresses.safeSingletonAddress,
+        owners: _config.owners.map(_signerAddress).toList(),
+        threshold: _config.threshold,
+        setupTo: _config.erc7579LaunchpadAddress!,
+        setupData: encodeInitSafe7579(
+          safe7579: Safe7579Addresses.safe7579ModuleAddress,
+          executors: _moduleInits(_config.executors),
+          fallbacks: _moduleInits(_config.fallbacks),
+          hooks: _moduleInits(_config.hooks),
+          attesters: _config.attesters,
+          threshold: _config.attestersThreshold,
+        ),
+        safe7579: Safe7579Addresses.safe7579ModuleAddress,
+        validators: _moduleInits(_config.validators),
+        callData: callData,
+      );
 
-    // preValidationSetup(initHash, to, preInit)
-    // - initHash: keccak256 of the full InitData struct
-    // - to: zeroAddress (no pre-init callback needed)
-    // - preInit: empty for standard setup
-    return encodePreValidationSetup(
-      initHash: initHash,
-      to: zeroAddress, // Must be zeroAddress per permissionless.js
-      preInit: '0x',
-    );
-  }
-
-  /// Computes the initHash for the Safe7579 launchpad.
-  ///
-  /// The initHash is keccak256 of the ABI-encoded InitData struct:
-  /// - address singleton
-  /// - address[] owners
-  /// - uint256 threshold
-  /// - address setupTo
-  /// - bytes setupData (the initSafe7579 call)
-  /// - address safe7579
-  /// - (address, bytes)[] validators
-  String _computeInitHash() {
-    final ownerAddresses = _config.owners.map((o) => o.address).toList();
-    final initSafe7579Data = _encodeInitSafe7579();
-
-    // Convert validators to tuple format
-    final validators =
-        _config.validators.map((m) => (m.module, m.initData)).toList();
-
-    // Encode the full InitData struct
-    return _encodeInitDataAndHash(
-      singleton: _addresses.safeSingletonAddress,
-      owners: ownerAddresses,
-      threshold: _config.threshold,
-      setupTo: _config.erc7579LaunchpadAddress!,
-      setupData: initSafe7579Data,
-      safe7579: Safe7579Addresses.safe7579ModuleAddress,
-      validators: validators,
-    );
-  }
-
-  /// ABI-encodes the InitData struct and returns its keccak256 hash.
-  String _encodeInitDataAndHash({
-    required EthereumAddress singleton,
-    required List<EthereumAddress> owners,
-    required BigInt threshold,
-    required EthereumAddress setupTo,
-    required String setupData,
-    required EthereumAddress safe7579,
-    required List<(EthereumAddress, String)> validators,
-  }) {
-    // Static part has 7 slots (7 * 32 = 224 bytes):
-    // singleton, owners_offset, threshold, setupTo, setupData_offset, safe7579, validators_offset
-    const staticSize = 7 * 32;
-
-    // Encode owners array: length + addresses
-    final ownersEncoded = _encodeAddressArrayForStruct(owners);
-    const ownersOffset = staticSize;
-
-    // Encode setupData bytes
-    final setupDataEncoded = AbiEncoder.encodeBytes(setupData);
-    final setupDataOffset = ownersOffset + Hex.byteLength(ownersEncoded);
-
-    // Encode validators array
-    final validatorsEncoded = _encodeModuleInitArrayForStruct(validators);
-    final validatorsOffset = setupDataOffset + Hex.byteLength(setupDataEncoded);
-
-    final encoded = Hex.concat([
-      // Static parts
-      AbiEncoder.encodeAddress(singleton),
-      AbiEncoder.encodeUint256(BigInt.from(ownersOffset)),
-      AbiEncoder.encodeUint256(threshold),
-      AbiEncoder.encodeAddress(setupTo),
-      AbiEncoder.encodeUint256(BigInt.from(setupDataOffset)),
-      AbiEncoder.encodeAddress(safe7579),
-      AbiEncoder.encodeUint256(BigInt.from(validatorsOffset)),
-      // Dynamic parts
-      Hex.strip0x(ownersEncoded),
-      Hex.strip0x(setupDataEncoded),
-      Hex.strip0x(validatorsEncoded),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(encoded)));
-  }
-
-  /// Encodes an array of addresses for struct encoding.
-  String _encodeAddressArrayForStruct(List<EthereumAddress> addresses) {
-    final parts = <String>[
-      AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
-      ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
-    ];
-    return Hex.concat(parts);
-  }
-
-  /// Encodes a ModuleInit array for struct encoding.
-  String _encodeModuleInitArrayForStruct(
-    List<(EthereumAddress, String)> modules,
-  ) {
-    if (modules.isEmpty) {
-      return AbiEncoder.encodeUint256(BigInt.zero);
-    }
-
-    final length = AbiEncoder.encodeUint256(BigInt.from(modules.length));
-    final structOffsets = <String>[];
-    final structData = <String>[];
-
-    var currentOffset = modules.length * 32;
-
-    for (final (module, initData) in modules) {
-      structOffsets.add(AbiEncoder.encodeUint256(BigInt.from(currentOffset)));
-
-      final initDataEncoded = AbiEncoder.encodeBytes(initData);
-      const bytesOffset = 2 * 32;
-
-      final structEncoded = Hex.concat([
-        AbiEncoder.encodeAddress(module),
-        AbiEncoder.encodeUint256(BigInt.from(bytesOffset)),
-        Hex.strip0x(initDataEncoded),
-      ]);
-
-      structData.add(structEncoded);
-      currentOffset += Hex.byteLength(structEncoded);
-    }
-
-    return Hex.concat([
-      length,
-      ...structOffsets.map(Hex.strip0x),
-      ...structData.map(Hex.strip0x),
-    ]);
-  }
-
-  /// Encodes the initSafe7579 call for the launchpad.
-  ///
-  /// Note: Validators are not included in initSafe7579 - they're passed
-  /// through setupSafe during the first UserOp execution.
-  String _encodeInitSafe7579() {
-    // Convert module configs to tuple format
-    final executors =
-        _config.executors.map((m) => (m.module, m.initData)).toList();
-    final fallbacks =
-        _config.fallbacks.map((m) => (m.module, m.initData)).toList();
-    final hooks = _config.hooks.map((m) => (m.module, m.initData)).toList();
-
-    return encodeInitSafe7579(
-      safe7579: Safe7579Addresses.safe7579ModuleAddress,
-      executors: executors,
-      fallbacks: fallbacks,
-      hooks: hooks,
-      attesters: _config.attesters,
-      threshold: _config.attestersThreshold,
-    );
-  }
+  static List<(EthereumAddress, String)> _moduleInits(
+    List<Safe7579ModuleInit> modules,
+  ) =>
+      [for (final m in modules) (m.module, m.initData)];
 
   /// Gets the init code for deploying this Safe account.
   ///
   /// This is used in the UserOperation when the account doesn't exist yet.
   @override
   Future<String> getInitCode() async {
-    final initializer = _getInitializer();
-
-    // In 7579 mode, the proxy points to the launchpad
-    final singletonAddress = isErc7579Enabled
-        ? _config.erc7579LaunchpadAddress!
-        : _addresses.safeSingletonAddress;
-
-    final factoryData = encodeCreateProxyWithNonce(
-      singleton: singletonAddress,
-      initializer: initializer,
-      saltNonce: _config.saltNonce,
-    );
-
-    // InitCode = factory address (20 bytes) + factory calldata
-    return Hex.concat([
-      _addresses.safeProxyFactoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
+    final (:factory, :factoryData) = (await getFactoryData())!;
+    return Hex.concat([factory.hex, factoryData]);
   }
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override
   Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    final initializer = _getInitializer();
-
-    // In 7579 mode, the proxy points to the launchpad
-    final singletonAddress = isErc7579Enabled
-        ? _config.erc7579LaunchpadAddress!
-        : _addresses.safeSingletonAddress;
-
-    final data = encodeCreateProxyWithNonce(
-      singleton: singletonAddress,
-      initializer: initializer,
-      saltNonce: _config.saltNonce,
-    );
-
-    return (factory: _addresses.safeProxyFactoryAddress, factoryData: data);
-  }
+      getFactoryData() async => (
+            factory: _addresses.safeProxyFactoryAddress,
+            factoryData: encodeCreateProxyWithNonce(
+              singleton: _proxySingleton,
+              initializer: _getInitializer(),
+              saltNonce: _config.saltNonce,
+            ),
+          );
 
   /// Encodes a single call for execution.
   ///
@@ -745,52 +570,44 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       throw ArgumentError('At least one call is required');
     }
 
-    // ERC-7579 mode: call vs batchcall by length (permissionless.js parity).
-    // encode7579ExecuteBatch always emits batch mode — do not pass a single
-    // call through it when call mode is intended.
+    // Call vs batchcall mode by length (permissionless.js parity):
+    // encode7579ExecuteBatch always emits batch mode.
     if (isErc7579Enabled) {
-      if (calls.length == 1) {
-        return encode7579Execute(calls.first);
-      }
-      return encode7579ExecuteBatch(calls);
+      return calls.length == 1
+          ? encode7579Execute(calls.single)
+          : encode7579ExecuteBatch(calls);
     }
 
-    // Standard mode: single call optimization
     if (calls.length == 1) {
-      return encodeCall(calls.first);
+      return encodeCall(calls.single);
     }
-
-    // Standard mode: MultiSendCallOnly via DelegateCall (JS parity)
-    final multiSendData = encodeMultiSend(calls);
 
     return encodeExecuteUserOp(
       to: _addresses.multiSendCallOnlyAddress,
       value: BigInt.zero,
-      data: multiSendData,
+      data: encodeMultiSend(calls),
       operation: OperationType.delegateCall.value,
     );
   }
 
   @override
   List<Call> decodeCalls(String callData) {
-    // 1) setupSafe (ERC-7579 first UserOp) — nested 7579 callData
+    // Same order and fall-through as permissionless.js decodeCalls; a
+    // malformed setupSafe or 7579 payload ends in the executeUserOp error.
     try {
-      return CallDataDecoder.decodeSafeSetupSafe(callData);
+      return decodeSafeSetupSafe(callData);
     } catch (_) {}
 
-    // 2) Direct ERC-7579 execute
     try {
       return decode7579Calls(callData).calls;
     } catch (_) {}
 
-    // 3) executeUserOpWithErrorString (+ MultiSend unpack)
-    final multiSendAddrs = <String>{
-      _addresses.multiSendAddress.hex.toLowerCase(),
-      _addresses.multiSendCallOnlyAddress.hex.toLowerCase(),
-    };
-    return CallDataDecoder.decodeSafeExecuteUserOp(
+    return decodeSafeExecuteUserOp(
       callData,
-      multiSendAddresses: multiSendAddrs,
+      multiSendAddresses: {
+        _addresses.multiSendAddress,
+        _addresses.multiSendCallOnlyAddress,
+      },
     );
   }
 
@@ -808,46 +625,12 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// - The Safe is not yet deployed (first UserOp)
   ///
   /// For subsequent UserOps after deployment, use [encodeCalls] instead.
+  @override
   String encodeCallsForDeployment(List<Call> calls) {
     if (!isErc7579Enabled) {
-      // Standard mode doesn't need special deployment encoding
       return encodeCalls(calls);
     }
-
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-
-    // Encode the user's calls using ERC-7579 format (call vs batch by length)
-    final userCallData = calls.length == 1
-        ? encode7579Execute(calls.first)
-        : encode7579ExecuteBatch(calls);
-
-    // Build the full InitData for setupSafe
-    return _encodeSetupSafe(userCallData);
-  }
-
-  /// Encodes the setupSafe call for first-time ERC-7579 deployment.
-  String _encodeSetupSafe(String userCallData) {
-    final ownerAddresses = _config.owners.map((o) => o.address).toList();
-    final initSafe7579Data = _encodeInitSafe7579();
-
-    // Convert validators to tuple format
-    final validators =
-        _config.validators.map((m) => (m.module, m.initData)).toList();
-
-    final initData = Safe7579InitData(
-      singleton: _addresses.safeSingletonAddress,
-      owners: ownerAddresses,
-      threshold: _config.threshold,
-      setupTo: _config.erc7579LaunchpadAddress!,
-      setupData: initSafe7579Data,
-      safe7579: Safe7579Addresses.safe7579ModuleAddress,
-      validators: validators,
-      callData: userCallData,
-    );
-
-    return encodeSetupSafe(initData);
+    return encodeSetupSafe(_safe7579InitData(callData: encodeCalls(calls)));
   }
 
   /// Gets a stub signature for gas estimation.
@@ -855,59 +638,26 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// This returns a signature that has the correct format but
   /// with dummy data. Used by bundlers to estimate gas.
   @override
-  String getStubSignature() {
-    // Build signature entries for each owner
-    final signatureEntries = <_SignatureEntry>[];
-
-    // Sort owners by their "effective" address (shared signer for WebAuthn)
-    final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
-
-    for (final owner in sortedOwners) {
-      if (isWebAuthnAccount(owner)) {
-        // WebAuthn stub: contract signature (dynamic)
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
-            data: getDummySafeWebAuthnSignature(),
-            isDynamic: true,
-          ),
-        );
-      } else {
-        // ECDSA stub: fixed 65-byte dummy matching permissionless.js
-        // (ecrecover path, v=0x1c — not approved-hash v=1)
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: owner.address,
-            data: _ecdsaStubSignature,
-            isDynamic: false,
-          ),
-        );
-      }
-    }
-
-    // Concatenate signatures with proper dynamic handling
-    final concatenatedSigs = _concatSignatures(signatureEntries);
-
-    // Prepend validity period (validAfter, validUntil)
-    final validAfter = Hex.fromBigInt(BigInt.zero, byteLength: 6);
-    final validUntil = Hex.fromBigInt(BigInt.zero, byteLength: 6);
-
-    return Hex.concat([validAfter, validUntil, concatenatedSigs]);
-  }
+  String getStubSignature() => _withValidityWindow(
+        _concatSignatures([
+          for (final (owner, signer) in _ownersBySigner)
+            if (isWebAuthnAccount(owner))
+              (
+                signer: signer,
+                data: getDummySafeWebAuthnSignature(),
+                isDynamic: true,
+              )
+            // Exercises the ecrecover path of checkSignatures (v = 0x1c),
+            // not the approved-hash branch.
+            else
+              (signer: signer, data: ecdsaStubSignature, isDynamic: false),
+        ]),
+      );
 
   /// Signs a UserOperation for EntryPoint v0.7.
   ///
-  /// Creates an EIP-712 signature over the v0.7 SafeOp typehash.
-  /// For v0.6 accounts, use [signUserOperationV06] instead.
+  /// Creates an EIP-712 signature over the v0.7 SafeOp typehash for
+  /// `userOp.sender`. For v0.6 accounts, use [signUserOperationV06] instead.
   @override
   Future<String> signUserOperation(UserOperationV07 userOp) async {
     if (_config.entryPointVersion == EntryPointVersion.v06) {
@@ -916,11 +666,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         'Use signUserOperationV06 instead.',
       );
     }
-
-    // Use the sender from the UserOp rather than computing locally
-    // This ensures the signature matches the actual account address
-    final safeOpHash = _computeSafeOpHashV07(userOp, userOp.sender);
-    return _signSafeOpHash(safeOpHash);
+    return _signSafeOpHash(_safeOpHashV07(userOp));
   }
 
   /// Signs a UserOperation for EntryPoint v0.6.
@@ -936,61 +682,52 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
         'This account is configured for ${_config.entryPointVersion.name}.',
       );
     }
-
-    final safeOpHash = _computeSafeOpHashV06(userOp, userOp.sender);
-    return _signSafeOpHash(safeOpHash);
+    return _signSafeOpHash(_safeOpHashV06(userOp));
   }
 
   /// Signs a SafeOp hash with all owners and packs validAfter/validUntil.
-  Future<String> _signSafeOpHash(String safeOpHash) async {
-    final signatureEntries = <_SignatureEntry>[];
+  ///
+  /// ECDSA owners sign the raw EIP-712 hash.
+  Future<String> _signSafeOpHash(String safeOpHash) async =>
+      _withValidityWindow(
+        await _signWithOwners(
+          safeOpHash,
+          (owner) => owner.signRawHash(safeOpHash),
+        ),
+      );
 
-    // Sort owners by their "effective" address (shared signer for WebAuthn)
-    final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
+  /// Prefixes [signatures] with uint48 validAfter ‖ uint48 validUntil.
+  static String _withValidityWindow(String signatures) => Hex.concat([
+        Hex.fromBigInt(BigInt.from(_validAfter), byteLength: 6),
+        Hex.fromBigInt(BigInt.from(_validUntil), byteLength: 6),
+        signatures,
+      ]);
 
-    for (final owner in sortedOwners) {
+  /// Signs [hash] with every owner in signer order and concatenates the
+  /// Safe signatures. WebAuthn owners sign [hash] with P256; ECDSA owners
+  /// sign via [ecdsaSign].
+  Future<String> _signWithOwners(
+    String hash,
+    Future<String> Function(AccountOwner owner) ecdsaSign,
+  ) async {
+    final signatures = <_SignatureEntry>[];
+    for (final (owner, signer) in _ownersBySigner) {
       if (isWebAuthnAccount(owner)) {
-        // WebAuthn P256 signing with Safe encoding (contract signature)
-        final webAuthnOwner = owner as WebAuthnAccountOwner;
-        final sigData = await webAuthnOwner.signP256(safeOpHash);
-        final encoded = encodeSafeWebAuthnSignature(sigData);
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
-            data: encoded,
+        final p256 = await (owner as WebAuthnAccountOwner).signP256(hash);
+        signatures.add(
+          (
+            signer: signer,
+            data: encodeSafeWebAuthnSignature(p256),
             isDynamic: true,
           ),
         );
       } else {
-        // ECDSA signing - Safe signs the raw EIP-712 hash directly
-        final sig = await owner.signRawHash(safeOpHash);
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: owner.address,
-            data: sig,
-            isDynamic: false,
-          ),
+        signatures.add(
+          (signer: signer, data: await ecdsaSign(owner), isDynamic: false),
         );
       }
     }
-
-    // Concatenate signatures with proper dynamic handling
-    final concatenatedSigs = _concatSignatures(signatureEntries);
-
-    // Prepend validity period (validAfter, validUntil)
-    final validAfter = Hex.fromBigInt(BigInt.zero, byteLength: 6);
-    final validUntil = Hex.fromBigInt(BigInt.zero, byteLength: 6);
-
-    return Hex.concat([validAfter, validUntil, concatenatedSigs]);
+    return _concatSignatures(signatures);
   }
 
   /// Signs a personal message (EIP-191) via SafeMessage EIP-712 wrapper.
@@ -1032,6 +769,9 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   }
 
   /// Guards matching permissionless.js Safe signMessage/signTypedData.
+  ///
+  /// permissionless.js checks the 7579 / v1.5.0 incompatibility only here,
+  /// not when deploying or signing UserOperations.
   void _assertCanSignMessage() {
     if (_config.owners.length < _config.threshold.toInt()) {
       throw StateError(
@@ -1074,60 +814,19 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     required TypedData safeMessageTypedData,
     required bool ethSign,
   }) async {
-    final signatureEntries = <_SignatureEntry>[];
-
-    final sortedOwners = List<AccountOwner>.from(_config.owners)
-      ..sort((a, b) {
-        final aAddr = isWebAuthnAccount(a)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : a.address;
-        final bAddr = isWebAuthnAccount(b)
-            ? _addresses.webAuthnSharedSignerAddress!
-            : b.address;
-        return aAddr.compareTo(bAddr);
-      });
-
-    for (final owner in sortedOwners) {
-      if (isWebAuthnAccount(owner)) {
-        final webAuthnOwner = owner as WebAuthnAccountOwner;
-        final sigData = await webAuthnOwner.signP256(safeMessageHash);
-        final encoded = encodeSafeWebAuthnSignature(sigData);
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: _addresses.webAuthnSharedSignerAddress!,
-            data: encoded,
-            isDynamic: true,
-          ),
-        );
-      } else {
-        final String sig;
-        if (ethSign) {
-          // eth_sign: personal_sign of the 32-byte SafeMessage hash, then V+4
-          final raw = await owner.signPersonalMessage(safeMessageHash);
-          sig = _adjustVInSignature(raw, ethSign: true);
-        } else {
-          // eth_signTypedData: sign SafeMessage typed data raw, normalize V
-          final raw = await owner.signTypedData(safeMessageTypedData);
-          sig = _adjustVInSignature(raw, ethSign: false);
-        }
-        signatureEntries.add(
-          _SignatureEntry(
-            signer: owner.address,
-            data: sig,
-            isDynamic: false,
-          ),
-        );
-      }
-    }
-
-    final signatureBytes = _concatSignatures(signatureEntries);
+    final signatureBytes = await _signWithOwners(
+      safeMessageHash,
+      (owner) async => _adjustVInSignature(
+        ethSign
+            ? await owner.signPersonalMessage(safeMessageHash)
+            : await owner.signTypedData(safeMessageTypedData),
+        ethSign: ethSign,
+      ),
+    );
 
     // ERC-7579 mode prefixes with zero address (permissionless.js)
     if (isErc7579Enabled) {
-      return Hex.concat([
-        Hex.fromBytes(Uint8List(20)),
-        Hex.strip0x(signatureBytes),
-      ]);
+      return Hex.concat([Hex.fromBytes(Uint8List(20)), signatureBytes]);
     }
 
     return signatureBytes;
@@ -1157,224 +856,148 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
     return '0x${hex.substring(0, 128)}${v.toRadixString(16).padLeft(2, '0')}';
   }
 
-  /// Computes the SafeOp EIP-712 hash for EntryPoint v0.7.
-  String _computeSafeOpHashV07(
-    UserOperationV07 userOp,
-    EthereumAddress accountAddress,
-  ) {
-    final domainSeparator = _computeDomainSeparator();
-    final safeOpStructHash =
-        _computeSafeOpStructHashV07(userOp, accountAddress);
-    return _eip712Hash(domainSeparator, safeOpStructHash);
+  /// The SafeOp EIP-712 hash for EntryPoint v0.7.
+  String _safeOpHashV07(UserOperationV07 userOp) {
+    final paymasterAndData = packing.getPaymasterAndData(userOp);
+    // hashTypedData does not range-check uintN; packing the gas fields
+    // rejects values outside the module's uint128 fields.
+    packing.getAccountGasLimits(userOp);
+    packing.getGasFees(userOp);
+    return hashTypedData(
+      _safeOpTypedData(_safeOpFieldsV07, {
+        'safe': userOp.sender,
+        'nonce': userOp.nonce,
+        'initCode': packing.getInitCode(userOp),
+        'callData': userOp.callData,
+        'verificationGasLimit': userOp.verificationGasLimit,
+        'callGasLimit': userOp.callGasLimit,
+        'preVerificationGas': userOp.preVerificationGas,
+        'maxPriorityFeePerGas': userOp.maxPriorityFeePerGas,
+        'maxFeePerGas': userOp.maxFeePerGas,
+        'paymasterAndData': paymasterAndData,
+      }),
+    );
   }
 
-  /// Computes the SafeOp EIP-712 hash for EntryPoint v0.6.
-  String _computeSafeOpHashV06(
-    UserOperationV06 userOp,
-    EthereumAddress accountAddress,
-  ) {
-    final domainSeparator = _computeDomainSeparator();
-    final safeOpStructHash =
-        _computeSafeOpStructHashV06(userOp, accountAddress);
-    return _eip712Hash(domainSeparator, safeOpStructHash);
-  }
+  /// The SafeOp EIP-712 hash for EntryPoint v0.6.
+  String _safeOpHashV06(UserOperationV06 userOp) => hashTypedData(
+        _safeOpTypedData(_safeOpFieldsV06, {
+          'safe': userOp.sender,
+          'nonce': userOp.nonce,
+          'initCode': userOp.initCode,
+          'callData': userOp.callData,
+          'callGasLimit': userOp.callGasLimit,
+          'verificationGasLimit': userOp.verificationGasLimit,
+          'preVerificationGas': userOp.preVerificationGas,
+          'maxFeePerGas': userOp.maxFeePerGas,
+          'maxPriorityFeePerGas': userOp.maxPriorityFeePerGas,
+          'paymasterAndData': userOp.paymasterAndData,
+        }),
+      );
 
-  /// EIP-712 hash: keccak256("\x19\x01" ‖ domainSeparator ‖ structHash).
-  String _eip712Hash(String domainSeparator, String structHash) {
-    final preImage = Hex.concat([
-      '0x1901',
-      Hex.strip0x(domainSeparator),
-      Hex.strip0x(structHash),
-    ]);
-    return Hex.fromBytes(keccak256(Hex.decode(preImage)));
-  }
-
-  /// Computes the EIP-712 domain separator.
+  /// SafeOp typed data over [fields] with the validity window and
+  /// EntryPoint filled in.
   ///
-  /// IMPORTANT: The verifyingContract is the Safe4337Module address, NOT the Safe account.
-  /// This is because Safe's fallback handler uses 'call' (not 'delegatecall'),
-  /// so when the module's domainSeparator() function runs, 'this' refers to the module.
-  ///
-  /// In ERC-7579 mode, this uses the Safe7579 module address instead.
-  String _computeDomainSeparator() {
-    // Domain type hash: keccak256("EIP712Domain(uint256 chainId,address verifyingContract)")
-    const domainTypeString =
-        'EIP712Domain(uint256 chainId,address verifyingContract)';
-    final domainTypeHash =
-        keccak256(Uint8List.fromList(domainTypeString.codeUnits));
-
-    final encoded = Hex.concat([
-      Hex.fromBytes(domainTypeHash),
-      AbiEncoder.encodeUint256(_config.chainId),
-      AbiEncoder.encodeAddress(
-        _safe4337ModuleAddress,
-      ), // Use module address (7579 or standard)
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(encoded)));
-  }
-
-  /// Computes the SafeOp struct hash for EntryPoint v0.7 EIP-712.
-  String _computeSafeOpStructHashV07(
-    UserOperationV07 userOp,
-    EthereumAddress accountAddress,
-  ) {
-    // SafeOp type hash for v0.7 (uint128 gas fields; verification before call)
-    const safeOpTypeString =
-        'SafeOp(address safe,uint256 nonce,bytes initCode,bytes callData,uint128 verificationGasLimit,uint128 callGasLimit,uint256 preVerificationGas,uint128 maxPriorityFeePerGas,uint128 maxFeePerGas,bytes paymasterAndData,uint48 validAfter,uint48 validUntil,address entryPoint)';
-
-    final safeOpTypeHash =
-        keccak256(Uint8List.fromList(safeOpTypeString.codeUnits));
-
-    // Compute initCode hash
-    final factory = userOp.factory;
-    final initCode = factory == null
-        ? '0x'
-        : Hex.concat([factory.hex, Hex.strip0x(userOp.factoryData ?? '0x')]);
-    final initCodeHash = keccak256(Hex.decode(initCode));
-
-    // Compute callData hash
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    // Compute paymasterAndData
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterVerificationGasLimit',
+  /// The verifying contract is the 4337 module, not the Safe: the Safe's
+  /// fallback handler reaches the module with `call`, so the module's
+  /// `domainSeparator()` runs with `this` = module.
+  TypedData _safeOpTypedData(
+    List<TypedDataField> fields,
+    Map<String, Object> message,
+  ) =>
+      TypedData(
+        domain: TypedDataDomain(
+          chainId: _config.chainId,
+          verifyingContract: _safe4337ModuleAddress,
         ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterPostOpGasLimit',
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    final encoded = Hex.concat([
-      Hex.fromBytes(safeOpTypeHash),
-      AbiEncoder.encodeAddress(accountAddress),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint128(
-        userOp.verificationGasLimit,
-        name: 'verificationGasLimit',
-      ),
-      AbiEncoder.encodeUint128(userOp.callGasLimit, name: 'callGasLimit'),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint128(
-        userOp.maxPriorityFeePerGas,
-        name: 'maxPriorityFeePerGas',
-      ),
-      AbiEncoder.encodeUint128(userOp.maxFeePerGas, name: 'maxFeePerGas'),
-      Hex.fromBytes(paymasterAndDataHash),
-      AbiEncoder.encodeUint48(0), // validAfter
-      AbiEncoder.encodeUint48(0), // validUntil
-      AbiEncoder.encodeAddress(entryPoint),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(encoded)));
-  }
-
-  /// Computes the SafeOp struct hash for EntryPoint v0.6 EIP-712.
-  ///
-  /// Matches permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`: uint256 gas
-  /// fields with callGasLimit before verificationGasLimit, and maxFeePerGas
-  /// before maxPriorityFeePerGas.
-  String _computeSafeOpStructHashV06(
-    UserOperationV06 userOp,
-    EthereumAddress accountAddress,
-  ) {
-    const safeOpTypeString =
-        'SafeOp(address safe,uint256 nonce,bytes initCode,bytes callData,uint256 callGasLimit,uint256 verificationGasLimit,uint256 preVerificationGas,uint256 maxFeePerGas,uint256 maxPriorityFeePerGas,bytes paymasterAndData,uint48 validAfter,uint48 validUntil,address entryPoint)';
-
-    final safeOpTypeHash =
-        keccak256(Uint8List.fromList(safeOpTypeString.codeUnits));
-
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    final encoded = Hex.concat([
-      Hex.fromBytes(safeOpTypeHash),
-      AbiEncoder.encodeAddress(accountAddress),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-      AbiEncoder.encodeUint48(0), // validAfter
-      AbiEncoder.encodeUint48(0), // validUntil
-      AbiEncoder.encodeAddress(entryPoint),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(encoded)));
-  }
+        types: {'SafeOp': fields},
+        primaryType: 'SafeOp',
+        message: {
+          ...message,
+          'validAfter': _validAfter,
+          'validUntil': _validUntil,
+          'entryPoint': entryPoint,
+        },
+      );
 }
 
-/// Represents a signature entry for Safe signature concatenation.
-class _SignatureEntry {
-  _SignatureEntry({
-    required this.signer,
-    required this.data,
-    required this.isDynamic,
-  });
+/// permissionless.js `EIP712_SAFE_OPERATION_TYPE_V07`: uint128 gas fields,
+/// verificationGasLimit before callGasLimit.
+const _safeOpFieldsV07 = [
+  TypedDataField(name: 'safe', type: 'address'),
+  TypedDataField(name: 'nonce', type: 'uint256'),
+  TypedDataField(name: 'initCode', type: 'bytes'),
+  TypedDataField(name: 'callData', type: 'bytes'),
+  TypedDataField(name: 'verificationGasLimit', type: 'uint128'),
+  TypedDataField(name: 'callGasLimit', type: 'uint128'),
+  TypedDataField(name: 'preVerificationGas', type: 'uint256'),
+  TypedDataField(name: 'maxPriorityFeePerGas', type: 'uint128'),
+  TypedDataField(name: 'maxFeePerGas', type: 'uint128'),
+  TypedDataField(name: 'paymasterAndData', type: 'bytes'),
+  TypedDataField(name: 'validAfter', type: 'uint48'),
+  TypedDataField(name: 'validUntil', type: 'uint48'),
+  TypedDataField(name: 'entryPoint', type: 'address'),
+];
 
-  final EthereumAddress signer;
-  final String data;
-  final bool isDynamic;
-}
+/// permissionless.js `EIP712_SAFE_OPERATION_TYPE_V06`: uint256 gas fields,
+/// callGasLimit before verificationGasLimit and maxFeePerGas before
+/// maxPriorityFeePerGas.
+const _safeOpFieldsV06 = [
+  TypedDataField(name: 'safe', type: 'address'),
+  TypedDataField(name: 'nonce', type: 'uint256'),
+  TypedDataField(name: 'initCode', type: 'bytes'),
+  TypedDataField(name: 'callData', type: 'bytes'),
+  TypedDataField(name: 'callGasLimit', type: 'uint256'),
+  TypedDataField(name: 'verificationGasLimit', type: 'uint256'),
+  TypedDataField(name: 'preVerificationGas', type: 'uint256'),
+  TypedDataField(name: 'maxFeePerGas', type: 'uint256'),
+  TypedDataField(name: 'maxPriorityFeePerGas', type: 'uint256'),
+  TypedDataField(name: 'paymasterAndData', type: 'bytes'),
+  TypedDataField(name: 'validAfter', type: 'uint48'),
+  TypedDataField(name: 'validUntil', type: 'uint48'),
+  TypedDataField(name: 'entryPoint', type: 'address'),
+];
 
-/// Concatenates Safe signatures with proper handling of dynamic (contract) signatures.
+/// One owner's signature for Safe `checkSignatures`. [isDynamic] marks a
+/// contract (EIP-1271) signature, e.g. from the WebAuthn shared signer.
+typedef _SignatureEntry = ({
+  EthereumAddress signer,
+  String data,
+  bool isDynamic,
+});
+
+/// Concatenates Safe signatures in ascending signer order.
 ///
-/// For ECDSA signatures (isDynamic: false), the 65-byte signature is appended directly.
-/// For contract signatures (isDynamic: true), creates:
-/// - Static part (65 bytes): {signer(32)}{dynamicOffset(32)}{signatureType=0x00(1)}
-/// - Dynamic part: {length(32)}{signatureData}
+/// ECDSA signatures (65 bytes) are appended as they are. A contract
+/// signature takes a 65-byte static slot
+/// {signer(32)}{offset of its dynamic part(32)}{signature type 0x00(1)}
+/// and appends {length(32)}{data} after all static slots.
 String _concatSignatures(List<_SignatureEntry> signatures) {
-  // Sort by signer address (should already be sorted, but ensure consistency)
-  signatures.sort((a, b) => a.signer.compareTo(b.signer));
+  final sorted = [...signatures]..sort((a, b) => a.signer.compareTo(b.signer));
+  final dynamicStart = sorted.length * 65;
+  final statics = <String>[];
+  final dynamics = <String>[];
+  var dynamicLength = 0;
 
-  const signatureLengthBytes = 65;
-  var signatureBytes = '';
-  var dynamicBytes = '';
-
-  for (final sig in signatures) {
-    if (sig.isDynamic) {
-      // Contract signature format:
-      // Static: {32-bytes signer}{32-bytes dynamic position}{1-byte signature type = 0x00}
-      // Dynamic: {32-bytes length}{signature data}
-      final dynamicPartPosition =
-          signatures.length * signatureLengthBytes + (dynamicBytes.length ~/ 2);
-      final sigData = Hex.strip0x(sig.data);
-      final dynamicPartLength = sigData.length ~/ 2;
-
-      final staticSignature = '${Hex.strip0x(sig.signer.hex).padLeft(64, '0')}'
-          '${dynamicPartPosition.toRadixString(16).padLeft(64, '0')}'
-          '00'; // Signature type 0 = contract signature
-
-      final dynamicPartWithLength =
-          '${dynamicPartLength.toRadixString(16).padLeft(64, '0')}$sigData';
-
-      signatureBytes += staticSignature;
-      dynamicBytes += dynamicPartWithLength;
-    } else {
-      // Standard ECDSA signature (65 bytes) - append directly
-      signatureBytes += Hex.strip0x(sig.data);
+  for (final sig in sorted) {
+    if (!sig.isDynamic) {
+      statics.add(sig.data);
+      continue;
     }
+    final dataLength = Hex.byteLength(sig.data);
+    statics.addAll([
+      AbiEncoder.encodeAddress(sig.signer),
+      Hex.fromBigInt(BigInt.from(dynamicStart + dynamicLength), byteLength: 32),
+      '0x00',
+    ]);
+    dynamics.addAll([
+      Hex.fromBigInt(BigInt.from(dataLength), byteLength: 32),
+      sig.data,
+    ]);
+    dynamicLength += 32 + dataLength;
   }
 
-  return '0x$signatureBytes$dynamicBytes';
+  return Hex.concat([...statics, ...dynamics]);
 }
 
 /// Creates a Safe smart account.
@@ -1452,7 +1075,6 @@ SafeSmartAccount createSafeSmartAccount({
   EthereumAddress? entryPointAddress,
   PublicClient? publicClient,
   EthereumAddress? address,
-  // ERC-7579 parameters
   EthereumAddress? erc7579LaunchpadAddress,
   List<Safe7579ModuleInit> validators = const [],
   List<Safe7579ModuleInit> executors = const [],

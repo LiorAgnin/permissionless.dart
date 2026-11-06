@@ -207,7 +207,6 @@ class SafeVersionAddresses {
   };
 }
 
-/// Operation types for Safe transactions.
 /// Operation type for Safe transactions.
 ///
 /// Determines how the target contract is called.
