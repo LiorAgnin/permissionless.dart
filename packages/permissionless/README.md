@@ -8,20 +8,23 @@ Build account abstraction applications in Dart with support for multiple smart a
 
 ### Smart Accounts
 
-| Account       | Provider       | EntryPoint | ERC-7579   | Description                      |
-| ------------- | -------------- | ---------- | ---------- | -------------------------------- |
-| **Safe**      | Gnosis         | v0.6, v0.7 | Optional*  | Battle-tested multi-sig account  |
-| **Kernel**    | ZeroDev        | v0.6, v0.7 | v0.3.x     | Modular account with plugins     |
-| **Nexus**     | Biconomy       | v0.7       | Yes        | ERC-7579 modular account         |
-| **Light**     | Alchemy        | v0.6, v0.7 | No         | Gas-efficient single-owner       |
-| **Simple**    | eth-infinitism | v0.6, v0.7 | No         | Minimal reference implementation |
-| **Thirdweb**  | Thirdweb       | v0.6, v0.7 | No         | SDK ecosystem integration        |
-| **Trust**     | Trust Wallet   | v0.6       | No         | Diamond architecture (Barz)      |
-| **Etherspot** | Etherspot      | v0.7       | Internal** | ModularEtherspotWallet           |
-| **Biconomy**  | Biconomy       | v0.6       | No         | *Deprecated - use Nexus*         |
+| Account         | Provider       | EntryPoint       | ERC-7579   | Description                      |
+| --------------- | -------------- | ---------------- | ---------- | -------------------------------- |
+| **Safe**        | Gnosis         | v0.6, v0.7       | Optional*  | Battle-tested multi-sig account  |
+| **Kernel**      | ZeroDev        | v0.6, v0.7       | v0.3.x     | Modular account with plugins     |
+| **Nexus**       | Biconomy       | v0.7             | Yes        | ERC-7579 modular account         |
+| **Light**       | Alchemy        | v0.6, v0.7       | No         | Gas-efficient single-owner       |
+| **Simple**      | eth-infinitism | v0.6, v0.7, v0.8 | No         | Minimal reference implementation |
+| **Thirdweb**    | Thirdweb       | v0.6, v0.7       | No         | SDK ecosystem integration        |
+| **Trust**       | Trust Wallet   | v0.6             | No         | Diamond architecture (Barz)      |
+| **Etherspot**   | Etherspot      | v0.7             | Internal** | ModularEtherspotWallet           |
+| **Biconomy**    | Biconomy       | v0.6             | No         | *Deprecated - use Nexus*         |
+| **Simple 7702** | eth-infinitism | v0.8             | No         | EOA delegated via EIP-7702***    |
+| **Kernel 7702** | ZeroDev        | v0.7             | v0.3.3+    | EOA delegated via EIP-7702***    |
 
 \* Safe requires `erc7579LaunchpadAddress` configuration to enable ERC-7579 module management.
 \** Etherspot uses ERC-7579 call encoding internally but module management actions are not exposed in permissionless.js.
+\*** The EOA itself is the account: `createEip7702SimpleSmartAccount` / `createEip7702KernelSmartAccount`. The first UserOperation carries the EIP-7702 authorization; send it with `sendPreparedUserOperation(..., authorization:)` (see `example/eip7702_*_example.dart`).
 
 ### Clients
 
@@ -53,7 +56,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  permissionless: ^0.5.0
+  permissionless: ^0.6.0
 ```
 
 Then run:
