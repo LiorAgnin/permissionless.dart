@@ -28,3 +28,4 @@ export 'multisend.dart';
 export 'safe_account.dart';
 export 'safe_encoding.dart'
     hide decodeSafeExecuteUserOp, decodeSafeSetupSafe, safe7579InitHash;
+export 'safe_webauthn.dart';

@@ -6,4 +6,5 @@ library;
 
 export 'fees.dart';
 export 'public_client.dart';
+export 'rip7212.dart';
 export 'types.dart';

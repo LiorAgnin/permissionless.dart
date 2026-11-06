@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
@@ -877,6 +879,67 @@ void main() {
     });
   });
 
+  group('RIP-7212 / precompile flag (WebAuthn path)', () {
+    setUp(clearRip7212Cache);
+
+    final p256Signature = P256SignatureData(
+      r: BigInt.from(7),
+      s: BigInt.from(9),
+      authenticatorData: Uint8List(37),
+      clientDataJSON: '{"type":"webauthn.get","challenge":"AA","origin":"o"}',
+      challengeIndex: 23,
+      typeIndex: 1,
+    );
+
+    // Chain 10 is on the static RIP-7212 list, but this node's precompile
+    // call returns 0, so the probe says the precompile is absent.
+    KernelSmartAccount account() => createKernelSmartAccount(
+          owner: _FixedWebAuthnOwner(p256Signature),
+          chainId: BigInt.from(10),
+          version: KernelVersion.v0_3_1,
+          address: mockAddress,
+          publicClient: PublicClient(
+            rpcClient: _FakeRpcClient({
+              'eth_chainId': (_) => '0xa',
+              'eth_call': (_) => Hex.zero32,
+            }),
+          ),
+        );
+
+    test('stub encodes the same precompile flag as the last signature',
+        () async {
+      final kernel = account();
+      final signature = await kernel.signUserOperation(
+        UserOperationV07(
+          sender: mockAddress,
+          nonce: BigInt.zero,
+          callData: '0x',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(21000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        ),
+      );
+
+      expect(
+        signature,
+        encodeKernelWebAuthnSignature(p256Signature, usePrecompiled: false),
+      );
+      expect(
+        kernel.getStubSignature(),
+        getDummyKernelWebAuthnSignature(),
+      );
+    });
+
+    test('stub uses the static chain list before anything is signed', () {
+      expect(
+        account().getStubSignature(),
+        getDummyKernelWebAuthnSignature(usePrecompiled: true),
+      );
+    });
+  });
+
   group('KernelSelectors', () {
     test('executeV2 is Kernel execute(address,uint256,bytes,uint8)', () {
       // cast sig "execute(address,uint256,bytes,uint8)"
@@ -920,4 +983,35 @@ void main() {
       }
     });
   });
+}
+
+class _FixedWebAuthnOwner extends WebAuthnAccountOwner {
+  _FixedWebAuthnOwner(this._signature);
+
+  final P256SignatureData _signature;
+
+  @override
+  BigInt get x => BigInt.one;
+
+  @override
+  BigInt get y => BigInt.two;
+
+  @override
+  Uint8List get credentialId => Uint8List(16);
+
+  @override
+  Future<P256SignatureData> signP256(String hash) async => _signature;
+}
+
+class _FakeRpcClient extends JsonRpcClient {
+  _FakeRpcClient(this._handlers) : super(url: Uri.parse('http://localhost'));
+
+  final Map<String, dynamic Function(List<dynamic>)> _handlers;
+
+  @override
+  Future<dynamic> call(String method, [List<dynamic>? params]) async {
+    final handler = _handlers[method];
+    if (handler == null) throw StateError('Unexpected RPC call: $method');
+    return handler(params ?? const []);
+  }
 }

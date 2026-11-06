@@ -69,4 +69,3 @@ export 'src/utils/sort_addresses.dart';
 export 'src/utils/state_override.dart';
 export 'src/utils/units.dart';
 export 'src/utils/user_operation_hash.dart';
-export 'src/utils/webauthn_encoding.dart';

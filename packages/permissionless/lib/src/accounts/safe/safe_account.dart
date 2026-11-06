@@ -13,14 +13,13 @@ import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/packed_user_operation.dart' as packing;
-import '../../utils/webauthn_encoding.dart';
 import '../account_owner.dart';
 import '../account_support.dart';
 import '../webauthn_owner.dart';
-import '../webauthn_utils.dart';
 import 'constants.dart';
 import 'multisend.dart';
 import 'safe_encoding.dart';
+import 'safe_webauthn.dart';
 
 /// `SafeProxyFactory.proxyCreationCode()` per Safe version, used for the
 /// CREATE2 address when no public client is configured or the call fails.
@@ -273,14 +272,15 @@ class SafeSmartAccount
   /// Whether ERC-7579 mode is enabled.
   bool get isErc7579Enabled => _config.isErc7579Enabled;
 
-  bool get _hasWebAuthnOwner => _config.owners.any(isWebAuthnAccount);
+  bool get _hasWebAuthnOwner =>
+      _config.owners.any((owner) => owner is WebAuthnAccountOwner);
 
   /// The address that signs for [owner] in the Safe owner list.
   ///
   /// WebAuthn owners sign through the shared signer contract, so they appear
   /// as its address.
   EthereumAddress _signerAddress(AccountOwner owner) {
-    if (!isWebAuthnAccount(owner)) return owner.address;
+    if (owner is! WebAuthnAccountOwner) return owner.address;
     final sharedSigner = _addresses.webAuthnSharedSignerAddress;
     if (sharedSigner == null) {
       throw StateError(
@@ -441,8 +441,7 @@ class SafeSmartAccount
 
     // Each WebAuthn owner's key is stored in the Safe's storage by
     // delegatecalling the shared signer's configure().
-    final webAuthnOwners =
-        _config.owners.where(isWebAuthnAccount).cast<WebAuthnAccountOwner>();
+    final webAuthnOwners = _config.owners.whereType<WebAuthnAccountOwner>();
     if (webAuthnOwners.isNotEmpty) {
       final p256Verifier = _addresses.safeP256VerifierAddress;
       if (p256Verifier == null) {
@@ -641,7 +640,7 @@ class SafeSmartAccount
   String getStubSignature() => _withValidityWindow(
         _concatSignatures([
           for (final (owner, signer) in _ownersBySigner)
-            if (isWebAuthnAccount(owner))
+            if (owner is WebAuthnAccountOwner)
               (
                 signer: signer,
                 data: getDummySafeWebAuthnSignature(),
@@ -712,8 +711,8 @@ class SafeSmartAccount
   ) async {
     final signatures = <_SignatureEntry>[];
     for (final (owner, signer) in _ownersBySigner) {
-      if (isWebAuthnAccount(owner)) {
-        final p256 = await (owner as WebAuthnAccountOwner).signP256(hash);
+      if (owner is WebAuthnAccountOwner) {
+        final p256 = await owner.signP256(hash);
         signatures.add(
           (
             signer: signer,

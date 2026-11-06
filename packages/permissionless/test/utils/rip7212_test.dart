@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:permissionless/src/clients/bundler/rpc_client.dart';
+import 'package:permissionless/src/clients/bundler/types.dart';
 import 'package:permissionless/src/clients/public/public_client.dart';
+import 'package:permissionless/src/clients/public/rip7212.dart';
 import 'package:permissionless/src/utils/rip7212.dart';
 import 'package:test/test.dart';
 
@@ -245,6 +249,53 @@ void main() {
         // Third call: should hit the RPC again after cache cleared
         await isRip7212Supported(client);
         expect(ethCallCount, equals(2));
+      });
+
+      // A failed probe says nothing about the chain, so it must not pin
+      // `false` for the rest of the process.
+      for (final (name, failure) in [
+        ('timeout', TimeoutException('eth_call timed out')),
+        (
+          'HTTP 503',
+          const BundlerHttpError(statusCode: 503, reasonPhrase: 'Unavailable'),
+        ),
+        ('JSON-RPC error', const BundlerRpcError(code: -32005, message: 'x')),
+      ]) {
+        test('does not cache a failed probe ($name)', () async {
+          var ethCallCount = 0;
+          final fakeRpc = FakeRpcClient({
+            'eth_chainId': (_) => '0xa',
+            'eth_call': (_) {
+              ethCallCount++;
+              if (ethCallCount == 1) throw failure;
+              return '0x${List.filled(63, '0').join()}1';
+            },
+          });
+          final client = PublicClient(rpcClient: fakeRpc);
+
+          expect(await isRip7212Supported(client), isFalse);
+          expect(await isRip7212Supported(client), isTrue);
+          expect(ethCallCount, equals(2));
+          expect(await isRip7212Supported(client), isTrue);
+          expect(ethCallCount, equals(2));
+        });
+      }
+
+      test('asks the client for its chain ID once', () async {
+        var chainIdCalls = 0;
+        final fakeRpc = FakeRpcClient({
+          'eth_chainId': (_) {
+            chainIdCalls++;
+            return '0xa';
+          },
+          'eth_call': (_) => '0x${List.filled(63, '0').join()}1',
+        });
+        final client = PublicClient(rpcClient: fakeRpc);
+
+        await isRip7212Supported(client);
+        await isRip7212Supported(client);
+
+        expect(chainIdCalls, equals(1));
       });
     });
   });
