@@ -303,12 +303,29 @@ class AbiEncoder {
     }
 
     if (type.startsWith('uint') || type.startsWith('int')) {
-      if (value is BigInt) return value;
-      if (value is int) return BigInt.from(value);
-      return BigInt.parse(value.toString());
+      final number = switch (value) {
+        final BigInt v => v,
+        final int v => BigInt.from(v),
+        _ => BigInt.parse(value.toString()),
+      };
+      _checkIntegerRange(type, number);
+      return number;
     }
 
     return value;
+  }
+
+  /// web3dart only `assert`s integer widths, so release builds would
+  /// silently encode an out-of-range value.
+  static void _checkIntegerRange(String type, BigInt value) {
+    final signed = type.startsWith('int');
+    final widthText = type.substring(signed ? 3 : 4);
+    final bits = widthText.isEmpty ? 256 : int.parse(widthText);
+    final min = signed ? -(BigInt.one << (bits - 1)) : BigInt.zero;
+    final maxExclusive = BigInt.one << (signed ? bits - 1 : bits);
+    if (value < min || value >= maxExclusive) {
+      throw ArgumentError.value(value, type, 'out of range for $type');
+    }
   }
 
   static Uint8List _toBytes(dynamic value, {int? fixedLength}) {

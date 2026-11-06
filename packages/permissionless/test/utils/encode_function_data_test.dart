@@ -347,4 +347,35 @@ void main() {
       );
     });
   });
+
+  group('integer range', () {
+    test('rejects values that do not fit the declared uint/int width', () {
+      for (final (signature, value) in [
+        ('f(uint8)', BigInt.from(256)),
+        ('f(uint256)', -BigInt.one),
+        ('f(uint256)', BigInt.one << 256),
+        ('f(int8)', BigInt.from(128)),
+        ('f(int8)', BigInt.from(-129)),
+        ('f(uint128[])', [BigInt.one << 128]),
+      ]) {
+        expect(
+          () => AbiEncoder.encodeFunctionData(signature, [value]),
+          throwsArgumentError,
+          reason: '$signature with $value',
+        );
+      }
+    });
+
+    test('accepts the bounds of each width', () {
+      expect(
+        () => AbiEncoder.encodeFunctionData('f(uint8,int8,int8,uint256)', [
+          255,
+          -128,
+          127,
+          (BigInt.one << 256) - BigInt.one,
+        ]),
+        returnsNormally,
+      );
+    });
+  });
 }
