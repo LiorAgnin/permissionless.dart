@@ -597,6 +597,12 @@ class SmartAccountClient {
     Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
     List<StateOverride>? stateOverride,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
+    String? signature,
+    EthereumAddress? factory,
+    String? factoryData,
   }) async {
     final hash = await sendUserOperation(
       calls: calls,
@@ -604,6 +610,12 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
+      signature: signature,
+      factory: factory,
+      factoryData: factoryData,
       paymasterContext: paymasterContext,
       sender: sender,
       stateOverride: stateOverride,
@@ -824,6 +836,7 @@ class SmartAccountClient {
     Duration timeout = defaultReceiptTimeout,
     Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
+    String? signature,
   }) async {
     final hash = await sendUserOperationV06(
       calls: calls,
@@ -831,6 +844,7 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      signature: signature,
       paymasterContext: paymasterContext,
       sender: sender,
     );
