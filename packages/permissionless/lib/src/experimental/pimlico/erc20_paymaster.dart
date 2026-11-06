@@ -75,10 +75,9 @@ class Erc20PaymasterResult {
   /// EIP-7702 authorization for first-time delegation, if required.
   ///
   /// Non-null only for EIP-7702 accounts whose delegation is not yet active.
-  /// Submit the signed op via
-  /// `SmartAccountClient.sendPreparedUserOperationWithAuth` (or
-  /// `BundlerClient.sendUserOperationWithAuthorization`) so the bundler
-  /// receives it as the `eip7702Auth` field.
+  /// Pass it as the `authorization` of
+  /// `SmartAccountClient.sendPreparedUserOperation` so the bundler receives
+  /// it as the `eip7702Auth` field.
   final Eip7702Authorization? authorization;
 
   /// Whether this operation requires EIP-7702 authorization on submission.
@@ -112,12 +111,11 @@ class Erc20PaymasterResult {
 /// // Sign and send the prepared operation.
 /// // For EIP-7702 first-time delegation, result.authorization is non-null
 /// // and must be submitted alongside the op (the delegation is installed by
-/// // this same operation). sendPreparedUserOperationWithAuth handles both
-/// // cases: with a null authorization it falls back to standard submission.
+/// // this same operation); a null authorization sends the op without one.
 /// final signedOp = await client.signUserOperation(result.userOperation);
-/// final hash = await client.sendPreparedUserOperationWithAuth(
+/// final hash = await client.sendPreparedUserOperation(
 ///   signedOp,
-///   result.authorization,
+///   authorization: result.authorization,
 /// );
 ///
 /// print('Max cost: ${result.maxCostInToken} tokens');

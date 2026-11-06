@@ -262,11 +262,10 @@ class SmartAccountClient {
   ///   maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
   /// );
   ///
-  /// // Sign and send with authorization handling
   /// final signedOp = await client.signUserOperation(prepared.userOp);
-  /// final hash = await client.sendPreparedUserOperationWithAuth(
+  /// final hash = await client.sendPreparedUserOperation(
   ///   signedOp,
-  ///   prepared.authorization,
+  ///   authorization: prepared.authorization,
   /// );
   /// ```
   Future<PreparedUserOperation> prepareUserOperationWithAuth({
@@ -374,19 +373,11 @@ class SmartAccountClient {
         preVerificationGas == null;
 
     if (needsGasEstimate) {
-      final UserOperationGasEstimate gasEstimate;
-      if (needsAuth) {
-        gasEstimate = await bundler.estimateUserOperationGasWithAuthorization(
-          userOp,
-          [authorization],
-          stateOverride: stateOverrideJson,
-        );
-      } else {
-        gasEstimate = await bundler.estimateUserOperationGas(
-          userOp,
-          stateOverride: stateOverrideJson,
-        );
-      }
+      final gasEstimate = await bundler.estimateUserOperationGas(
+        userOp,
+        stateOverride: stateOverrideJson,
+        authorization: authorization,
+      );
       userOp = _applyGasEstimate(
         userOp,
         gasEstimate,
@@ -478,17 +469,19 @@ class SmartAccountClient {
 
   /// Sends a signed UserOperation to the bundler.
   ///
-  /// Returns the UserOperation hash for tracking.
+  /// Pass the [PreparedUserOperation.authorization] of an EIP-7702 account
+  /// as [authorization]; it is sent as the op's `eip7702Auth`.
   ///
-  /// **Note:** For EIP-7702 accounts with first-time delegation, use
-  /// [sendPreparedUserOperationWithAuth] instead to include the authorization.
-  Future<String> sendPreparedUserOperation(UserOperationV07 userOp) =>
-      bundler.sendUserOperation(userOp);
+  /// Returns the UserOperation hash for tracking.
+  Future<String> sendPreparedUserOperation(
+    UserOperationV07 userOp, {
+    Eip7702Authorization? authorization,
+  }) =>
+      bundler.sendUserOperation(userOp, authorization: authorization);
 
   /// Sends a signed UserOperation with optional EIP-7702 authorization.
   ///
-  /// If [authorization] is provided, uses the authorization-aware bundler
-  /// method. Otherwise, falls back to standard submission.
+  /// Same as [sendPreparedUserOperation] with a positional [authorization].
   ///
   /// Returns the UserOperation hash for tracking.
   ///
@@ -504,13 +497,8 @@ class SmartAccountClient {
   Future<String> sendPreparedUserOperationWithAuth(
     UserOperationV07 userOp,
     Eip7702Authorization? authorization,
-  ) {
-    if (authorization != null) {
-      return bundler
-          .sendUserOperationWithAuthorization(userOp, [authorization]);
-    }
-    return bundler.sendUserOperation(userOp);
-  }
+  ) =>
+      sendPreparedUserOperation(userOp, authorization: authorization);
 
   /// Prepares, signs, and sends a UserOperation in one call.
   ///
@@ -574,7 +562,10 @@ class SmartAccountClient {
     final signedOp = signature != null
         ? prepared.userOp
         : await signUserOperation(prepared.userOp);
-    return sendPreparedUserOperationWithAuth(signedOp, prepared.authorization);
+    return sendPreparedUserOperation(
+      signedOp,
+      authorization: prepared.authorization,
+    );
   }
 
   /// Sends a UserOperation and waits for the receipt.
