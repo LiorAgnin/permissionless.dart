@@ -1,19 +1,15 @@
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart' as crypto;
-import 'package:web3dart/web3dart.dart' show EthPrivateKey;
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
-import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/decode_calls.dart';
-import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart' as user_op_hash;
+import '../account_owner.dart';
+import '../account_support.dart';
+import '../standard_execute.dart';
 import 'constants.dart';
 
 /// Owner abstraction for EIP-7702 Simple accounts.
@@ -29,7 +25,9 @@ abstract class Eip7702SimpleAccountOwner {
   /// The Ethereum address of this owner (the EOA).
   EthereumAddress get address;
 
-  /// Signs a message hash and returns the signature.
+  /// Signs [messageHash] with the EIP-191 personal-message prefix
+  /// (`"\x19Ethereum Signed Message:\n" + len + bytes`) and returns the
+  /// 65-byte signature.
   Future<String> signHash(String messageHash);
 
   /// Signs EIP-712 typed data and returns the signature.
@@ -58,47 +56,22 @@ class PrivateKeyEip7702Owner implements Eip7702SimpleAccountOwner {
   /// print(owner.address); // The EOA address derived from this key
   /// ```
   PrivateKeyEip7702Owner(String privateKeyHex)
-      : _privateKey = EthPrivateKey.fromHex(privateKeyHex),
+      : _owner = PrivateKeyOwner(privateKeyHex),
         _privateKeyHex = privateKeyHex;
 
-  final EthPrivateKey _privateKey;
+  final PrivateKeyOwner _owner;
   final String _privateKeyHex;
 
   @override
-  EthereumAddress get address =>
-      EthereumAddress.fromHex(_privateKey.address.eip55With0x);
+  EthereumAddress get address => _owner.address;
 
   @override
-  Future<String> signHash(String messageHash) async {
-    final hash = Hex.decode(messageHash);
-
-    // Sign with personal message prefix
-    final sig = _privateKey.signPersonalMessageToUint8List(
-      Uint8List.fromList(hash),
-    );
-
-    return Hex.fromBytes(sig);
-  }
+  Future<String> signHash(String messageHash) =>
+      _owner.signPersonalMessage(messageHash);
 
   @override
-  Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    final hashBytes = Hex.decode(hash);
-
-    // Sign the typed data hash directly using the raw sign function.
-    // Note: signToEcSignature adds an extra keccak256 hash, which we don't want
-    // for EIP-712 typed data (the hash is already computed).
-    final sig = crypto.sign(
-      Uint8List.fromList(hashBytes),
-      _privateKey.privateKey,
-    );
-
-    // Pack r, s, v into 65 bytes
-    final rBytes = Hex.decode(Hex.fromBigInt(sig.r, byteLength: 32));
-    final sBytes = Hex.decode(Hex.fromBigInt(sig.s, byteLength: 32));
-
-    return Hex.fromBytes(Uint8List.fromList([...rBytes, ...sBytes, sig.v]));
-  }
+  Future<String> signTypedData(TypedData typedData) =>
+      _owner.signTypedData(typedData);
 
   @override
   Future<Eip7702Authorization> createAuthorization({
@@ -262,147 +235,55 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
         nonce: nonce,
       );
 
-  /// Encodes a single call for execution.
-  ///
-  /// Uses SimpleAccount.execute(address, uint256, bytes).
+  /// Encodes a single call as `execute(address,uint256,bytes)`.
   @override
-  String encodeCall(Call call) =>
-      _encodeExecute(call.to, call.value, call.data);
+  String encodeCall(Call call) => encodeExecute(call);
 
-  /// Encodes multiple calls using the v0.8 executeBatch format.
-  ///
-  /// v0.8 uses a Call[] tuple array instead of separate arrays.
+  /// Encodes multiple calls using the v0.8
+  /// `executeBatch((address,uint256,bytes)[])` format.
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-
-    // v0.8 executeBatch(Call[] calls) where Call = (address target, uint256 value, bytes data)
-    return _encodeExecuteBatchV08(calls);
-  }
+  String encodeCalls(List<Call> calls) =>
+      encodeExecuteCalls(calls, ExecuteBatchAbi.callTuples);
 
   @override
   List<Call> decodeCalls(String callData) =>
-      CallDataDecoder.decodeStandardExecute(
-        callData: callData,
-        entryPointVersion: EntryPointVersion.v08,
-      );
+      decodeExecuteCalls(callData, ExecuteBatchAbi.callTuples);
 
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  /// Encodes a single execute call.
-  String _encodeExecute(EthereumAddress to, BigInt value, String data) {
-    // execute(address dest, uint256 value, bytes calldata func)
-    const dataOffset = 3 * 32;
-    final dataEncoded = AbiEncoder.encodeBytes(data);
-
-    return Hex.concat([
-      SimpleAccountSelectors.execute,
-      AbiEncoder.encodeAddress(to),
-      AbiEncoder.encodeUint256(value),
-      AbiEncoder.encodeUint256(BigInt.from(dataOffset)),
-      Hex.strip0x(dataEncoded),
-    ]);
-  }
-
-  /// Encodes a v0.8 batch execute call.
-  ///
-  /// v0.8 format: executeBatch(Call[] calls)
-  /// where Call is a tuple (address target, uint256 value, bytes data)
-  String _encodeExecuteBatchV08(List<Call> calls) {
-    // ABI encoding for tuple array:
-    // - offset to array (32 bytes)
-    // - array length (32 bytes)
-    // - offsets to each tuple (32 bytes each)
-    // - tuple data
-
-    const arrayOffset = 32; // Offset to array data
-
-    // Build the encoded call data
-    final parts = <String>[
-      Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(arrayOffset))),
-      Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(calls.length))),
-    ]
-        // Array offset
-
-        // Array length
-        ;
-
-    // Calculate offsets for each tuple
-    // Each tuple has 3 fields: address (static), uint256 (static), bytes (dynamic)
-    // Base offset after the offsets array
-    var currentOffset = calls.length * 32;
-    final tupleOffsets = <String>[];
-    final tupleData = <String>[];
-
-    for (final call in calls) {
-      tupleOffsets.add(
-        Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(currentOffset))),
-      );
-
-      final encodedTuple = _encodeTupleCall(call);
-      tupleData.add(encodedTuple);
-
-      currentOffset += Hex.byteLength('0x$encodedTuple');
-    }
-
-    // Add offsets and tuple data
-    parts
-      ..addAll(tupleOffsets)
-      ..addAll(tupleData);
-
-    return Hex.concat([
-      SimpleAccountSelectors.executeBatchV08,
-      ...parts.map((p) => p.startsWith('0x') ? p : '0x$p'),
-    ]);
-  }
-
-  /// Encodes a single Call tuple.
-  String _encodeTupleCall(Call call) {
-    // Tuple: (address target, uint256 value, bytes data)
-    // address and uint256 are static, bytes is dynamic
-
-    const bytesOffset = 3 * 32; // After the 3 fields
-    final bytesEncoded = AbiEncoder.encodeBytes(call.data);
-
-    return Hex.strip0x(
-      Hex.concat([
-        AbiEncoder.encodeAddress(call.to),
-        AbiEncoder.encodeUint256(call.value),
-        AbiEncoder.encodeUint256(BigInt.from(bytesOffset)),
-        bytesEncoded,
-      ]),
-    );
-  }
-
   /// Gets a stub signature for gas estimation.
   @override
-  String getStubSignature() =>
-      '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+  String getStubSignature() => ecdsaStubSignature;
 
   /// Signs a UserOperation using EIP-712 typed data (v0.8 format).
   ///
   /// EntryPoint v0.8 uses typed data signing instead of raw hash signing.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    // v0.8 uses EIP-712 typed data for signing
-    final typedData = _getUserOperationTypedData(userOp);
-    return _config.owner.signTypedData(typedData);
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) async =>
+      _config.owner.signTypedData(getUserOperationTypedData(userOp));
 
   /// Gets the typed data for a UserOperation (for debugging).
+  ///
+  /// When the operation's factory is the EIP-7702 marker, `initCode` is
+  /// `accountLogicAddress ‖ factoryData`, as the EntryPoint hashes it.
   TypedData getUserOperationTypedData(UserOperationV07 userOp) =>
-      _getUserOperationTypedData(userOp);
+      user_op_hash.getUserOperationTypedData(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        chainId: _config.chainId,
+        eip7702DelegationAddress: accountLogicAddress,
+      );
 
   /// Gets the hash of the UserOperation typed data (for debugging).
   String getUserOperationHash(UserOperationV07 userOp) =>
-      hashTypedData(_getUserOperationTypedData(userOp));
+      user_op_hash.getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: EntryPointVersion.v08,
+        chainId: _config.chainId,
+        eip7702DelegationAddress: accountLogicAddress,
+      );
 
   /// Signs a personal message (EIP-191).
   ///
@@ -412,8 +293,7 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
   @override
   Future<String> signMessage(String message) async {
     await _ensureDeployedForEip1271();
-    final messageHash = hashMessage(message);
-    return _config.owner.signHash(messageHash);
+    return _config.owner.signHash(hashMessage(message));
   }
 
   /// Signs EIP-712 typed data.
@@ -442,103 +322,6 @@ class Eip7702SimpleSmartAccount implements Eip7702SmartAccount {
         'Submit a UserOperation with the EIP-7702 authorization first.',
       );
     }
-  }
-
-  /// Creates the EIP-712 typed data for a UserOperation.
-  ///
-  /// This is the v0.8 format for UserOperation signing.
-  /// Matches viem's getUserOperationTypedData implementation.
-  TypedData _getUserOperationTypedData(UserOperationV07 userOp) {
-    // Pack gas limits: verificationGasLimit (16 bytes) + callGasLimit (16 bytes)
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(
-        userOp.verificationGasLimit,
-        byteLength: 16,
-        name: 'verificationGasLimit',
-      ),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
-    ]);
-
-    // Pack gas fees: maxPriorityFeePerGas (16 bytes) + maxFeePerGas (16 bytes)
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(
-        userOp.maxPriorityFeePerGas,
-        byteLength: 16,
-        name: 'maxPriorityFeePerGas',
-      ),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-    ]);
-
-    // Pack paymaster fields into paymasterAndData
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterVerificationGasLimit',
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterPostOpGasLimit',
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-
-    // initCode packing must match EntryPoint / viem getInitCode:
-    // - factory null → '0x'
-    // - factory == 0x7702 marker → concat(delegation, factoryData)
-    //   where delegation is the authorization contract (account logic)
-    // - otherwise → concat(factory, factoryData)
-    final initCode = packUserOperationInitCode(
-      factory: userOp.factory,
-      factoryData: userOp.factoryData,
-      delegationAddress:
-          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
-    );
-
-    // Per viem: domain name is 'ERC4337' (no hyphen)
-    // Per viem: uses raw bytes fields, not hashed versions
-    return TypedData(
-      domain: TypedDataDomain(
-        name: 'ERC4337',
-        version: '1',
-        chainId: _config.chainId,
-        verifyingContract: entryPoint,
-      ),
-      types: {
-        'EIP712Domain': [
-          const TypedDataField(name: 'name', type: 'string'),
-          const TypedDataField(name: 'version', type: 'string'),
-          const TypedDataField(name: 'chainId', type: 'uint256'),
-          const TypedDataField(name: 'verifyingContract', type: 'address'),
-        ],
-        'PackedUserOperation': [
-          const TypedDataField(name: 'sender', type: 'address'),
-          const TypedDataField(name: 'nonce', type: 'uint256'),
-          const TypedDataField(name: 'initCode', type: 'bytes'),
-          const TypedDataField(name: 'callData', type: 'bytes'),
-          const TypedDataField(name: 'accountGasLimits', type: 'bytes32'),
-          const TypedDataField(name: 'preVerificationGas', type: 'uint256'),
-          const TypedDataField(name: 'gasFees', type: 'bytes32'),
-          const TypedDataField(name: 'paymasterAndData', type: 'bytes'),
-        ],
-      },
-      primaryType: 'PackedUserOperation',
-      message: {
-        'sender': userOp.sender.hex,
-        'nonce': userOp.nonce.toString(),
-        'initCode': initCode,
-        'callData': userOp.callData,
-        'accountGasLimits': accountGasLimits,
-        'preVerificationGas': userOp.preVerificationGas.toString(),
-        'gasFees': gasFees,
-        'paymasterAndData': paymasterAndData,
-      },
-    );
   }
 }
 

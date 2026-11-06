@@ -1,16 +1,18 @@
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
+import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/decode_calls.dart';
 import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../standard_execute.dart';
+import '../wrapped_message.dart';
 import 'constants.dart';
 
 /// Configuration for creating a Light smart account.
@@ -138,185 +140,47 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
 
   /// Gets the deterministic address of this Light account.
   @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) {
-      return _cachedAddress!;
-    }
-
-    // Option 1: Use pre-computed address if provided
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address via RPC if publicClient is provided
-    if (_config.publicClient != null) {
-      final initCode = await getInitCode();
-      _cachedAddress = await _config.publicClient!.getSenderAddress(
-        initCode: initCode,
+  Future<EthereumAddress> getAddress() async =>
+      _cachedAddress ??= await resolveCounterfactualAddress(
+        accountName: 'Light',
+        address: _config.address,
+        publicClient: _config.publicClient,
         entryPoint: entryPoint,
+        initCode: getInitCode,
       );
-      return _cachedAddress!;
-    }
-
-    // Option 3: Neither address nor publicClient provided
-    throw StateError(
-      'Light account address cannot be computed without a client. '
-      'Either provide `address` or `publicClient` when creating the account.',
-    );
-  }
-
-  // String _computeSalt() {
-  //   final encoded = Hex.concat([
-  //     _config.owner.address.hex,
-  //     Hex.fromBigInt(_config.salt, byteLength: 32),
-  //   ]);
-  //   return Hex.fromBytes(keccak256(Hex.decode(encoded)));
-  // }
-
-  // String _computeProxyInitCodeHash() {
-  //   // Light Account Factory deploys ERC-1967 proxies
-  //   // The init code hash depends on the implementation address
-  //   // This is a simplified computation - in production, verify against actual factory
-  //   final initData = Hex.concat([
-  //     // Proxy creation code (simplified)
-  //     '0x3d602d80600a3d3981f3363d3d373d3d3d363d73',
-  //     Hex.strip0x(_factoryAddress.hex),
-  //     '5af43d82803e903d91602b57fd5bf3',
-  //   ]);
-  //   return Hex.fromBytes(keccak256(Hex.decode(initData)));
-  // }
 
   @override
-  Future<String> getInitCode() async {
-    final factoryData = _encodeCreateAccount();
-    return Hex.concat([
-      _factoryAddress.hex,
-      Hex.strip0x(factoryData),
-    ]);
-  }
+  Future<String> getInitCode() async => packUserOperationInitCode(
+        factory: _factoryAddress,
+        factoryData: _createAccountData(),
+      );
 
   @override
   Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    final data = _encodeCreateAccount();
-    return (factory: _factoryAddress, factoryData: data);
-  }
+      getFactoryData() async =>
+          (factory: _factoryAddress, factoryData: _createAccountData());
 
-  String _encodeCreateAccount() => Hex.concat([
-        LightAccountSelectors.createAccount,
-        AbiEncoder.encodeAddress(_config.owner.address),
-        AbiEncoder.encodeUint256(_config.salt),
-      ]);
+  String _createAccountData() => AbiEncoder.encodeFunctionData(
+        'createAccount(address,uint256)',
+        [_config.owner.address, _config.salt],
+      );
 
   @override
-  String encodeCall(Call call) =>
-      _encodeExecute(call.to, call.value, call.data);
+  String encodeCall(Call call) => encodeExecute(call);
 
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-
-    return _encodeExecuteBatch(calls);
-  }
+  String encodeCalls(List<Call> calls) =>
+      encodeExecuteCalls(calls, ExecuteBatchAbi.addressesValuesAndBytes);
 
   @override
   List<Call> decodeCalls(String callData) =>
-      CallDataDecoder.decodeStandardExecute(callData: callData);
+      decodeExecuteCalls(callData, ExecuteBatchAbi.addressesValuesAndBytes);
 
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  String _encodeExecute(EthereumAddress to, BigInt value, String data) {
-    const dataOffset = 3 * 32;
-    final dataEncoded = AbiEncoder.encodeBytes(data);
-
-    return Hex.concat([
-      LightAccountSelectors.execute,
-      AbiEncoder.encodeAddress(to),
-      AbiEncoder.encodeUint256(value),
-      AbiEncoder.encodeUint256(BigInt.from(dataOffset)),
-      Hex.strip0x(dataEncoded),
-    ]);
-  }
-
-  String _encodeExecuteBatch(List<Call> calls) {
-    final destArray = calls.map((c) => c.to).toList();
-    final valuesArray = calls.map((c) => c.value).toList();
-    final dataArray = calls.map((c) => c.data).toList();
-
-    const destOffset = 3 * 32;
-    final destEncoded = _encodeAddressArray(destArray);
-    final valuesOffset = destOffset + Hex.byteLength(destEncoded);
-    final valuesEncoded = _encodeUint256Array(valuesArray);
-    final dataArrayOffset = valuesOffset + Hex.byteLength(valuesEncoded);
-    final dataArrayEncoded = _encodeBytesArray(dataArray);
-
-    return Hex.concat([
-      LightAccountSelectors.executeBatch,
-      AbiEncoder.encodeUint256(BigInt.from(destOffset)),
-      AbiEncoder.encodeUint256(BigInt.from(valuesOffset)),
-      AbiEncoder.encodeUint256(BigInt.from(dataArrayOffset)),
-      Hex.strip0x(destEncoded),
-      Hex.strip0x(valuesEncoded),
-      Hex.strip0x(dataArrayEncoded),
-    ]);
-  }
-
-  String _encodeAddressArray(List<EthereumAddress> addresses) => Hex.concat([
-        AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
-        ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
-      ]);
-
-  String _encodeUint256Array(List<BigInt> values) => Hex.concat([
-        AbiEncoder.encodeUint256(BigInt.from(values.length)),
-        ...values.map((v) => Hex.strip0x(AbiEncoder.encodeUint256(v))),
-      ]);
-
-  String _encodeBytesArray(List<String> dataItems) {
-    final length = AbiEncoder.encodeUint256(BigInt.from(dataItems.length));
-
-    var currentOffset = dataItems.length * 32;
-    final offsets = <String>[];
-    final encodedData = <String>[];
-
-    for (final data in dataItems) {
-      offsets.add(
-        Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(currentOffset))),
-      );
-      final encoded = AbiEncoder.encodeBytes(data);
-      encodedData.add(Hex.strip0x(encoded));
-      currentOffset += Hex.byteLength(encoded);
-    }
-
-    return Hex.concat([length, ...offsets, ...encodedData]);
-  }
-
   @override
-  String getStubSignature() {
-    // Standard ECDSA stub signature
-    const signature =
-        '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
-
-    // v2.0.0 prepends signature type
-    if (_config.version == LightAccountVersion.v200) {
-      return Hex.concat([
-        Hex.fromBigInt(
-          BigInt.from(LightAccountSignatureType.eoa),
-          byteLength: 1,
-        ),
-        Hex.strip0x(signature),
-      ]);
-    }
-
-    return signature;
-  }
+  String getStubSignature() => _withSignatureType(ecdsaStubSignature);
 
   /// Signs a UserOperation for EntryPoint v0.7.
   ///
@@ -330,21 +194,15 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV07(userOp);
-    final signature = await _config.owner.signPersonalMessage(userOpHash);
-
-    // v2.0.0 prepends signature type
-    if (_config.version == LightAccountVersion.v200) {
-      return Hex.concat([
-        Hex.fromBigInt(
-          BigInt.from(LightAccountSignatureType.eoa),
-          byteLength: 1,
-        ),
-        Hex.strip0x(signature),
-      ]);
-    }
-
-    return signature;
+    final signature = await _config.owner.signPersonalMessage(
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: EntryPointVersion.v07,
+        chainId: _config.chainId,
+      ),
+    );
+    return _withSignatureType(signature);
   }
 
   /// Signs a UserOperation for EntryPoint v0.6.
@@ -360,193 +218,53 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
       );
     }
 
-    final userOpHash = _computeUserOpHashV06(userOp);
     // v1.1.0 (EP v0.6) has no signature-type prefix.
-    return _config.owner.signPersonalMessage(userOpHash);
-  }
-
-  @override
-  Future<String> signMessage(String message) async {
-    final messageHash = hashMessage(message);
-    final accountAddress = await getAddress();
-
-    // Sign using EIP-1271 wrapper with LightAccountMessage typed data
-    final signature = await _signLightAccountMessage(
-      accountAddress,
-      messageHash,
-    );
-
-    // v2.0.0 prepends signature type
-    if (_config.version == LightAccountVersion.v200) {
-      return Hex.concat([
-        Hex.fromBigInt(
-          BigInt.from(LightAccountSignatureType.eoa),
-          byteLength: 1,
-        ),
-        Hex.strip0x(signature),
-      ]);
-    }
-
-    return signature;
-  }
-
-  @override
-  Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    final accountAddress = await getAddress();
-
-    // Sign using EIP-1271 wrapper with LightAccountMessage typed data
-    final signature = await _signLightAccountMessage(
-      accountAddress,
-      hash,
-    );
-
-    // v2.0.0 prepends signature type
-    if (_config.version == LightAccountVersion.v200) {
-      return Hex.concat([
-        Hex.fromBigInt(
-          BigInt.from(LightAccountSignatureType.eoa),
-          byteLength: 1,
-        ),
-        Hex.strip0x(signature),
-      ]);
-    }
-
-    return signature;
-  }
-
-  /// Signs a message hash using the LightAccountMessage EIP-712 wrapper.
-  Future<String> _signLightAccountMessage(
-    EthereumAddress verifyingContract,
-    String hashedMessage,
-  ) async {
-    final typedData = TypedData(
-      domain: TypedDataDomain(
-        name: 'LightAccount',
-        version: '1',
+    return _config.owner.signPersonalMessage(
+      getUserOperationHash(
+        userOperation: userOp,
+        entryPointAddress: entryPoint,
+        entryPointVersion: EntryPointVersion.v06,
         chainId: _config.chainId,
-        verifyingContract: verifyingContract,
       ),
-      types: {
-        'LightAccountMessage': [
-          const TypedDataField(name: 'message', type: 'bytes'),
-        ],
-      },
+    );
+  }
+
+  @override
+  Future<String> signMessage(String message) =>
+      _signLightAccountMessage(hashMessage(message));
+
+  @override
+  Future<String> signTypedData(TypedData typedData) =>
+      _signLightAccountMessage(hashTypedData(typedData));
+
+  /// Signs [hashedMessage] through the LightAccountMessage EIP-712 wrapper.
+  Future<String> _signLightAccountMessage(String hashedMessage) async {
+    final typedData = wrappedMessageTypedData(
+      domainName: 'LightAccount',
+      domainVersion: '1',
+      chainId: _config.chainId,
+      verifyingContract: await getAddress(),
       primaryType: 'LightAccountMessage',
-      message: {'message': hashedMessage},
+      message: hashedMessage,
     );
 
     // Sign the EIP-712 digest raw (no EIP-191 prefix). LightAccount's
     // on-chain isValidSignature recovers against this digest.
-    return _config.owner.signTypedData(typedData);
+    return _withSignatureType(await _config.owner.signTypedData(typedData));
   }
 
-  String _computeUserOpHashV07(UserOperationV07 userOp) {
-    final packed = _packUserOpForHashV07(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  String _packUserOpForHashV07(UserOperationV07 userOp) {
-    var initCode = '0x';
-    if (userOp.factory != null) {
-      initCode = Hex.concat([
-        userOp.factory!.hex,
-        Hex.strip0x(userOp.factoryData ?? '0x'),
-      ]);
-    }
-    final initCodeHash = keccak256(Hex.decode(initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-
-    final accountGasLimits = Hex.concat([
-      Hex.fromBigInt(
-        userOp.verificationGasLimit,
-        byteLength: 16,
-        name: 'verificationGasLimit',
-      ),
-      Hex.fromBigInt(userOp.callGasLimit, byteLength: 16, name: 'callGasLimit'),
-    ]);
-
-    final gasFees = Hex.concat([
-      Hex.fromBigInt(
-        userOp.maxPriorityFeePerGas,
-        byteLength: 16,
-        name: 'maxPriorityFeePerGas',
-      ),
-      Hex.fromBigInt(userOp.maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-    ]);
-
-    var paymasterAndData = '0x';
-    if (userOp.paymaster != null) {
-      paymasterAndData = Hex.concat([
-        userOp.paymaster!.hex,
-        Hex.fromBigInt(
-          userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterVerificationGasLimit',
-        ),
-        Hex.fromBigInt(
-          userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-          byteLength: 16,
-          name: 'paymasterPostOpGasLimit',
-        ),
-        Hex.strip0x(userOp.paymasterData ?? '0x'),
-      ]);
-    }
-    final paymasterAndDataHash = keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  /// Computes the userOpHash for EntryPoint v0.6 signing.
-  String _computeUserOpHashV06(UserOperationV06 userOp) {
-    final packed = _packUserOpForHashV06(userOp);
-    final packedHash = keccak256(Hex.decode(packed));
-
-    final hashInput = Hex.concat([
-      Hex.fromBytes(packedHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(_config.chainId),
-    ]);
-
-    return Hex.fromBytes(keccak256(Hex.decode(hashInput)));
-  }
-
-  /// Packs a UserOperation for EntryPoint v0.6 hashing.
-  String _packUserOpForHashV06(UserOperationV06 userOp) {
-    final initCodeHash = keccak256(Hex.decode(userOp.initCode));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final paymasterAndDataHash = keccak256(Hex.decode(userOp.paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      AbiEncoder.encodeUint256(userOp.callGasLimit),
-      AbiEncoder.encodeUint256(userOp.verificationGasLimit),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      AbiEncoder.encodeUint256(userOp.maxFeePerGas),
-      AbiEncoder.encodeUint256(userOp.maxPriorityFeePerGas),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
+  /// LightAccount v2.0.0 expects a leading signature-type byte (EOA = 0x00);
+  /// v1.1.0 takes the bare signature.
+  String _withSignatureType(String signature) =>
+      _config.version == LightAccountVersion.v200
+          ? Hex.concat([
+              Hex.fromBigInt(
+                BigInt.from(LightAccountSignatureType.eoa),
+                byteLength: 1,
+              ),
+              signature,
+            ])
+          : signature;
 }
 
 /// Creates an Alchemy Light smart account.
