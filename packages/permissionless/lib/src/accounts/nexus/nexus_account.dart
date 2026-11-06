@@ -207,18 +207,11 @@ class NexusSmartAccount implements SmartAccount, EntryPointVersioned {
   @override
   Future<String> sign(String hash) => signMessage(hash);
 
-  /// Gets a stub signature for gas estimation.
+  /// Gets a stub signature for gas estimation (permissionless.js Nexus
+  /// dummy: the module ECDSA dummy next to the validator).
   @override
-  String getStubSignature() {
-    // permissionless.js Nexus dummy: offset ‖ validator ‖ 65-byte signature.
-    final validator = Hex.strip0x(_validatorAddress.hex);
-    return '0x0000000000000000000000000000000000000000000000000000000000000040'
-        '000000000000000000000000$validator'
-        '0000000000000000000000000000000000000000000000000000000000000041'
-        '81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5'
-        '711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff'
-        '1b00000000000000000000000000000000000000000000000000000000000000';
-  }
+  String getStubSignature() =>
+      encodeModuleSignature(moduleEcdsaStubSignature, _validatorAddress);
 
   /// Signs a UserOperation.
   ///

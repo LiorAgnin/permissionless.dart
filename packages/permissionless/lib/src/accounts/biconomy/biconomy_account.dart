@@ -255,7 +255,7 @@ class BiconomySmartAccount implements SmartAccountV06, EntryPointVersioned {
 
   /// Gets a stub signature for gas estimation.
   @override
-  String getStubSignature() => _encodeModuleSignature(_dummyEcdsaSignature);
+  String getStubSignature() => _encodeModuleSignature(moduleEcdsaStubSignature);
 
   /// Signs a UserOperation (v0.6).
   @override
@@ -298,10 +298,7 @@ class BiconomySmartAccount implements SmartAccountV06, EntryPointVersioned {
   /// `abi.encode(bytes signature, address moduleAddress)`: Biconomy routes
   /// validation to the module named next to the signature.
   String _encodeModuleSignature(String signature) =>
-      AbiEncoder.encodeWithDynamics([
-        (false, AbiEncoder.encodeBytes(signature)),
-        (true, AbiEncoder.encodeAddress(_ecdsaModuleAddress)),
-      ]);
+      encodeModuleSignature(signature, _ecdsaModuleAddress);
 }
 
 const _executeSignature = 'execute_ncC(address,uint256,bytes)';
@@ -310,11 +307,6 @@ const _deployCounterFactualAccountSignature =
     'deployCounterFactualAccount(address,bytes,uint256)';
 const _initForSmartAccountSignature = 'initForSmartAccount(address)';
 const _initSignature = 'init(address,address,bytes)';
-
-/// 65-byte ECDSA-shaped dummy signature permissionless.js uses for Biconomy
-/// stub signatures (wrapped with the module address).
-const _dummyEcdsaSignature =
-    '0x81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff1b';
 
 /// Creation code of the Biconomy account proxy the factory deploys (the
 /// implementation address is appended as its constructor argument).

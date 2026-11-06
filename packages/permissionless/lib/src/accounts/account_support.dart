@@ -2,11 +2,25 @@ import '../clients/public/public_client.dart';
 import '../types/address.dart';
 import '../types/eip7702.dart';
 import '../types/user_operation.dart';
+import '../utils/encoding.dart';
 
 /// 65-byte ECDSA-shaped dummy signature accepted by bundler simulation
 /// (permissionless.js `getDummySignature` for ECDSA owners).
 const String ecdsaStubSignature =
     '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+
+/// 65-byte ECDSA-shaped dummy signature permissionless.js wraps with the
+/// validator module for Biconomy and Nexus stub signatures.
+const String moduleEcdsaStubSignature =
+    '0x81d4b4981670cb18f99f0b4a66446df1bf5b204d24cfcb659bf38ba27a4359b5711649ec2423c5e1247245eba2964679b6a1dbb85c992ae40b9b00c6935b02ff1b';
+
+/// `abi.encode(bytes signature, address module)`: the signature next to the
+/// validator module that should check it.
+String encodeModuleSignature(String signature, EthereumAddress module) =>
+    AbiEncoder.encodeWithDynamics([
+      (false, AbiEncoder.encodeBytes(signature)),
+      (true, AbiEncoder.encodeAddress(module)),
+    ]);
 
 /// The v0.6 `initCode` (`factory ‖ factoryData`) for an account's
 /// [factoryData], or `0x` when it has no factory.
