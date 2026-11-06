@@ -159,13 +159,17 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
         'verified on-chain.',
       );
     }
-    // web3_signers returns -1 (indexOf), not null, for a missing value.
-    final challengeIndex = signature.getChallengeLocation(challenge)!;
-    final typeIndex = signature.getTypeLocation()!;
-    if (challengeIndex < 0 || typeIndex < 0) {
+    // ox WebAuthnP256.sign: the indices are the offsets of the "challenge"
+    // and "type" keys (what on-chain verifiers read), not of their values.
+    // web3_signers' getChallengeLocation finds the value, so it only checks
+    // that this hash is the signed challenge (-1 when absent).
+    final hasChallenge = signature.getChallengeLocation(challenge)! >= 0;
+    final challengeIndex = clientDataJSON.indexOf('"challenge"');
+    final typeIndex = clientDataJSON.indexOf('"type"');
+    if (!hasChallenge || challengeIndex < 0 || typeIndex < 0) {
       throw StateError(
         'The authenticator clientDataJSON has no '
-        '${challengeIndex < 0 ? 'challenge for this hash' : '"type" key'}; '
+        '${typeIndex < 0 ? '"type" key' : 'challenge for this hash'}; '
         'the signature cannot be verified on-chain.',
       );
     }

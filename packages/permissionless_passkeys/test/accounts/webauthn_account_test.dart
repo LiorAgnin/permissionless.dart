@@ -255,6 +255,16 @@ void main() {
             ),
           ).sign(hash: testHash);
 
+      // ox WebAuthnP256.sign (viem): challengeIndex =
+      // clientDataJSON.indexOf('"challenge"'), typeIndex =
+      // clientDataJSON.indexOf('"type"') — the offsets of the keys, which
+      // on-chain WebAuthn verifiers expect.
+      test('reports the "challenge" and "type" key offsets like ox', () async {
+        final result = await signWith(testClientDataJSON);
+        expect(result.webauthn.challengeIndex, 23);
+        expect(result.webauthn.typeIndex, 1);
+      });
+
       test('without the challenge throws StateError', () async {
         await expectLater(
           signWith('{"type":"webauthn.get","challenge":"AAAA"}'),
