@@ -4,6 +4,7 @@ import 'package:web3dart/web3dart.dart';
 
 import '../types/address.dart';
 import '../types/hex.dart';
+import 'abi_type.dart';
 
 /// ABI encoding utilities for Ethereum smart contract interactions.
 class AbiEncoder {
@@ -84,6 +85,10 @@ class AbiEncoder {
   /// - `bytes` / `bytesN`: hex [String] or [Uint8List]
   /// - `string`: [String]
   /// - arrays / tuples: [List], converted element-wise
+  ///
+  /// Throws [ArgumentError] for a type viem rejects (e.g. `uint7`, `int264`,
+  /// `bytes33`, `bytes0`), an argument count mismatch, or a value that does
+  /// not fit its type.
   static String encodeFunctionData(
     String functionSignature, [
     List<dynamic> args = const [],
@@ -96,11 +101,8 @@ class AbiEncoder {
       );
     }
 
-    final parameters = <FunctionParameter<dynamic>>[
-      for (var i = 0; i < parsed.types.length; i++)
-        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
-    ];
-    final function = ContractFunction(parsed.name, parameters);
+    final function =
+        ContractFunction(parsed.name, _abiParameters(parsed.types));
     final converted = <dynamic>[
       for (var i = 0; i < args.length; i++)
         _convertAbiArg(parsed.types[i], args[i]),
@@ -144,10 +146,7 @@ class AbiEncoder {
     String data,
   ) {
     final parsed = _parseFunctionSignature(functionSignature);
-    final parameters = <FunctionParameter<dynamic>>[
-      for (var i = 0; i < parsed.types.length; i++)
-        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
-    ];
+    final parameters = _abiParameters(parsed.types);
     final function = ContractFunction(parsed.name, parameters);
     final expectedSelector = Hex.fromBytes(function.selector).toLowerCase();
 
@@ -210,6 +209,32 @@ class AbiEncoder {
     return (name: name, types: _splitAbiParameterTypes(paramsStr));
   }
 
+  static List<FunctionParameter<dynamic>> _abiParameters(List<String> types) =>
+      [
+        for (var i = 0; i < types.length; i++)
+          FunctionParameter<dynamic>(
+            'arg$i',
+            parseAbiType(_checkAbiType(types[i])),
+          ),
+      ];
+
+  static final RegExp _arrayType = RegExp(r'^(.*)\[(\d*)\]$');
+
+  /// Throws [ArgumentError] unless [type] is a Solidity ABI type with valid
+  /// widths throughout (see [atomicAbiType]); returns [type].
+  static String _checkAbiType(String type) {
+    final array = _arrayType.firstMatch(type);
+    if (array != null) {
+      _checkAbiType(array.group(1)!);
+    } else if (type.startsWith('(') && type.endsWith(')')) {
+      _splitAbiParameterTypes(type.substring(1, type.length - 1))
+          .forEach(_checkAbiType);
+    } else if (!atomicAbiType.hasMatch(type)) {
+      throw ArgumentError.value(type, 'type', 'not a Solidity ABI type');
+    }
+    return type;
+  }
+
   /// Splits a top-level ABI parameter list, respecting nested tuples.
   static List<String> _splitAbiParameterTypes(String params) {
     final trimmed = params.trim();
@@ -250,7 +275,7 @@ class AbiEncoder {
 
   /// Converts a Dart-friendly argument into the form web3dart expects.
   static dynamic _convertAbiArg(String type, dynamic value) {
-    final arrayMatch = RegExp(r'^(.*)\[(\d*)\]$').firstMatch(type);
+    final arrayMatch = _arrayType.firstMatch(type);
     if (arrayMatch != null) {
       final elementType = arrayMatch.group(1)!;
       if (value is! List) {
