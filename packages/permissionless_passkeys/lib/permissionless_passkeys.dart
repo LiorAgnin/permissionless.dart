@@ -42,16 +42,7 @@
 /// See the [platform setup guide](https://pub.dev/packages/passkeys) for configuration details.
 library;
 
-// Types
-export 'src/types/webauthn_credential.dart';
-
-// Accounts
-export 'src/accounts/webauthn_account.dart';
 export 'src/accounts/to_webauthn_account.dart';
-
-// Encoding (for advanced use cases)
-export 'src/encoding/kernel_encoding.dart';
-export 'src/encoding/safe_encoding.dart';
-
-// Factory functions
+export 'src/accounts/webauthn_account.dart';
 export 'src/factory.dart';
+export 'src/types/webauthn_credential.dart';
