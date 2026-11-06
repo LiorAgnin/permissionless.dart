@@ -174,19 +174,14 @@ class Eip7702Authorization {
   /// form (as [sign] produces) or the 0/1 recovery id wallets report.
   int get yParity => v >= 27 ? v - 27 : v;
 
-  /// Converts this authorization to JSON format for RPC calls.
-  Map<String, dynamic> toJson() => {
-        'chainId': Hex.fromBigInt(chainId),
-        'address': address.hex,
-        'nonce': Hex.fromBigInt(nonce),
-        'v': Hex.fromBigInt(BigInt.from(v)),
-        'r': r,
-        's': s,
-      };
+  /// JSON form of this authorization; the same map as [toRpcFormat].
+  ///
+  /// viem and execution clients key the recovery id as `yParity`, so there
+  /// is no separate `v` form.
+  Map<String, dynamic> toJson() => toRpcFormat();
 
   /// Converts this authorization to the format expected by bundlers.
   ///
-  /// Uses Pimlico's bundler format with `address` field and hex-encoded values.
   /// Per viem's formatAuthorization:
   /// - address, chainId, nonce (hex-encoded)
   /// - r, s (32 bytes each, hex-encoded)
