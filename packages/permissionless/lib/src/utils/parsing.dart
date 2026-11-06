@@ -1,10 +1,15 @@
-/// Parses a dynamic value (int, BigInt, hex string, or decimal string) to BigInt.
-BigInt parseBigInt(dynamic value) {
-  if (value is int) return BigInt.from(value);
-  if (value is BigInt) return value;
-  final str = value.toString();
-  if (str.startsWith('0x')) {
-    return BigInt.parse(str.substring(2), radix: 16);
-  }
-  return BigInt.parse(str);
-}
+/// Parses a JSON-RPC number (int, BigInt, `0x` hex string, or decimal
+/// string) to a BigInt.
+BigInt parseBigInt(dynamic value) => switch (value) {
+      final int v => BigInt.from(v),
+      final BigInt v => v,
+      _ => BigInt.parse(value.toString()),
+    };
+
+/// [parseBigInt], or null when [value] is null.
+BigInt? parseBigIntOrNull(dynamic value) =>
+    value == null ? null : parseBigInt(value);
+
+/// [parseBigInt] for values that fit in an int (status codes, log indexes).
+int parseInt(dynamic value) =>
+    value is int ? value : parseBigInt(value).toInt();

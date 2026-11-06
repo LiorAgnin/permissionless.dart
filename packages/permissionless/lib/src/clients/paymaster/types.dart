@@ -25,12 +25,9 @@ class PaymasterStubData {
         paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         paymasterData: json['paymasterData'] as String,
         paymasterVerificationGasLimit:
-            json['paymasterVerificationGasLimit'] != null
-                ? parseBigInt(json['paymasterVerificationGasLimit'])
-                : null,
-        paymasterPostOpGasLimit: json['paymasterPostOpGasLimit'] != null
-            ? parseBigInt(json['paymasterPostOpGasLimit'])
-            : null,
+            parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+        paymasterPostOpGasLimit:
+            parseBigIntOrNull(json['paymasterPostOpGasLimit']),
         isFinal: json['isFinal'] as bool? ?? false,
       );
 
@@ -71,12 +68,9 @@ class PaymasterData {
         paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         paymasterData: json['paymasterData'] as String,
         paymasterVerificationGasLimit:
-            json['paymasterVerificationGasLimit'] != null
-                ? parseBigInt(json['paymasterVerificationGasLimit'])
-                : null,
-        paymasterPostOpGasLimit: json['paymasterPostOpGasLimit'] != null
-            ? parseBigInt(json['paymasterPostOpGasLimit'])
-            : null,
+            parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+        paymasterPostOpGasLimit:
+            parseBigIntOrNull(json['paymasterPostOpGasLimit']),
       );
 
   /// The paymaster contract address.
@@ -126,15 +120,9 @@ class SponsorUserOperationResult {
       return SponsorUserOperationResult(
         paymaster: EthereumAddress.fromHex(paymaster),
         paymasterData: paymasterData,
-        preVerificationGas: json['preVerificationGas'] != null
-            ? parseBigInt(json['preVerificationGas'])
-            : null,
-        verificationGasLimit: json['verificationGasLimit'] != null
-            ? parseBigInt(json['verificationGasLimit'])
-            : null,
-        callGasLimit: json['callGasLimit'] != null
-            ? parseBigInt(json['callGasLimit'])
-            : null,
+        preVerificationGas: parseBigIntOrNull(json['preVerificationGas']),
+        verificationGasLimit: parseBigIntOrNull(json['verificationGasLimit']),
+        callGasLimit: parseBigIntOrNull(json['callGasLimit']),
       );
     }
 
@@ -143,21 +131,12 @@ class SponsorUserOperationResult {
       paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
       paymasterData: json['paymasterData'] as String,
       paymasterVerificationGasLimit:
-          json['paymasterVerificationGasLimit'] != null
-              ? parseBigInt(json['paymasterVerificationGasLimit'])
-              : null,
-      paymasterPostOpGasLimit: json['paymasterPostOpGasLimit'] != null
-          ? parseBigInt(json['paymasterPostOpGasLimit'])
-          : null,
-      preVerificationGas: json['preVerificationGas'] != null
-          ? parseBigInt(json['preVerificationGas'])
-          : null,
-      verificationGasLimit: json['verificationGasLimit'] != null
-          ? parseBigInt(json['verificationGasLimit'])
-          : null,
-      callGasLimit: json['callGasLimit'] != null
-          ? parseBigInt(json['callGasLimit'])
-          : null,
+          parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+      paymasterPostOpGasLimit:
+          parseBigIntOrNull(json['paymasterPostOpGasLimit']),
+      preVerificationGas: parseBigIntOrNull(json['preVerificationGas']),
+      verificationGasLimit: parseBigIntOrNull(json['verificationGasLimit']),
+      callGasLimit: parseBigIntOrNull(json['callGasLimit']),
     );
   }
 

@@ -1,3 +1,4 @@
+import '../utils/parsing.dart';
 import 'address.dart';
 import 'eip7702.dart';
 import 'hex.dart';
@@ -463,9 +464,7 @@ class Call {
   /// Creates a call from a JSON map.
   factory Call.fromJson(Map<String, dynamic> json) => Call(
         to: EthereumAddress.fromHex(json['to'] as String),
-        value: json['value'] is BigInt
-            ? json['value'] as BigInt
-            : BigInt.parse(json['value']?.toString() ?? '0'),
+        value: parseBigIntOrNull(json['value']) ?? BigInt.zero,
         data: json['data'] as String? ?? '0x',
       );
 

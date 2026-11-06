@@ -28,12 +28,9 @@ class UserOperationGasEstimate {
         ),
         callGasLimit: parseBigInt(json['callGasLimit']),
         paymasterVerificationGasLimit:
-            json['paymasterVerificationGasLimit'] != null
-                ? parseBigInt(json['paymasterVerificationGasLimit'])
-                : null,
-        paymasterPostOpGasLimit: json['paymasterPostOpGasLimit'] != null
-            ? parseBigInt(json['paymasterPostOpGasLimit'])
-            : null,
+            parseBigIntOrNull(json['paymasterVerificationGasLimit']),
+        paymasterPostOpGasLimit:
+            parseBigIntOrNull(json['paymasterPostOpGasLimit']),
       );
 
   /// Gas for data serialization and pre-verification checks.
@@ -79,9 +76,7 @@ class UserOperationByHashResponse {
       UserOperationByHashResponse(
         userOperation: json['userOperation'] as Map<String, dynamic>,
         entryPoint: EthereumAddress.fromHex(json['entryPoint'] as String),
-        blockNumber: json['blockNumber'] != null
-            ? parseBigInt(json['blockNumber'])
-            : null,
+        blockNumber: parseBigIntOrNull(json['blockNumber']),
         blockHash: json['blockHash'] as String?,
         transactionHash: json['transactionHash'] as String?,
       );
@@ -194,12 +189,9 @@ class UserOperationLog {
         topics:
             (json['topics'] as List<dynamic>).map((t) => t as String).toList(),
         data: json['data'] as String,
-        blockNumber: json['blockNumber'] != null
-            ? parseBigInt(json['blockNumber'])
-            : null,
+        blockNumber: parseBigIntOrNull(json['blockNumber']),
         transactionHash: json['transactionHash'] as String?,
-        logIndex:
-            json['logIndex'] != null ? _parseHexInt(json['logIndex']) : null,
+        logIndex: json['logIndex'] == null ? null : parseInt(json['logIndex']),
       );
 
   /// Contract address that emitted the log.
@@ -252,7 +244,7 @@ class TransactionReceipt {
             : null,
         cumulativeGasUsed: parseBigInt(json['cumulativeGasUsed']),
         gasUsed: parseBigInt(json['gasUsed']),
-        status: _parseHexInt(json['status']),
+        status: parseInt(json['status']),
         logs: (json['logs'] as List<dynamic>)
             .map((l) => UserOperationLog.fromJson(l as Map<String, dynamic>))
             .toList(),
@@ -406,11 +398,3 @@ class BundlerHttpError extends BundlerRpcError {
 }
 
 // Helper to parse hex or decimal int
-int _parseHexInt(dynamic value) {
-  if (value is int) return value;
-  final str = value.toString();
-  if (str.startsWith('0x')) {
-    return int.parse(str.substring(2), radix: 16);
-  }
-  return int.parse(str);
-}

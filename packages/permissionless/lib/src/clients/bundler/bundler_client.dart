@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/user_operation.dart';
+import '../../utils/parsing.dart';
 import 'rpc_client.dart';
 import 'types.dart';
 import 'user_operation_request.dart';
@@ -181,11 +182,8 @@ class BundlerClient {
   }
 
   /// Gets the chain ID from the bundler.
-  Future<BigInt> chainId() async {
-    final result = await rpcClient.call('eth_chainId');
-    final hexStr = result as String;
-    return BigInt.parse(hexStr.substring(2), radix: 16);
-  }
+  Future<BigInt> chainId() async =>
+      parseBigInt(await rpcClient.call('eth_chainId'));
 
   /// Waits for a UserOperation to be included in a block.
   ///

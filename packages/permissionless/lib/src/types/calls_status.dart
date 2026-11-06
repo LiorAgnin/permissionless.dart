@@ -1,3 +1,6 @@
+import '../utils/parsing.dart';
+
+
 /// Status of a batch call operation (ERC-5792).
 enum CallsStatusType {
   /// The operation is still being processed.
@@ -29,12 +32,8 @@ class CallReceipt {
             .map((e) => e as Map<String, dynamic>)
             .toList(),
         blockHash: json['blockHash'] as String,
-        blockNumber: json['blockNumber'] is BigInt
-            ? json['blockNumber'] as BigInt
-            : BigInt.parse(json['blockNumber'].toString()),
-        gasUsed: json['gasUsed'] is BigInt
-            ? json['gasUsed'] as BigInt
-            : BigInt.parse(json['gasUsed'].toString()),
+        blockNumber: parseBigInt(json['blockNumber']),
+        gasUsed: parseBigInt(json['gasUsed']),
         transactionHash: json['transactionHash'] as String,
       );
 
@@ -107,9 +106,7 @@ class CallsStatus {
     return CallsStatus(
       id: json['id'] as String,
       version: json['version'] as String? ?? '1.0',
-      chainId: json['chainId'] is BigInt
-          ? json['chainId'] as BigInt
-          : BigInt.parse(json['chainId']?.toString() ?? '0'),
+      chainId: parseBigIntOrNull(json['chainId']) ?? BigInt.zero,
       status: parsed.status,
       statusCode: parsed.statusCode,
       atomic: json['atomic'] as bool? ?? true,
