@@ -134,6 +134,54 @@ void main() {
     final call = Call(to: recipient, value: BigInt.zero);
 
     test(
+        'undeployed ERC-7579 Safe: final call data keeps the setupSafe '
+        'deployment wrapper', () async {
+      final publicClient = createPublicClientMock();
+      final account = createSafeSmartAccount(
+        owners: [PrivateKeyOwner(testPrivateKey)],
+        chainId: BigInt.from(11155111),
+        address: recipient,
+        erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        ),
+        paymaster: createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(),
+        ),
+        publicClient: publicClient,
+      );
+
+      final result = await prepareUserOperationForErc20Paymaster(
+        smartAccountClient: client,
+        pimlicoClient: createPimlico(),
+        publicClient: publicClient,
+        token: token,
+        calls: [call],
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      expect(result.userOperation.factory, isNotNull);
+      expect(
+        result.userOperation.callData,
+        account.encodeCallsForDeployment([
+          encodeErc20Approve(
+            token: token,
+            spender: result.tokenQuote.paymaster,
+            amount: result.maxCostInToken,
+          ),
+          call,
+        ]),
+      );
+    });
+
+    test(
       'EIP-7702 first op: returns authorization, forwards eip7702Auth '
       'to every paymaster request incl. the final pm_getPaymasterData',
       () async {

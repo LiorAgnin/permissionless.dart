@@ -12,6 +12,7 @@ import '../../clients/pimlico/erc20_paymaster.dart';
 import '../../clients/pimlico/pimlico_client.dart';
 import '../../clients/pimlico/types.dart';
 import '../../clients/public/public_client.dart';
+import '../../clients/smart_account/call_encoding.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
@@ -211,7 +212,11 @@ Future<Erc20PaymasterResult> prepareUserOperationForErc20Paymaster({
         )
       : calls;
 
-  final finalCallData = smartAccountClient.account.encodeCalls(finalCalls);
+  final finalCallData = encodeUserOperationCalls(
+    smartAccountClient.account,
+    finalCalls,
+    deploysAccount: initialUserOp.factory != null,
+  );
 
   final paymaster = smartAccountClient.paymaster;
   if (paymaster == null) {
