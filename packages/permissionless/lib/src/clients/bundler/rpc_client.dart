@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 
 import 'types.dart';
 
+/// Request timeout used when a client is created without one.
+const Duration defaultRpcTimeout = Duration(seconds: 30);
+
 /// A JSON-RPC 2.0 client for HTTP transport.
 ///
 /// Handles request/response formatting and error parsing for
@@ -21,7 +24,7 @@ class JsonRpcClient {
     required this.url,
     http.Client? httpClient,
     this.headers = const {},
-    this.timeout = const Duration(seconds: 30),
+    this.timeout = defaultRpcTimeout,
   }) : _httpClient = httpClient ?? http.Client();
 
   /// The RPC endpoint URL.
@@ -193,13 +196,18 @@ class RpcRequest {
 }
 
 /// Creates a [JsonRpcClient] from a URL string.
+///
+/// Every `create*Client` factory builds its transport here, so they share
+/// the same defaults.
 JsonRpcClient createRpcClient(
   String url, {
+  http.Client? httpClient,
   Map<String, String>? headers,
   Duration? timeout,
 }) =>
     JsonRpcClient(
       url: Uri.parse(url),
-      headers: headers ?? {},
-      timeout: timeout ?? const Duration(seconds: 30),
+      httpClient: httpClient,
+      headers: headers ?? const {},
+      timeout: timeout ?? defaultRpcTimeout,
     );

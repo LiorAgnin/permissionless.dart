@@ -344,11 +344,11 @@ PimlicoClient createPimlicoClient({
   Duration? timeout,
 }) =>
     PimlicoClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
       entryPoint: entryPoint,
     );
