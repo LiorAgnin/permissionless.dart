@@ -1,13 +1,12 @@
-import 'account_owner.dart';
+import 'webauthn_owner.dart';
 
-/// Checks if an owner is a WebAuthn account.
+/// Whether [owner] is a WebAuthn (passkey) owner, i.e. a
+/// [WebAuthnAccountOwner].
 ///
-/// This function checks the `type` property of the owner to determine
-/// if it's a WebAuthn account (passkey-based) rather than a standard
-/// ECDSA account.
-///
-/// WebAuthn accounts use P256 signatures and require special encoding
-/// for signature verification on-chain.
+/// WebAuthn owners sign with P256 through [WebAuthnAccountOwner.signP256],
+/// so accounts encode their signatures differently from ECDSA owners. An
+/// owner that only reports `type == OwnerType.webAuthn` without extending
+/// [WebAuthnAccountOwner] has no P256 key and is not a WebAuthn owner.
 ///
 /// Example:
 /// ```dart
@@ -17,14 +16,4 @@ import 'account_owner.dart';
 ///   // Use standard ECDSA signature
 /// }
 /// ```
-bool isWebAuthnAccount(dynamic owner) {
-  if (owner == null) return false;
-
-  // Check if owner has a 'type' getter
-  try {
-    final type = (owner as dynamic).type as String?;
-    return type == OwnerType.webAuthn;
-  } catch (_) {
-    return false;
-  }
-}
+bool isWebAuthnAccount(dynamic owner) => owner is WebAuthnAccountOwner;

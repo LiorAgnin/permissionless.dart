@@ -16,7 +16,6 @@ import '../account_owner.dart';
 import '../account_support.dart';
 import '../erc7579_calls.dart';
 import '../webauthn_owner.dart';
-import '../webauthn_utils.dart';
 import 'constants.dart';
 import 'kernel_abi.dart';
 import 'kernel_erc1271.dart';
@@ -145,7 +144,12 @@ class KernelSmartAccount implements SmartAccountV06 {
           ? EntryPointAddresses.v06
           : EntryPointAddresses.v07);
 
-  bool get _isWebAuthn => isWebAuthnAccount(_config.owner);
+  WebAuthnAccountOwner? get _webAuthnOwner => switch (_config.owner) {
+        final WebAuthnAccountOwner owner => owner,
+        _ => null,
+      };
+
+  bool get _isWebAuthn => _webAuthnOwner != null;
 
   @override
   bool get isWebAuthn => _isWebAuthn;
@@ -273,8 +277,8 @@ class KernelSmartAccount implements SmartAccountV06 {
   /// Validator data: the owner address for ECDSA; for WebAuthn
   /// `abi.encode((x, y), keccak256(credentialId))`.
   String get _rootValidatorData {
-    if (!_isWebAuthn) return _config.owner.address.hex;
-    final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
+    final webAuthnOwner = _webAuthnOwner;
+    if (webAuthnOwner == null) return _config.owner.address.hex;
     return encodeKernelWebAuthnValidatorData(
       x: webAuthnOwner.x,
       y: webAuthnOwner.y,
@@ -339,9 +343,9 @@ class KernelSmartAccount implements SmartAccountV06 {
   Future<String> signUserOperation(UserOperationV07 userOp) async {
     final userOpHash = _userOperationHash(userOp);
 
-    if (_isWebAuthn) {
+    final webAuthnOwner = _webAuthnOwner;
+    if (webAuthnOwner != null) {
       final usePrecompiled = await _shouldUsePrecompile();
-      final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
       final sigData = await webAuthnOwner.signP256(userOpHash);
       return encodeKernelWebAuthnSignature(
         sigData,
@@ -375,8 +379,12 @@ class KernelSmartAccount implements SmartAccountV06 {
   /// On Kernel 0.2.1 / 0.2.2, signs without Kernel wrapping (matches JS).
   @override
   Future<String> signMessage(String message) async {
-    if (_isWebAuthn) {
-      return _signWebAuthnWithKernelWrapper(hashMessage(message));
+    final webAuthnOwner = _webAuthnOwner;
+    if (webAuthnOwner != null) {
+      return _signWebAuthnWithKernelWrapper(
+        webAuthnOwner,
+        hashMessage(message),
+      );
     }
     final signature = await signKernelMessage(
       owner: _config.owner,
@@ -397,8 +405,12 @@ class KernelSmartAccount implements SmartAccountV06 {
   /// On Kernel 0.2.1 / 0.2.2, signs typed data without Kernel wrapping (matches JS).
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    if (_isWebAuthn) {
-      return _signWebAuthnWithKernelWrapper(hashTypedData(typedData));
+    final webAuthnOwner = _webAuthnOwner;
+    if (webAuthnOwner != null) {
+      return _signWebAuthnWithKernelWrapper(
+        webAuthnOwner,
+        hashTypedData(typedData),
+      );
     }
     final signature = await signKernelTypedData(
       owner: _config.owner,
@@ -411,7 +423,10 @@ class KernelSmartAccount implements SmartAccountV06 {
   }
 
   /// WebAuthn ERC-1271 path: wrap via [wrapMessageHash], sign P256, prefix.
-  Future<String> _signWebAuthnWithKernelWrapper(String messageHash) async {
+  Future<String> _signWebAuthnWithKernelWrapper(
+    WebAuthnAccountOwner webAuthnOwner,
+    String messageHash,
+  ) async {
     final wrappedDigest = wrapMessageHash(
       hash: messageHash,
       address: await getAddress(),
@@ -419,7 +434,6 @@ class KernelSmartAccount implements SmartAccountV06 {
       chainId: _config.chainId,
     );
     final usePrecompiled = await _shouldUsePrecompile();
-    final webAuthnOwner = _config.owner as WebAuthnAccountOwner;
     final sigData = await webAuthnOwner.signP256(wrappedDigest);
     final signature = encodeKernelWebAuthnSignature(
       sigData,
