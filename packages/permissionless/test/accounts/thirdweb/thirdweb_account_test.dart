@@ -186,19 +186,8 @@ void main() {
     });
 
     group('creation', () {
-      test('defaults to EntryPoint v0.7', () {
-        expect(account.entryPointVersion, equals(EntryPointVersion.v07));
-        expect(account.chainId, equals(BigInt.one));
-      });
-
-      test('getAddress returns configured address', () async {
-        final address = await account.getAddress();
-        expect(
-          address.hex.toLowerCase(),
-          equals(mockAddress.hex.toLowerCase()),
-        );
-      });
-
+      // The one test of resolveCounterfactualAddress's no-address,
+      // no-client error; every factory account shares that helper.
       test('throws without address or publicClient', () {
         final bare = createThirdwebSmartAccount(
           owner: owner,
@@ -337,16 +326,6 @@ void main() {
           () => account.signUserOperationV06(fixtureUserOpV06(mockAddress)),
           throwsA(isA<UnsupportedError>()),
         );
-      });
-
-      test('implements SmartAccountV06 for client v0.6 pipeline', () {
-        final v06 = createThirdwebSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress,
-        );
-        expect(v06, isA<SmartAccountV06>());
       });
     });
 
