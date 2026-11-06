@@ -98,6 +98,48 @@ WebAuthnAccount createWebAuthnAccount({
   return _WebAuthnAccountImpl(credential: credential, rpId: rpId, getFn: getFn);
 }
 
+/// Creates a WebAuthn account from a credential.
+///
+/// Same as [createWebAuthnAccount]; kept under this name for existing
+/// callers.
+///
+/// The account can be passed as an owner to smart accounts like
+/// Kernel or Safe that support WebAuthn authentication.
+///
+/// [credential] - The WebAuthn credential (from `createPasskeyCredential`)
+/// [rpId] - Relying Party identifier (must match credential registration)
+/// [getFn] - Optional custom signing function for testing
+///
+/// Example:
+/// ```dart
+/// final webAuthnAccount = createWebAuthnAccountFromCredential(
+///   credential: credential,
+///   rpId: 'myapp.com',
+/// );
+///
+/// // Use with Kernel smart account (v0.3.x supports WebAuthn)
+/// final kernelAccount = createKernelSmartAccount(
+///   owner: webAuthnAccount,
+///   chainId: BigInt.from(11155111),
+///   version: KernelVersion.v0_3_1,
+///   publicClient: publicClient,
+/// );
+///
+/// // Use with Safe smart account
+/// final safeAccount = createSafeSmartAccount(
+///   owners: [webAuthnAccount],
+///   chainId: BigInt.from(11155111),
+///   publicClient: publicClient,
+/// );
+/// ```
+WebAuthnAccount createWebAuthnAccountFromCredential({
+  required WebAuthnCredential credential,
+  String? rpId,
+  Future<Signature> Function(Uint8List challenge)? getFn,
+}) {
+  return _WebAuthnAccountImpl(credential: credential, rpId: rpId, getFn: getFn);
+}
+
 class _WebAuthnAccountImpl extends WebAuthnAccount {
   _WebAuthnAccountImpl({required this.credential, String? rpId, this.getFn})
     : _signer = rpId == null || rpId.isEmpty
@@ -161,10 +203,8 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
     );
   }
 
-  /// Signs the EIP-191 hash of [message], like viem's `signMessage`.
-  ///
-  /// A `String` is hashed as UTF-8 text, even if it looks like hex; pass
-  /// bytes (`List<int>`) to sign raw data, as viem's `{ raw }` does.
+  // viem semantics: a String is UTF-8 text even if it looks like hex; bytes
+  // play the role of viem's `{ raw }`.
   @override
   Future<WebAuthnSignReturnType> signMessage({required dynamic message}) {
     final hash = switch (message) {

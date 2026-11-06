@@ -11,8 +11,12 @@ import 'package:web3_signers/web3_signers.dart';
 ///
 /// Example:
 /// ```dart
-/// // From newly registered passkey
-/// final key = await signer.register('user@example.com', 'User');
+/// // From a newly registered passkey (web3_signers)
+/// final key = await generatePassKey(
+///   config: PassKeyConfig(rpId: 'myapp.com', rpName: 'My App'),
+///   username: 'user@example.com',
+///   displayname: 'User',
+/// );
 /// final credential = WebAuthnCredential.fromPublicKey(key);
 ///
 /// // Access public key coordinates for validator init

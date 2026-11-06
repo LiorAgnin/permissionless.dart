@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 
+import '../config.dart';
 import 'home_screen.dart';
 
 /// Transaction funding mode
@@ -62,7 +63,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
   Future<void> _initializeAccount() async {
     _webAuthnAccount = createWebAuthnAccount(
       credential: widget.credential,
-      rpId: '28fc478be30e2f.lhr.life', // localhost.run - match registration
+      rpId: passkeyRpId,
     );
 
     if (widget.accountType == AccountType.kernel) {

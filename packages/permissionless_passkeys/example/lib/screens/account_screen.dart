@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 
+import '../config.dart';
 import 'home_screen.dart';
 import 'send_transaction_screen.dart';
 
@@ -39,7 +40,7 @@ class _AccountScreenState extends State<AccountScreen> {
     // Create WebAuthn account from credential (this is the owner for smart accounts)
     _webAuthnAccount = createWebAuthnAccount(
       credential: widget.credential,
-      rpId: '28fc478be30e2f.lhr.life', // localhost.run for testing
+      rpId: passkeyRpId,
     );
 
     if (widget.accountType == AccountType.kernel) {
