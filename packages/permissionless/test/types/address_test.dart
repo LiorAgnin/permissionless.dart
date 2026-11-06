@@ -1,4 +1,4 @@
-import 'package:permissionless/src/types/address.dart';
+import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -33,8 +33,10 @@ void main() {
 
       test('throws on invalid characters', () {
         expect(
-          () =>
-              EthereumAddress.fromHex('0xghijklmnopqrstuvwxyz1234567890123456'),
+          // 40 chars, so only the hex-character check can reject it.
+          () => EthereumAddress.fromHex(
+            '0xd8da6bf26964af9d7eed9e03e53415d37aa9604g',
+          ),
           throwsArgumentError,
         );
       });
@@ -80,19 +82,11 @@ void main() {
     });
 
     group('bytes', () {
-      test('returns 20 bytes', () {
-        final addr = EthereumAddress.fromHex(
-          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-        );
-        expect(addr.bytes.length, equals(20));
-      });
-
-      test('bytes are correct', () {
+      test('bytes are the 20 address bytes in order', () {
         final addr = EthereumAddress.fromHex(
           '0xff00000000000000000000000000000000000001',
         );
-        expect(addr.bytes.first, equals(0xff));
-        expect(addr.bytes.last, equals(0x01));
+        expect(addr.bytes, equals([0xff, ...List.filled(18, 0), 0x01]));
       });
     });
 
@@ -115,17 +109,6 @@ void main() {
           '0x0000000000000000000000000000000000000001',
         );
         expect(addr1, isNot(equals(addr2)));
-      });
-
-      test('equals string comparison via hex', () {
-        final addr = EthereumAddress.fromHex(
-          '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-        );
-        // Use .hex for string comparison since extensions can't override operators
-        expect(
-          addr.hex == '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-          isTrue,
-        );
       });
     });
 
@@ -157,9 +140,13 @@ void main() {
         final addr = EthereumAddress.fromHex(
           '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
         );
-        final encoded = addr.toAbiEncoded();
-        expect(encoded.length, equals(66)); // 0x + 64 hex chars
-        expect(encoded.startsWith('0x000000000000000000000000'), isTrue);
+        // cast abi-encode "f(address)" 0xd8da6bf26964af9d7eed9e03e53415d37aa96045
+        expect(
+          addr.toAbiEncoded(),
+          equals(
+            '0x000000000000000000000000d8da6bf26964af9d7eed9e03e53415d37aa96045',
+          ),
+        );
       });
     });
 

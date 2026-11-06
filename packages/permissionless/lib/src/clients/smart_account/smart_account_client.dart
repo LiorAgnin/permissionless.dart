@@ -1,14 +1,14 @@
-import '../../accounts/safe/safe_account.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/user_operation.dart';
-import '../../utils/erc20.dart';
 import '../../utils/gas.dart';
+import '../../utils/state_override.dart';
 import '../bundler/bundler_client.dart';
 import '../bundler/types.dart';
 import '../paymaster/paymaster_client.dart';
 import '../paymaster/types.dart';
 import '../public/public_client.dart';
+import 'call_encoding.dart';
 import 'smart_account_interface.dart';
 
 /// A prepared UserOperation ready for signing and submission.
@@ -149,30 +149,17 @@ class SmartAccountClient {
     final address = await eip7702.getAddress();
     final code = (await publicClient.getCode(address)).toLowerCase();
 
-    // Active EIP-7702 delegation: 0xef0100 || address (20 bytes)
-    if (code.length >= 48 && code.startsWith('0xef0100')) {
-      final delegated = '0x${code.substring(8, 48)}';
-      final expected = eip7702.accountLogicAddress.hex.toLowerCase();
-      if (delegated == expected) {
-        return null; // already delegated to the right implementation
-      }
-      // Wrong implementation — re-delegate below
-    } else if (code != '0x' && code.isNotEmpty) {
-      // Has non-7702 code; still try authorization (bundler may reject)
-    } else {
-      // No code — need first-time authorization
-    }
+    // An active EIP-7702 delegation is `0xef0100 ‖ implementation`. Any other
+    // code (none, a different implementation, or non-7702 code) gets a fresh
+    // authorization; the bundler rejects it if the EOA cannot be delegated.
+    final isDelegatedHere = code.length >= 48 &&
+        code.startsWith('0xef0100') &&
+        '0x${code.substring(8, 48)}' == eip7702.accountLogicAddress.hex;
+    if (isDelegatedHere) return null;
 
     final eoaNonce = await publicClient.getTransactionCount(address);
     return eip7702.getAuthorization(nonce: eoaNonce);
   }
-
-  /// EIP-7702 factory marker address.
-  ///
-  /// Used to signal to the bundler that this UserOperation requires
-  /// EIP-7702 authorization handling. Matches viem's `factory: "0x7702"`
-  /// (stored as the padded 20-byte form; serialized short in RPC JSON).
-  static final _eip7702FactoryMarker = eip7702FactoryMarkerAddress;
 
   /// Prepares a UserOperation without signing.
   ///
@@ -268,11 +255,10 @@ class SmartAccountClient {
   ///   maxPriorityFeePerGas: gasPrices.fast.maxPriorityFeePerGas,
   /// );
   ///
-  /// // Sign and send with authorization handling
   /// final signedOp = await client.signUserOperation(prepared.userOp);
-  /// final hash = await client.sendPreparedUserOperationWithAuth(
+  /// final hash = await client.sendPreparedUserOperation(
   ///   signedOp,
-  ///   prepared.authorization,
+  ///   authorization: prepared.authorization,
   /// );
   /// ```
   Future<PreparedUserOperation> prepareUserOperationWithAuth({
@@ -292,42 +278,32 @@ class SmartAccountClient {
     List<StateOverride>? stateOverride,
     bool skipFinalPaymasterData = false,
   }) async {
-    if (calls == null && callData == null) {
-      throw ArgumentError(
-        'Either calls or callData must be provided',
-      );
-    }
+    _requireCalls(calls, callData);
 
     final resolvedContext = paymasterContext ?? this.paymasterContext;
     sender ??= await account.getAddress();
 
-    // Check if we need EIP-7702 authorization
     final authorization = await _createAuthorizationIfNeeded();
     final needsAuth = authorization != null;
 
-    // Check if account is already deployed (requires publicClient)
     final isDeployed = await publicClient.isDeployed(sender);
-
-    // Auto-fetch nonce if not provided
-    final accountNonce = nonce ??
-        await publicClient.getAccountNonce(
-          sender,
-          account.entryPoint,
-          nonceKey: account.nonceKey,
-        );
+    final accountNonce = await _resolveNonce(sender, nonce);
 
     // Resolve factory: honor overrides, else derive
     var resolvedFactory = factory;
     var resolvedFactoryData = factoryData;
     if (resolvedFactory == null && resolvedFactoryData == null) {
       if (needsAuth) {
-        // EIP-7702 first-time (no code yet): set factory marker so the bundler
-        // treats this as an EIP-7702 UserOp. Re-delegation (EOA already has
-        // 0xef0100… code to a *different* implementation) must omit factory —
-        // Pimlico rejects factory when the sender is already constructed, and
-        // auth alone is enough to re-point the delegation.
-        if (!isDeployed) {
-          resolvedFactory = _eip7702FactoryMarker;
+        // EIP-7702 first-time (no code yet): on EntryPoint v0.8 set the 0x7702
+        // initCode marker so the EntryPoint applies the delegation. v0.7 has
+        // no marker (non-empty initCode for the delegated EOA reverts AA10)
+        // and the authorization travels alone, like permissionless.js's 7702
+        // Kernel. Re-delegation (EOA already has 0xef0100… code to a
+        // *different* implementation) must omit factory — Pimlico rejects
+        // factory when the sender is already constructed.
+        if (!isDeployed &&
+            entryPointVersionOfAccount(account) == EntryPointVersion.v08) {
+          resolvedFactory = eip7702FactoryMarkerAddress;
           resolvedFactoryData = '0x';
         }
       } else if (!isDeployed) {
@@ -339,21 +315,12 @@ class SmartAccountClient {
       }
     }
 
-    // Resolve callData: honor override, else encode calls
-    late final String resolvedCallData;
-    if (callData != null) {
-      resolvedCallData = callData;
-    } else {
-      final isDeployment = resolvedFactory != null;
-      if (isDeployment &&
-          account is SafeSmartAccount &&
-          (account as SafeSmartAccount).isErc7579Enabled) {
-        resolvedCallData =
-            (account as SafeSmartAccount).encodeCallsForDeployment(calls!);
-      } else {
-        resolvedCallData = account.encodeCalls(calls!);
-      }
-    }
+    final resolvedCallData = callData ??
+        encodeUserOperationCalls(
+          account,
+          calls!,
+          deploysAccount: resolvedFactory != null,
+        );
 
     // Resolve fees: keep both when supplied; else hook; else 2× getFeeData
     final fees = await _resolveFees(
@@ -361,7 +328,6 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
     );
 
-    // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV07(
       sender: sender,
       nonce: accountNonce,
@@ -376,45 +342,31 @@ class SmartAccountClient {
       signature: signature ?? account.getStubSignature(),
     );
 
-    // Apply paymaster stub data if using paymaster.
     // The EIP-7702 authorization (when present) is forwarded so the paymaster
     // sees the same `eip7702Auth` context as the bundler (viem parity).
-    PaymasterStubData? stubData;
-    if (paymaster != null) {
-      stubData = await paymaster!.getPaymasterStubData(
-        userOp: userOp,
-        entryPoint: account.entryPoint,
-        chainId: account.chainId,
-        context: resolvedContext,
-        authorization: authorization,
-      );
-      userOp = userOp.withPaymasterStub(stubData);
-    }
+    final stubData = await _paymasterStubData(
+      userOp,
+      resolvedContext,
+      authorization: authorization,
+    );
+    if (stubData != null) userOp = userOp.withPaymasterStub(stubData);
 
-    // Estimate gas only when at least one core gas field is missing (viem).
-    // Convert state overrides to JSON format for RPC call.
     final stateOverrideJson = stateOverride != null && stateOverride.isNotEmpty
         ? stateOverridesToJson(stateOverride)
         : null;
 
+    // viem estimates only when at least one core gas field is missing.
     final needsGasEstimate = callGasLimit == null ||
         verificationGasLimit == null ||
         preVerificationGas == null;
 
     if (needsGasEstimate) {
-      final UserOperationGasEstimate gasEstimate;
-      if (needsAuth) {
-        gasEstimate = await bundler.estimateUserOperationGasWithAuthorization(
-          userOp,
-          [authorization],
-          stateOverride: stateOverrideJson,
-        );
-      } else {
-        gasEstimate = await bundler.estimateUserOperationGas(
-          userOp,
-          stateOverride: stateOverrideJson,
-        );
-      }
+      final gasEstimate = await bundler.estimateUserOperationGas(
+        userOp,
+        stateOverride: stateOverrideJson,
+        entryPoint: account.entryPoint,
+        authorization: authorization,
+      );
       userOp = _applyGasEstimate(
         userOp,
         gasEstimate,
@@ -424,29 +376,39 @@ class SmartAccountClient {
       );
     }
 
-    // Get final paymaster data if using paymaster and not final.
-    // Skipped when the caller re-requests final data itself (see doc above) —
-    // mirrors permissionless.js, where the prepare step substitutes stub data
-    // and the single real pm_getPaymasterData happens at the end of the helper.
-    if (paymaster != null &&
-        stubData != null &&
-        !stubData.isFinal &&
-        !skipFinalPaymasterData) {
-      final finalData = await paymaster!.getPaymasterData(
-        userOp: userOp,
-        entryPoint: account.entryPoint,
-        chainId: account.chainId,
-        context: resolvedContext,
-        authorization: authorization,
-      );
-      userOp = userOp.withPaymasterData(finalData);
-    }
+    // skipFinalPaymasterData mirrors permissionless.js, where the prepare
+    // step substitutes stub data and the single real pm_getPaymasterData
+    // happens at the end of the helper.
+    final finalData = await _finalPaymasterData(
+      userOp,
+      stubData,
+      resolvedContext,
+      skip: skipFinalPaymasterData,
+      authorization: authorization,
+    );
+    if (finalData != null) userOp = userOp.withPaymasterData(finalData);
 
     return PreparedUserOperation(
       userOp: userOp,
       authorization: authorization,
     );
   }
+
+  static void _requireCalls(List<Call>? calls, String? callData) {
+    if (calls == null && callData == null) {
+      throw ArgumentError('Either calls or callData must be provided');
+    }
+  }
+
+  /// The caller's [nonce], else the EntryPoint's next nonce for [sender] on
+  /// the account's nonce key.
+  Future<BigInt> _resolveNonce(EthereumAddress sender, BigInt? nonce) async =>
+      nonce ??
+      await publicClient.getAccountNonce(
+        sender,
+        account.entryPoint,
+        nonceKey: account.nonceKey,
+      );
 
   /// Resolves max fee fields using caller values, the client hook, or a
   /// 2×-buffered [PublicClient.getFeeData] fallback (viem parity).
@@ -480,6 +442,41 @@ class SmartAccountClient {
     );
   }
 
+  /// ERC-7677 `pm_getPaymasterStubData` for [userOp], or null without a
+  /// [paymaster]. viem `prepareUserOperation` runs it for every EntryPoint
+  /// version.
+  Future<PaymasterStubData?> _paymasterStubData(
+    UserOperation userOp,
+    PaymasterContext? context, {
+    Eip7702Authorization? authorization,
+  }) async =>
+      paymaster?.getPaymasterStubData(
+        userOp: userOp,
+        entryPoint: account.entryPoint,
+        chainId: account.chainId,
+        context: context,
+        authorization: authorization,
+      );
+
+  /// ERC-7677 `pm_getPaymasterData` over the estimated [userOp]; null when
+  /// there is no [stub] (no paymaster), the stub is final, or [skip] is set.
+  Future<PaymasterData?> _finalPaymasterData(
+    UserOperation userOp,
+    PaymasterStubData? stub,
+    PaymasterContext? context, {
+    bool skip = false,
+    Eip7702Authorization? authorization,
+  }) async {
+    if (stub == null || stub.isFinal || skip) return null;
+    return paymaster!.getPaymasterData(
+      userOp: userOp,
+      entryPoint: account.entryPoint,
+      chainId: account.chainId,
+      context: context,
+      authorization: authorization,
+    );
+  }
+
   /// Signs a prepared UserOperation.
   ///
   /// Returns the UserOperation with the signature field populated.
@@ -490,17 +487,23 @@ class SmartAccountClient {
 
   /// Sends a signed UserOperation to the bundler.
   ///
-  /// Returns the UserOperation hash for tracking.
+  /// Pass the [PreparedUserOperation.authorization] of an EIP-7702 account
+  /// as [authorization]; it is sent as the op's `eip7702Auth`.
   ///
-  /// **Note:** For EIP-7702 accounts with first-time delegation, use
-  /// [sendPreparedUserOperationWithAuth] instead to include the authorization.
-  Future<String> sendPreparedUserOperation(UserOperationV07 userOp) =>
-      bundler.sendUserOperation(userOp);
+  /// Returns the UserOperation hash for tracking.
+  Future<String> sendPreparedUserOperation(
+    UserOperationV07 userOp, {
+    Eip7702Authorization? authorization,
+  }) =>
+      bundler.sendUserOperation(
+        userOp,
+        entryPoint: account.entryPoint,
+        authorization: authorization,
+      );
 
   /// Sends a signed UserOperation with optional EIP-7702 authorization.
   ///
-  /// If [authorization] is provided, uses the authorization-aware bundler
-  /// method. Otherwise, falls back to standard submission.
+  /// Same as [sendPreparedUserOperation] with a positional [authorization].
   ///
   /// Returns the UserOperation hash for tracking.
   ///
@@ -516,13 +519,8 @@ class SmartAccountClient {
   Future<String> sendPreparedUserOperationWithAuth(
     UserOperationV07 userOp,
     Eip7702Authorization? authorization,
-  ) {
-    if (authorization != null) {
-      return bundler
-          .sendUserOperationWithAuthorization(userOp, [authorization]);
-    }
-    return bundler.sendUserOperation(userOp);
-  }
+  ) =>
+      sendPreparedUserOperation(userOp, authorization: authorization);
 
   /// Prepares, signs, and sends a UserOperation in one call.
   ///
@@ -586,7 +584,10 @@ class SmartAccountClient {
     final signedOp = signature != null
         ? prepared.userOp
         : await signUserOperation(prepared.userOp);
-    return sendPreparedUserOperationWithAuth(signedOp, prepared.authorization);
+    return sendPreparedUserOperation(
+      signedOp,
+      authorization: prepared.authorization,
+    );
   }
 
   /// Sends a UserOperation and waits for the receipt.
@@ -609,10 +610,16 @@ class SmartAccountClient {
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
     List<StateOverride>? stateOverride,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
+    String? signature,
+    EthereumAddress? factory,
+    String? factoryData,
   }) async {
     final hash = await sendUserOperation(
       calls: calls,
@@ -620,6 +627,12 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
+      signature: signature,
+      factory: factory,
+      factoryData: factoryData,
       paymasterContext: paymasterContext,
       sender: sender,
       stateOverride: stateOverride,
@@ -641,8 +654,8 @@ class SmartAccountClient {
   /// Throws [TimeoutException] if the receipt is not found within [timeout].
   Future<UserOperationReceipt> waitForReceipt(
     String userOpHash, {
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) =>
       bundler.waitForUserOperationReceipt(
         userOpHash,
@@ -656,6 +669,12 @@ class SmartAccountClient {
   /// estimates gas (only for fields that are missing), and applies final
   /// paymaster data. The returned UserOp is ready for signing.
   ///
+  /// The paymaster steps are ERC-7677 (`pm_getPaymasterStubData`, then
+  /// `pm_getPaymasterData` unless the stub is final), the same as
+  /// [prepareUserOperation] and viem `prepareUserOperation` on every
+  /// EntryPoint version; the paymaster answers with `paymasterAndData`.
+  /// Gas limits come from the bundler estimate.
+  ///
   /// Use this for advanced workflows where you need to inspect or modify
   /// the UserOperation before signing.
   ///
@@ -663,6 +682,9 @@ class SmartAccountClient {
   /// This is useful when the local address computation doesn't match
   /// the factory's CREATE2 calculation (use getSenderAddress to get the
   /// correct address from the EntryPoint).
+  ///
+  /// [stateOverride] and [skipFinalPaymasterData] behave as in
+  /// [prepareUserOperationWithAuth].
   Future<UserOperationV06> prepareUserOperationV06({
     List<Call>? calls,
     String? callData,
@@ -676,20 +698,17 @@ class SmartAccountClient {
     String? initCode,
     PaymasterContext? paymasterContext,
     EthereumAddress? sender,
+    List<StateOverride>? stateOverride,
+    bool skipFinalPaymasterData = false,
   }) async {
-    if (calls == null && callData == null) {
-      throw ArgumentError(
-        'Either calls or callData must be provided',
-      );
-    }
+    _requireCalls(calls, callData);
 
     final resolvedContext = paymasterContext ?? this.paymasterContext;
     sender ??= await account.getAddress();
 
-    // Check if account is already deployed (requires publicClient)
     final isDeployed = await publicClient.isDeployed(sender);
+    final accountNonce = await _resolveNonce(sender, nonce);
 
-    // Resolve initCode: honor override, else derive when undeployed
     final resolvedInitCode =
         initCode ?? (isDeployed ? '0x' : await account.getInitCode());
 
@@ -698,12 +717,16 @@ class SmartAccountClient {
       maxPriorityFeePerGas: maxPriorityFeePerGas,
     );
 
-    final resolvedCallData = callData ?? account.encodeCalls(calls!);
+    final resolvedCallData = callData ??
+        encodeUserOperationCalls(
+          account,
+          calls!,
+          deploysAccount: resolvedInitCode != '0x',
+        );
 
-    // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV06(
       sender: sender,
-      nonce: nonce ?? BigInt.zero,
+      nonce: accountNonce,
       initCode: resolvedInitCode,
       callData: resolvedCallData,
       callGasLimit: callGasLimit ?? BigInt.zero,
@@ -714,33 +737,21 @@ class SmartAccountClient {
       signature: signature ?? account.getStubSignature(),
     );
 
+    final stubData = await _paymasterStubData(userOp, resolvedContext);
+    if (stubData != null) userOp = userOp.withPaymasterStubV06(stubData);
+
     final needsGasEstimate = callGasLimit == null ||
         verificationGasLimit == null ||
         preVerificationGas == null;
 
-    // For v0.6, use sponsorUserOperation which returns both paymaster data and gas estimates
-    if (paymaster != null) {
-      final sponsorResult = await paymaster!.sponsorUserOperation(
-        userOp: userOp,
+    if (needsGasEstimate) {
+      final gasEstimate = await bundler.estimateUserOperationGas(
+        userOp,
+        stateOverride: stateOverride != null && stateOverride.isNotEmpty
+            ? stateOverridesToJson(stateOverride)
+            : null,
         entryPoint: account.entryPoint,
-        chainId: account.chainId,
-        context: resolvedContext,
       );
-      // Apply sponsorship result (includes paymaster data and gas estimates)
-      userOp = userOp.withSponsorshipV06(sponsorResult);
-      // Preserve user-supplied gas fields over sponsorship estimates
-      if (callGasLimit != null ||
-          verificationGasLimit != null ||
-          preVerificationGas != null) {
-        userOp = userOp.copyWith(
-          callGasLimit: callGasLimit ?? userOp.callGasLimit,
-          verificationGasLimit:
-              verificationGasLimit ?? userOp.verificationGasLimit,
-          preVerificationGas: preVerificationGas ?? userOp.preVerificationGas,
-        );
-      }
-    } else if (needsGasEstimate) {
-      final gasEstimate = await bundler.estimateUserOperationGas(userOp);
       userOp = _applyGasEstimateV06(
         userOp,
         gasEstimate,
@@ -749,6 +760,14 @@ class SmartAccountClient {
         preservePreVerificationGas: preVerificationGas,
       );
     }
+
+    final finalData = await _finalPaymasterData(
+      userOp,
+      stubData,
+      resolvedContext,
+      skip: skipFinalPaymasterData,
+    );
+    if (finalData != null) userOp = userOp.withPaymasterDataV06(finalData);
 
     return userOp;
   }
@@ -774,7 +793,7 @@ class SmartAccountClient {
   ///
   /// Returns the UserOperation hash for tracking.
   Future<String> sendPreparedUserOperationV06(UserOperationV06 userOp) =>
-      bundler.sendUserOperation(userOp);
+      bundler.sendUserOperation(userOp, entryPoint: account.entryPoint);
 
   /// Prepares, signs, and sends a UserOperation v0.6 in one call.
   ///
@@ -800,9 +819,14 @@ class SmartAccountClient {
     BigInt? maxFeePerGas,
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
     String? signature,
+    String? initCode,
     PaymasterContext? paymasterContext,
     EthereumAddress? sender,
+    List<StateOverride>? stateOverride,
   }) async {
     var userOp = await prepareUserOperationV06(
       calls: calls,
@@ -810,9 +834,14 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
       signature: signature,
+      initCode: initCode,
       paymasterContext: paymasterContext,
       sender: sender,
+      stateOverride: stateOverride,
     );
 
     if (signature == null) {
@@ -834,9 +863,15 @@ class SmartAccountClient {
     BigInt? maxPriorityFeePerGas,
     BigInt? nonce,
     PaymasterContext? paymasterContext,
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
     EthereumAddress? sender,
+    String? signature,
+    BigInt? callGasLimit,
+    BigInt? verificationGasLimit,
+    BigInt? preVerificationGas,
+    String? initCode,
+    List<StateOverride>? stateOverride,
   }) async {
     final hash = await sendUserOperationV06(
       calls: calls,
@@ -844,8 +879,14 @@ class SmartAccountClient {
       maxFeePerGas: maxFeePerGas,
       maxPriorityFeePerGas: maxPriorityFeePerGas,
       nonce: nonce,
+      callGasLimit: callGasLimit,
+      verificationGasLimit: verificationGasLimit,
+      preVerificationGas: preVerificationGas,
+      signature: signature,
+      initCode: initCode,
       paymasterContext: paymasterContext,
       sender: sender,
+      stateOverride: stateOverride,
     );
 
     return waitForReceipt(
@@ -857,8 +898,8 @@ class SmartAccountClient {
 
   /// Applies gas estimates to a UserOperation with multipliers.
   ///
-  /// For WebAuthn accounts, automatically applies minimum verification gas
-  /// to account for expensive P256 on-chain signature verification (~800k gas).
+  /// WebAuthn accounts get no extra floor (as in permissionless.js): their
+  /// stub signatures make the bundler price the real P-256 verifier.
   ///
   /// User-supplied gas fields ([preserveCallGasLimit] etc.) are kept and not
   /// overwritten by the estimate (viem `??` merge semantics).
@@ -869,45 +910,19 @@ class SmartAccountClient {
     BigInt? preserveVerificationGasLimit,
     BigInt? preservePreVerificationGas,
   }) {
-    var buffered = estimate.withMultipliers(gasMultipliers);
-
-    // WebAuthn accounts require higher verification gas for P256 on-chain math
-    // when the RIP-7212 precompile is not available (~800k gas).
-    if (account.isWebAuthn) {
-      buffered = buffered.withMinimumVerificationGas();
-    }
-
-    // For paymaster gas limits:
-    // 1. If userOp already has values (from paymaster stub), keep them
-    // 2. If userOp doesn't have values, use bundler estimate if reasonable
-    // 3. Filter out obviously wrong values (< 10000 gas is too low)
-    final minPaymasterGas = BigInt.from(10000);
-
-    var paymasterVerificationGas = userOp.paymasterVerificationGasLimit;
-    if (paymasterVerificationGas == null ||
-        paymasterVerificationGas < minPaymasterGas) {
-      final bundlerValue = buffered.paymasterVerificationGasLimit;
-      if (bundlerValue != null && bundlerValue >= minPaymasterGas) {
-        paymasterVerificationGas = bundlerValue;
-      }
-    }
-
-    var paymasterPostOpGas = userOp.paymasterPostOpGasLimit;
-    if (paymasterPostOpGas == null || paymasterPostOpGas < minPaymasterGas) {
-      final bundlerValue = buffered.paymasterPostOpGasLimit;
-      if (bundlerValue != null && bundlerValue >= minPaymasterGas) {
-        paymasterPostOpGas = bundlerValue;
-      }
-    }
-
+    final buffered = estimate.withMultipliers(gasMultipliers);
     return userOp.copyWith(
       preVerificationGas:
           preservePreVerificationGas ?? buffered.preVerificationGas,
       verificationGasLimit:
           preserveVerificationGasLimit ?? buffered.verificationGasLimit,
       callGasLimit: preserveCallGasLimit ?? buffered.callGasLimit,
-      paymasterVerificationGasLimit: paymasterVerificationGas,
-      paymasterPostOpGasLimit: paymasterPostOpGas,
+      // viem prepareUserOperation: the paymaster's own value, else the
+      // estimate. The paymaster may have signed its gas fields.
+      paymasterVerificationGasLimit: userOp.paymasterVerificationGasLimit ??
+          buffered.paymasterVerificationGasLimit,
+      paymasterPostOpGasLimit:
+          userOp.paymasterPostOpGasLimit ?? buffered.paymasterPostOpGasLimit,
     );
   }
 
@@ -944,20 +959,19 @@ class SmartAccountClient {
 /// ```dart
 /// final client = createSmartAccountClient(
 ///   account: safeAccount,
-///   bundlerUrl: 'https://bundler.example.com/rpc',
-///   paymasterUrl: 'https://paymaster.example.com/rpc', // optional
+///   bundler: createBundlerClient(
+///     url: 'https://bundler.example.com/rpc',
+///     entryPoint: safeAccount.entryPoint,
+///   ),
+///   publicClient: createPublicClient(url: 'https://rpc.example.com'),
+///   paymaster: createPaymasterClient(
+///     url: 'https://paymaster.example.com/rpc',
+///   ), // optional
 /// );
 /// ```
 ///
-/// For EIP-7702 accounts, provide a [publicClient] to enable automatic
-/// delegation detection and authorization handling:
-/// ```dart
-/// final client = createSmartAccountClient(
-///   account: eip7702Account,
-///   bundler: bundlerClient,
-///   publicClient: publicClient, // required for EIP-7702
-/// );
-/// ```
+/// [publicClient] reads nonces and deployment state; for EIP-7702 accounts it
+/// also detects whether the EOA is already delegated.
 SmartAccountClient createSmartAccountClient({
   required SmartAccount account,
   required BundlerClient bundler,

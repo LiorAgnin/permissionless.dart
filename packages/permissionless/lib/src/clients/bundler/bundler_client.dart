@@ -4,10 +4,17 @@ import 'package:http/http.dart' as http;
 
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
+import '../../types/parsing.dart';
 import '../../types/user_operation.dart';
-import 'rpc_client.dart';
+import '../rpc/rpc_client.dart';
+import '../rpc/user_operation_request.dart';
 import 'types.dart';
-import 'user_operation_request.dart';
+
+/// How long receipt-waiting helpers wait by default (viem parity).
+const Duration defaultReceiptTimeout = Duration(seconds: 120);
+
+/// How often receipt-waiting helpers poll the bundler by default.
+const Duration defaultReceiptPollingInterval = Duration(seconds: 2);
 
 /// Client for interacting with ERC-4337 bundlers.
 ///
@@ -46,50 +53,49 @@ class BundlerClient {
   /// The underlying JSON-RPC client.
   final JsonRpcClient rpcClient;
 
-  /// The EntryPoint address to use for operations.
+  /// The default EntryPoint address for operations.
+  ///
+  /// [sendUserOperation] and [estimateUserOperationGas] accept a per-call
+  /// `entryPoint` that overrides it; `SmartAccountClient` always passes the
+  /// account's EntryPoint (viem's bundler actions take
+  /// `account.entryPoint.address`).
   final EthereumAddress entryPoint;
 
   /// Submits a UserOperation to the bundler.
+  ///
+  /// [entryPoint] defaults to [BundlerClient.entryPoint]. [authorization] is
+  /// the signed EIP-7702 authorization of an EIP-7702 account, sent as the
+  /// op's `eip7702Auth` (requires a bundler that supports EIP-7702).
   ///
   /// Returns the UserOperation hash that can be used to track
   /// the operation's status.
   ///
   /// Throws [BundlerRpcError] if validation fails.
-  Future<String> sendUserOperation(UserOperation userOp) async {
+  Future<String> sendUserOperation(
+    UserOperation userOp, {
+    EthereumAddress? entryPoint,
+    Eip7702Authorization? authorization,
+  }) async {
     final result = await rpcClient.call(
       'eth_sendUserOperation',
-      [userOp.toJson(), entryPoint.hex],
+      [
+        userOperationRequestJson(userOp, authorization: authorization),
+        (entryPoint ?? this.entryPoint).hex,
+      ],
     );
     return result as String;
   }
 
   /// Submits a UserOperation with EIP-7702 authorization.
   ///
-  /// This is used for EIP-7702 accounts where the authorization
-  /// must be included in the UserOperation to enable code delegation.
-  ///
-  /// [userOp] is the UserOperation to submit.
-  /// [authorizationList] contains signed EIP-7702 authorizations.
-  ///
-  /// Returns the UserOperation hash.
-  ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// Only the first element of [authorizationList] is sent: the Pimlico API
+  /// and viem take a single `eip7702Auth` object.
+  @Deprecated('Use sendUserOperation(userOp, authorization: ...)')
   Future<String> sendUserOperationWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList,
-  ) async {
-    // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOperationRequestJson(
-      userOp,
-      authorization: authorizationList.firstOrNull,
-    );
-
-    final result = await rpcClient.call(
-      'eth_sendUserOperation',
-      [userOpJson, entryPoint.hex],
-    );
-    return result as String;
-  }
+  ) =>
+      sendUserOperation(userOp, authorization: authorizationList.firstOrNull);
 
   /// Estimates gas limits for a UserOperation.
   ///
@@ -98,50 +104,42 @@ class BundlerClient {
   /// can be used to fill in the UserOperation gas fields.
   ///
   /// For v0.7 with paymasters, also returns paymaster gas limits.
+  ///
+  /// [entryPoint] defaults to [BundlerClient.entryPoint]. [authorization] is
+  /// the signed EIP-7702 authorization of an EIP-7702 account, sent as the
+  /// op's `eip7702Auth` so the estimate covers the delegation.
   Future<UserOperationGasEstimate> estimateUserOperationGas(
     UserOperation userOp, {
     Map<String, dynamic>? stateOverride,
+    EthereumAddress? entryPoint,
+    Eip7702Authorization? authorization,
   }) async {
-    final params = <dynamic>[userOp.toJson(), entryPoint.hex];
-    if (stateOverride != null) {
-      params.add(stateOverride);
-    }
-
     final result = await rpcClient.call(
       'eth_estimateUserOperationGas',
-      params,
+      [
+        userOperationRequestJson(userOp, authorization: authorization),
+        (entryPoint ?? this.entryPoint).hex,
+        if (stateOverride != null) stateOverride,
+      ],
     );
     return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
   }
 
   /// Estimates gas limits for a UserOperation with EIP-7702 authorization.
   ///
-  /// Similar to [estimateUserOperationGas] but includes the authorization
-  /// inside the UserOperation for accurate gas estimation of EIP-7702 accounts.
-  ///
-  /// **Note**: Requires a bundler that supports EntryPoint v0.8 and EIP-7702.
+  /// Only the first element of [authorizationList] is sent: the Pimlico API
+  /// and viem take a single `eip7702Auth` object.
+  @Deprecated('Use estimateUserOperationGas(userOp, authorization: ...)')
   Future<UserOperationGasEstimate> estimateUserOperationGasWithAuthorization(
     UserOperation userOp,
     List<Eip7702Authorization> authorizationList, {
     Map<String, dynamic>? stateOverride,
-  }) async {
-    // Per Pimlico API, eip7702Auth is a single authorization object
-    final userOpJson = userOperationRequestJson(
-      userOp,
-      authorization: authorizationList.firstOrNull,
-    );
-
-    final params = <dynamic>[userOpJson, entryPoint.hex];
-    if (stateOverride != null) {
-      params.add(stateOverride);
-    }
-
-    final result = await rpcClient.call(
-      'eth_estimateUserOperationGas',
-      params,
-    );
-    return UserOperationGasEstimate.fromJson(result as Map<String, dynamic>);
-  }
+  }) =>
+      estimateUserOperationGas(
+        userOp,
+        stateOverride: stateOverride,
+        authorization: authorizationList.firstOrNull,
+      );
 
   /// Gets a UserOperation by its hash.
   ///
@@ -181,11 +179,8 @@ class BundlerClient {
   }
 
   /// Gets the chain ID from the bundler.
-  Future<BigInt> chainId() async {
-    final result = await rpcClient.call('eth_chainId');
-    final hexStr = result as String;
-    return BigInt.parse(hexStr.substring(2), radix: 16);
-  }
+  Future<BigInt> chainId() async =>
+      parseBigInt(await rpcClient.call('eth_chainId'));
 
   /// Waits for a UserOperation to be included in a block.
   ///
@@ -200,8 +195,8 @@ class BundlerClient {
   /// Throws [TimeoutException] if the receipt is not found within [timeout].
   Future<UserOperationReceipt> waitForUserOperationReceipt(
     String userOpHash, {
-    Duration timeout = const Duration(seconds: 120),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration timeout = defaultReceiptTimeout,
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final deadline = DateTime.now().add(timeout);
 
@@ -240,11 +235,11 @@ BundlerClient createBundlerClient({
   Duration? timeout,
 }) =>
     BundlerClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
       entryPoint: entryPoint,
     );

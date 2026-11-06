@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:permissionless/permissionless.dart';
-// Package-internal helper, tested directly.
-import 'package:permissionless/src/clients/bundler/user_operation_request.dart';
 import 'package:test/test.dart';
 
 const _ownerKey =
@@ -386,53 +384,90 @@ void main() {
       await expectLater(rig.send(), throwsUnsupportedError);
       expect(rig.requests, isEmpty);
     });
-
-    test('toString carries kind and hash', () {
-      final error = SendUserOperationSyncError(
-        kind: SendUserOperationSyncErrorKind.notFound,
-        userOperationHash: '0x01',
-      );
-      expect(error.toString(), contains('not_found'));
-      expect(error.toString(), contains('User operation hash: 0x01'));
-    });
   });
 
-  group('userOperationRequestJson', () {
-    final op = UserOperationV07(
-      sender: _sender,
-      nonce: BigInt.zero,
-      factory: eip7702FactoryMarkerAddress,
-      factoryData: '0x',
-      callData: '0x',
-      callGasLimit: BigInt.one,
-      verificationGasLimit: BigInt.one,
-      preVerificationGas: BigInt.one,
-      maxFeePerGas: BigInt.one,
-      maxPriorityFeePerGas: BigInt.one,
-      signature: '0x',
-    );
+  group('sendUserOperationSync with a custom EntryPoint address', () {
+    final customEntryPoint =
+        EthereumAddress.fromHex('0x00000000000000000000000000000000000e4337');
 
-    test('adds eip7702Auth and shortens the factory marker', () {
-      final auth = Eip7702Authorization(
+    SmartAccountClient clientFor(
+      SmartAccount account,
+      List<Map<String, dynamic>> requests,
+    ) =>
+        SmartAccountClient(
+          account: account,
+          bundler: createBundlerClient(
+            url: 'http://localhost:4337',
+            entryPoint: customEntryPoint,
+            httpClient: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              requests.add(body);
+              return _rpcResult(body, _receiptJson());
+            }),
+          ),
+          publicClient: PublicClient(
+            rpcClient: JsonRpcClient(
+              url: Uri.parse('http://localhost:8545'),
+              httpClient: MockClient((request) async {
+                final body = jsonDecode(request.body) as Map<String, dynamic>;
+                final result = switch (body['method']) {
+                  'eth_getCode' => '0x6080604052', // deployed: no factory
+                  'eth_call' => '0x${'0' * 64}', // nonce 0
+                  _ => null,
+                };
+                return _rpcResult(body, result);
+              }),
+            ),
+          ),
+        );
+
+    Future<UserOperationReceipt> send(SmartAccountClient client) =>
+        client.sendUserOperationSync(
+          calls: [Call(to: _recipient, value: BigInt.one)],
+          maxFeePerGas: BigInt.from(3000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(200000),
+          preVerificationGas: BigInt.from(50000),
+        );
+
+    test('uses the version the account is configured with', () async {
+      final requests = <Map<String, dynamic>>[];
+      final account = createSimpleSmartAccount(
+        owner: PrivateKeyOwner(_ownerKey),
         chainId: _chainId,
-        address: _recipient,
-        nonce: BigInt.zero,
-        v: 27,
-        r: '0x${'01' * 32}',
-        s: '0x${'02' * 32}',
+        entryPointAddress: customEntryPoint,
+        address: _sender,
       );
 
-      final json = userOperationRequestJson(op, authorization: auth);
+      final receipt = await send(clientFor(account, requests));
 
-      expect(json['eip7702Auth'], auth.toRpcFormat());
-      expect(json['factory'], '0x7702');
+      expect(receipt.success, isTrue);
+      final sendNow = requests
+          .firstWhere((r) => r['method'] == 'pimlico_sendUserOperationNow');
+      expect((sendNow['params'] as List<dynamic>)[1], customEntryPoint.hex);
     });
 
-    test('without authorization omits eip7702Auth', () {
-      final json = userOperationRequestJson(op);
+    test('an account without a version at an unknown address is unsupported',
+        () async {
+      final requests = <Map<String, dynamic>>[];
 
-      expect(json.containsKey('eip7702Auth'), isFalse);
-      expect(json['factory'], '0x7702');
+      await expectLater(
+        send(clientFor(_UnversionedAccount(customEntryPoint), requests)),
+        throwsUnsupportedError,
+      );
+      expect(requests, isEmpty);
     });
   });
+}
+
+/// A third-party [SmartAccount] that does not report its EntryPoint version.
+class _UnversionedAccount implements SmartAccount {
+  _UnversionedAccount(this.entryPoint);
+
+  @override
+  final EthereumAddress entryPoint;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

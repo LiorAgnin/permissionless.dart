@@ -15,7 +15,7 @@
 //   dart run example/simple_all_versions_example.dart --version=0.8
 //
 // REQUIREMENTS:
-//   PIMLICO_API_KEY and optional TEST_PRIVATE_KEY / SEPOLIA_RPC_URL in .env
+//   PIMLICO_API_KEY and TEST_PRIVATE_KEY in .env (SEPOLIA_RPC_URL optional)
 
 import 'simple_runner.dart';
 

@@ -1,7 +1,3 @@
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart';
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -12,7 +8,10 @@ import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../erc7579_calls.dart';
 import 'constants.dart';
 
 /// Configuration for creating an Etherspot smart account.
@@ -96,7 +95,7 @@ class EtherspotCustomAddresses {
 ///
 /// This implements the ERC-4337 smart account interface for Etherspot's
 /// modular wallet. It uses ERC-7579 for call encoding and EntryPoint v0.7.
-class EtherspotSmartAccount implements SmartAccount {
+class EtherspotSmartAccount implements SmartAccount, EntryPointVersioned {
   /// Creates an Etherspot smart account from the given configuration.
   ///
   /// Prefer using [createEtherspotSmartAccount] factory function instead
@@ -128,293 +127,88 @@ class EtherspotSmartAccount implements SmartAccount {
       _config.customAddresses?.ecdsaValidator ??
       EtherspotAddresses.ecdsaValidator;
 
+  /// The EntryPoint version (always v0.7 for Etherspot).
+  @override
+  EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
+
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
+  /// permissionless.js `getNonceKeyWithEncoding`: validator (20) ‖
+  /// mode DEFAULT (1) ‖ type ROOT (1) ‖ nonce key (2).
   @override
-  BigInt get nonceKey {
-    // Etherspot nonce key encoding:
-    // validatorAddress (20 bytes) + validatorMode (1 byte) + validatorType (1 byte) + nonceKey (2 bytes)
-    // Total: 24 bytes
-    // See: getNonceKeyWithEncoding in permissionless.js
-    final validatorHex = Hex.strip0x(ecdsaValidator.hex);
-    const validatorMode = '00'; // DEFAULT
-    const validatorType = '00'; // ROOT
-    final userKey = _config.nonceKey ?? BigInt.zero;
-    final nonceKeySuffix =
-        Hex.strip0x(Hex.fromBigInt(userKey, byteLength: 2)); // 2 bytes
-
-    // Concatenate: validator (40 chars) + mode (2 chars) + type (2 chars) + nonce (4 chars) = 48 chars = 24 bytes
-    final encoding = '$validatorHex$validatorMode$validatorType$nonceKeySuffix';
-    return BigInt.parse(encoding, radix: 16);
-  }
+  BigInt get nonceKey => Hex.toBigInt(
+        Hex.concat([
+          ecdsaValidator.hex,
+          '0x00',
+          '0x00',
+          Hex.fromBigInt(_config.nonceKey ?? BigInt.zero, byteLength: 2),
+        ]),
+      );
 
   @override
   bool get isWebAuthn => false;
 
   @override
-  Future<EthereumAddress> getAddress() async {
-    if (_cachedAddress != null) return _cachedAddress!;
-
-    // Option 1: Use pre-computed address
-    if (_config.address != null) {
-      _cachedAddress = _config.address;
-      return _cachedAddress!;
-    }
-
-    // Option 2: Compute address via RPC if publicClient is provided
-    if (_config.publicClient != null) {
-      final initCode = await getInitCode();
-      _cachedAddress = await _config.publicClient!.getSenderAddress(
-        initCode: initCode,
+  Future<EthereumAddress> getAddress() async =>
+      _cachedAddress ??= await resolveCounterfactualAddress(
+        accountName: 'Etherspot',
+        address: _config.address,
+        publicClient: _config.publicClient,
         entryPoint: entryPoint,
+        initCode: getInitCode,
       );
-      return _cachedAddress!;
-    }
-
-    // Option 3: Neither address nor publicClient provided
-    throw StateError(
-      'Etherspot account address cannot be computed locally. '
-      'Either provide `address` or `publicClient` when creating the account.',
-    );
-  }
 
   @override
-  Future<String> getInitCode() async {
-    final factoryInfo = await getFactoryData();
-    if (factoryInfo == null) return '0x';
-    return Hex.concat([
-      factoryInfo.factory.hex,
-      Hex.strip0x(factoryInfo.factoryData),
-    ]);
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   @override
   Future<({EthereumAddress factory, String factoryData})?>
-      getFactoryData() async {
-    // Factory: createAccount(bytes32 salt, bytes initCode)
-    final salt = Hex.fromBigInt(index, byteLength: 32);
-    final initCode = _encodeInitCode();
+      getFactoryData() async => (
+            factory: factory,
+            factoryData: AbiEncoder.encodeFunctionData(
+              etherspotCreateAccountSignature,
+              [Hex.fromBigInt(index, byteLength: 32), _encodeInitCode()],
+            ),
+          );
 
-    // Encode createAccount call
-    final factoryData = Hex.concat([
-      EtherspotSelectors.createAccount,
-      Hex.strip0x(salt), // bytes32 salt (already 32 bytes)
-      // bytes initCode - dynamic parameter
-      AbiEncoder.encodeUint256(BigInt.from(64)), // offset to bytes
-      AbiEncoder.encodeBytes(initCode),
-    ]);
+  /// `abi.encode(owner, bootstrap, initMSA(...))`.
+  String _encodeInitCode() => AbiEncoder.encodeParameters(
+        ['address', 'address', 'bytes'],
+        [owner.address, bootstrap, _encodeInitMSA()],
+      );
 
-    return (factory: factory, factoryData: factoryData);
-  }
-
-  /// Encodes the initialization code.
-  /// Format: abi.encode(owner, bootstrapAddress, initMSAData)
-  String _encodeInitCode() {
-    final initMSAData = _encodeInitMSA();
-
-    // abi.encode(address owner, address bootstrap, bytes initMSAData)
-    return Hex.concat([
-      AbiEncoder.encodeAddress(owner.address),
-      AbiEncoder.encodeAddress(bootstrap),
-      // bytes initMSAData - dynamic parameter
-      AbiEncoder.encodeUint256(BigInt.from(96)), // offset to bytes (3 * 32)
-      AbiEncoder.encodeBytes(initMSAData),
-    ]);
-  }
-
-  /// Encodes initMSA call.
-  /// initMSA(BootstrapConfig[] validators, BootstrapConfig[] executors,
-  ///   BootstrapConfig hook, BootstrapConfig[] fallbacks)
-  /// where BootstrapConfig = (address module, bytes data)
+  /// `initMSA(validators, executors, hook, fallbacks)` with
+  /// `BootstrapConfig = (address module, bytes data)`. Like permissionless.js,
+  /// installs the ECDSA validator and zero-address executor, hook and
+  /// fallback, each with `onInstall(0x)`.
   String _encodeInitMSA() {
-    // Build validators array with ECDSA validator
-    final validatorOnInstall = _encodeOnInstall('0x');
-    final validatorConfig =
-        _encodeBootstrapConfig(ecdsaValidator, validatorOnInstall);
-
-    // Build executors array with zero address (matching TS implementation)
-    final zeroOnInstall = _encodeOnInstall('0x');
-    final executorConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
-
-    // Hook - single BootstrapConfig (not array)
-    final hookConfig =
-        _encodeBootstrapConfigTuple(zeroAddress, _encodeOnInstall('0x'));
-
-    // Fallbacks array with zero address (matching TS implementation)
-    final fallbackConfig = _encodeBootstrapConfig(zeroAddress, zeroOnInstall);
-
-    // Calculate offsets for dynamic parameters
-    // Header: 4 offsets * 32 = 128 bytes
-    const headerSize = 4 * 32;
-
-    // validators array size
-    final validatorsSize = _calculateArraySize([validatorConfig]);
-    // executors array size (1 element with zeroAddress)
-    final executorsSize = _calculateArraySize([executorConfig]);
-    // hook is inline (tuple, not dynamic by itself for offset calculation)
-    // But the bytes inside the tuple is dynamic
-    final hookSize = _calculateTupleSize(hookConfig);
-
-    final parts = <String>[
-      EtherspotSelectors.initMSA,
-      // Offsets
-      AbiEncoder.encodeUint256(BigInt.from(headerSize)), // validators
-      AbiEncoder.encodeUint256(
-        BigInt.from(headerSize + validatorsSize),
-      ), // executors
-      AbiEncoder.encodeUint256(
-        BigInt.from(headerSize + validatorsSize + executorsSize),
-      ), // hook
-      AbiEncoder.encodeUint256(
-        BigInt.from(headerSize + validatorsSize + executorsSize + hookSize),
-      ), // fallbacks
-      // validators array
-      _encodeBootstrapConfigArray([validatorConfig]),
-      // executors array (1 element with zeroAddress)
-      _encodeBootstrapConfigArray([executorConfig]),
-      // hook (single tuple)
-      hookConfig,
-      // fallbacks array (1 element with zeroAddress)
-      _encodeBootstrapConfigArray([fallbackConfig]),
-    ];
-
-    return Hex.concat(parts);
-  }
-
-  /// Encodes onInstall(bytes data) call.
-  String _encodeOnInstall(String data) {
-    final dataBytes = Hex.decode(data);
-    // Pad to next 32-byte boundary
-    final paddedLength = ((dataBytes.length + 31) ~/ 32) * 32;
-    return Hex.concat([
-      EtherspotSelectors.onInstall,
-      // bytes data - dynamic parameter
-      AbiEncoder.encodeUint256(BigInt.from(32)), // offset
-      AbiEncoder.encodeUint256(BigInt.from(dataBytes.length)),
-      if (dataBytes.isNotEmpty)
-        Hex.padRight(
-          Hex.fromBytes(Uint8List.fromList(dataBytes)),
-          paddedLength,
-        ),
-    ]);
-  }
-
-  /// Creates a BootstrapConfig tuple struct.
-  ({EthereumAddress module, String data}) _encodeBootstrapConfig(
-    EthereumAddress module,
-    String data,
-  ) =>
-      (module: module, data: data);
-
-  /// Encodes a single BootstrapConfig tuple for hook (inline, not in array).
-  String _encodeBootstrapConfigTuple(EthereumAddress module, String data) {
-    // Tuple (address, bytes) - address is static, bytes is dynamic
-    final dataBytes = Hex.decode(data);
-    // Pad to next 32-byte boundary
-    final paddedLength = ((dataBytes.length + 31) ~/ 32) * 32;
-    return Hex.concat([
-      AbiEncoder.encodeAddress(module),
-      AbiEncoder.encodeUint256(BigInt.from(64)), // offset to bytes (2 * 32)
-      AbiEncoder.encodeUint256(BigInt.from(dataBytes.length)),
-      if (dataBytes.isNotEmpty)
-        Hex.padRight(
-          Hex.fromBytes(Uint8List.fromList(dataBytes)),
-          paddedLength,
-        ),
-    ]);
-  }
-
-  /// Calculates the size of a BootstrapConfig tuple.
-  int _calculateTupleSize(String encodedTuple) => Hex.byteLength(encodedTuple);
-
-  /// Calculates size of a BootstrapConfig array encoding.
-  int _calculateArraySize(
-    List<({EthereumAddress module, String data})> configs,
-  ) {
-    if (configs.isEmpty) return 32; // Just length = 0
-
-    // Array structure:
-    // - length (32 bytes)
-    // - offsets for each element (n * 32 bytes)
-    // - element data
-    var size = 32 + configs.length * 32;
-    for (final config in configs) {
-      final dataBytes = Hex.decode(config.data);
-      // Each element: address (32) + offset to bytes (32) + bytes length (32) + bytes data (padded)
-      size += 32 + 32 + 32;
-      if (dataBytes.isNotEmpty) {
-        size += ((dataBytes.length + 31) ~/ 32) * 32;
-      }
-    }
-    return size;
-  }
-
-  /// Encodes a BootstrapConfig[] array.
-  String _encodeBootstrapConfigArray(
-    List<({EthereumAddress module, String data})> configs,
-  ) {
-    if (configs.isEmpty) {
-      return Hex.strip0x(AbiEncoder.encodeUint256(BigInt.zero));
-    }
-
-    final parts = <String>[
-      AbiEncoder.encodeUint256(BigInt.from(configs.length)),
-    ];
-
-    // Calculate offsets for each element
-    var currentOffset = configs.length * 32;
-    final elementOffsets = <int>[];
-    final elementData = <String>[];
-
-    for (final config in configs) {
-      elementOffsets.add(currentOffset);
-      final dataBytes = Hex.decode(config.data);
-      // Pad to next 32-byte boundary
-      final paddedLength = ((dataBytes.length + 31) ~/ 32) * 32;
-      final encoded = Hex.concat([
-        AbiEncoder.encodeAddress(config.module),
-        AbiEncoder.encodeUint256(
-          BigInt.from(64),
-        ), // offset to bytes within tuple
-        AbiEncoder.encodeUint256(BigInt.from(dataBytes.length)),
-        if (dataBytes.isNotEmpty)
-          Hex.padRight(
-            Hex.fromBytes(Uint8List.fromList(dataBytes)),
-            paddedLength,
-          ),
-      ]);
-      elementData.add(encoded);
-      currentOffset += Hex.byteLength(encoded);
-    }
-
-    // Add offsets
-    for (final offset in elementOffsets) {
-      parts.add(Hex.strip0x(AbiEncoder.encodeUint256(BigInt.from(offset))));
-    }
-
-    // Add element data
-    for (final data in elementData) {
-      parts.add(Hex.strip0x(data));
-    }
-
-    return Hex.concat(parts);
+    final onInstall =
+        AbiEncoder.encodeFunctionData(etherspotOnInstallSignature, ['0x']);
+    return AbiEncoder.encodeFunctionData(
+      etherspotInitMsaSignature,
+      [
+        [
+          [ecdsaValidator, onInstall],
+        ],
+        [
+          [zeroAddress, onInstall],
+        ],
+        [zeroAddress, onInstall],
+        [
+          [zeroAddress, onInstall],
+        ],
+      ],
+    );
   }
 
   @override
   String encodeCall(Call call) => encode7579Execute(call);
 
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('Calls list cannot be empty');
-    }
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-    return encode7579ExecuteBatch(calls);
-  }
+  String encodeCalls(List<Call> calls) => encodeErc7579AccountCalls(calls);
 
   @override
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
@@ -425,16 +219,18 @@ class EtherspotSmartAccount implements SmartAccount {
   @override
   String getStubSignature() => etherspotDummyEcdsaSignature;
 
+  /// Signs the v0.7 userOpHash with EIP-191. Unlike [signMessage] /
+  /// [signTypedData], the signature carries no validator prefix.
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    // Hash the user operation
-    final opHash = _hashUserOperation(userOp);
-
-    // Sign with owner (uses personal message signing)
-    // Etherspot signUserOperation returns just the signature without validator prefix
-    // This differs from signMessage/signTypedData which DO include the prefix
-    return owner.signPersonalMessage(opHash);
-  }
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      owner.signPersonalMessage(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: entryPoint,
+          entryPointVersion: entryPointVersion,
+          chainId: chainId,
+        ),
+      );
 
   /// Signs a personal message (EIP-191).
   ///
@@ -443,13 +239,8 @@ class EtherspotSmartAccount implements SmartAccount {
   Future<String> signMessage(String message) async {
     // hashMessage already applies the EIP-191 prefix; sign that digest raw
     // (matches viem localOwner.signMessage — one prefix only).
-    final messageHash = hashMessage(message);
-    final signature = await owner.signRawHash(messageHash);
-
-    // Prepend validator address
-    final validatorHex = Hex.strip0x(ecdsaValidator.hex).toLowerCase();
-    final sigHex = Hex.strip0x(signature);
-    return '0x$validatorHex$sigHex';
+    final signature = await owner.signRawHash(hashMessage(message));
+    return Hex.concat([ecdsaValidator.hex, signature]);
   }
 
   /// Signs EIP-712 typed data.
@@ -457,107 +248,9 @@ class EtherspotSmartAccount implements SmartAccount {
   /// Returns signature with validator prefix.
   @override
   Future<String> signTypedData(TypedData typedData) async {
-    // Sign the EIP-712 digest raw (no personal-message prefix).
     final signature = await owner.signTypedData(typedData);
-
-    // Prepend validator address
-    final validatorHex = Hex.strip0x(ecdsaValidator.hex).toLowerCase();
-    final sigHex = Hex.strip0x(signature);
-    return '0x$validatorHex$sigHex';
+    return Hex.concat([ecdsaValidator.hex, signature]);
   }
-
-  String _hashUserOperation(UserOperationV07 userOp) {
-    // Pack user operation fields according to ERC-4337 v0.7
-    final packedData = _packUserOpV7(userOp);
-    final opHash = keccak256(Hex.decode(packedData));
-
-    // Hash with entry point and chain ID
-    final finalHashInput = Hex.concat([
-      Hex.fromBytes(opHash),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-    final finalHash = keccak256(Hex.decode(finalHashInput));
-
-    return Hex.fromBytes(finalHash);
-  }
-
-  String _packUserOpV7(UserOperationV07 userOp) {
-    // Pack according to EntryPoint v0.7 format
-    final initCodeHash = keccak256(Hex.decode(_getInitCodeFromUserOp(userOp)));
-    final callDataHash = keccak256(Hex.decode(userOp.callData));
-    final accountGasLimits = _packAccountGasLimits(
-      userOp.verificationGasLimit,
-      userOp.callGasLimit,
-    );
-    final gasFees = _packGasFees(
-      userOp.maxPriorityFeePerGas,
-      userOp.maxFeePerGas,
-    );
-    final paymasterAndDataHash = keccak256(
-      Hex.decode(_getPaymasterAndData(userOp)),
-    );
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      accountGasLimits,
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      gasFees,
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
-
-  String _getInitCodeFromUserOp(UserOperationV07 userOp) {
-    final factory = userOp.factory;
-    if (factory == null) return '0x';
-    return Hex.concat([factory.hex, userOp.factoryData ?? '0x']);
-  }
-
-  String _getPaymasterAndData(UserOperationV07 userOp) {
-    if (userOp.paymaster == null) {
-      return '0x';
-    }
-    return Hex.concat([
-      userOp.paymaster!.hex,
-      Hex.fromBigInt(
-        userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-        byteLength: 16,
-        name: 'paymasterVerificationGasLimit',
-      ),
-      Hex.fromBigInt(
-        userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-        byteLength: 16,
-        name: 'paymasterPostOpGasLimit',
-      ),
-      Hex.strip0x(userOp.paymasterData ?? '0x'),
-    ]);
-  }
-
-  String _packAccountGasLimits(
-    BigInt verificationGasLimit,
-    BigInt callGasLimit,
-  ) =>
-      Hex.concat([
-        Hex.fromBigInt(
-          verificationGasLimit,
-          byteLength: 16,
-          name: 'verificationGasLimit',
-        ),
-        Hex.fromBigInt(callGasLimit, byteLength: 16, name: 'callGasLimit'),
-      ]);
-
-  String _packGasFees(BigInt maxPriorityFeePerGas, BigInt maxFeePerGas) =>
-      Hex.concat([
-        Hex.fromBigInt(
-          maxPriorityFeePerGas,
-          byteLength: 16,
-          name: 'maxPriorityFeePerGas',
-        ),
-        Hex.fromBigInt(maxFeePerGas, byteLength: 16, name: 'maxFeePerGas'),
-      ]);
 }
 
 /// Creates an Etherspot smart account.

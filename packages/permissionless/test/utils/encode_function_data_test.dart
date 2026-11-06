@@ -268,19 +268,16 @@ void main() {
           Uint8List.fromList([0xab, 0xcd, 0xef]),
         ],
       );
+      // Same call as the execute(address,uint256,bytes) vector above.
       expect(
         encoded,
         equals(
-          AbiEncoder.encodeFunctionData(
-            'execute(address,uint256,bytes)',
-            [
-              EthereumAddress.fromHex(
-                '0x1234567890123456789012345678901234567890',
-              ),
-              BigInt.zero,
-              '0xabcdef',
-            ],
-          ),
+          '0xb61d27f6'
+          '0000000000000000000000001234567890123456789012345678901234567890'
+          '0000000000000000000000000000000000000000000000000000000000000000'
+          '0000000000000000000000000000000000000000000000000000000000000060'
+          '0000000000000000000000000000000000000000000000000000000000000003'
+          'abcdef0000000000000000000000000000000000000000000000000000000000',
         ),
       );
     });
@@ -297,14 +294,6 @@ void main() {
         () => AbiEncoder.encodeFunctionData('setFlag(bool)'),
         throwsArgumentError,
       );
-    });
-
-    test('dataSuffix appends after encoded calldata (writeContract parity)',
-        () {
-      // Mirrors JS: `${data}${dataSuffix.replace("0x", "")}`
-      final data = AbiEncoder.encodeFunctionData('increment()');
-      final withSuffix = Hex.concat([data, '0xdeadbeef']);
-      expect(withSuffix, equals('0xd09de08adeadbeef'));
     });
 
     test('throws on bytes32 size mismatch', () {
@@ -346,5 +335,67 @@ void main() {
         throwsArgumentError,
       );
     });
+  });
+
+  group('integer range', () {
+    test('rejects values that do not fit the declared uint/int width', () {
+      for (final (signature, value) in [
+        ('f(uint8)', BigInt.from(256)),
+        ('f(uint256)', -BigInt.one),
+        ('f(uint256)', BigInt.one << 256),
+        ('f(int8)', BigInt.from(128)),
+        ('f(int8)', BigInt.from(-129)),
+        ('f(uint128[])', [BigInt.one << 128]),
+      ]) {
+        expect(
+          () => AbiEncoder.encodeFunctionData(signature, [value]),
+          throwsArgumentError,
+          reason: '$signature with $value',
+        );
+      }
+    });
+
+    test('accepts the bounds of each width', () {
+      expect(
+        () => AbiEncoder.encodeFunctionData('f(uint8,int8,int8,uint256)', [
+          255,
+          -128,
+          127,
+          (BigInt.one << 256) - BigInt.one,
+        ]),
+        returnsNormally,
+      );
+    });
+  });
+
+  // Widths viem rejects (its integerRegex / bytesRegex). web3dart fails these
+  // with an assert or a bare Exception, and silently accepts bytes0.
+  group('invalid type width', () {
+    for (final (type, value) in [
+      ('uint7', BigInt.one),
+      ('int264', BigInt.one),
+      ('bytes33', '0x${'00' * 33}'),
+      ('bytes0', '0x'),
+      ('uint7[]', [BigInt.one]),
+      ('(address,bytes33)', ['0x${'00' * 20}', '0x${'00' * 33}']),
+    ]) {
+      test('$type throws ArgumentError', () {
+        expect(
+          () => AbiEncoder.encodeParameters([type], [value]),
+          throwsArgumentError,
+          reason: 'encodeParameters',
+        );
+        expect(
+          () => AbiEncoder.encodeFunctionData('f($type)', [value]),
+          throwsArgumentError,
+          reason: 'encodeFunctionData',
+        );
+        expect(
+          () => AbiEncoder.decodeParameters([type], '0x${'00' * 64}'),
+          throwsArgumentError,
+          reason: 'decodeParameters',
+        );
+      });
+    }
   });
 }

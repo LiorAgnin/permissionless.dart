@@ -44,7 +44,7 @@ void main(List<String> args) async {
   // SETUP: Create an owner from a private key
   // ================================================================
   //
-  // Private key from TEST_PRIVATE_KEY (.env) or Foundry account 0 fallback
+  // Private key from TEST_PRIVATE_KEY (environment or .env; required)
   final owner = PrivateKeyOwner(config.privateKey);
   print('\nOwner address: ${owner.address.checksummed}');
 

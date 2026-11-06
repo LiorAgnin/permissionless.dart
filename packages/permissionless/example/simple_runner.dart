@@ -117,6 +117,10 @@ SimpleVariant? parseSimpleVariant(String raw) {
 }
 
 /// Run a sponsored (or self-funded) self-ping UserOp for [variant].
+///
+/// Network, bundler and account errors come back as a failed [SimpleRunResult]
+/// instead of being thrown, so multi-variant runners can continue. A missing
+/// setting in [ExampleConfig.load] still throws.
 Future<SimpleRunResult> runSimpleVariant({
   required SimpleVariant variant,
   bool selfFunded = false,
@@ -159,13 +163,6 @@ Future<SimpleRunResult> runSimpleVariant({
     }}',
   );
 
-  final accountAddress = await account.getAddress();
-  final isDeployed = await publicClient.isDeployed(accountAddress);
-  log(
-    'Account: ${accountAddress.checksummed} '
-    '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
-  );
-
   final bundler = createBundlerClient(url: pimlicoUrl, entryPoint: ep);
   final pimlico = createPimlicoClient(url: pimlicoUrl, entryPoint: ep);
   final paymaster = selfFunded ? null : createPaymasterClient(url: pimlicoUrl);
@@ -178,6 +175,13 @@ Future<SimpleRunResult> runSimpleVariant({
   );
 
   try {
+    final accountAddress = await account.getAddress();
+    final isDeployed = await publicClient.isDeployed(accountAddress);
+    log(
+      'Account: ${accountAddress.checksummed} '
+      '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
+    );
+
     log('\n--- Account Status ---');
     final gasPrices = await pimlico.getUserOperationGasPrice();
     log('Gas prices - Fast: ${gasPrices.fast.maxFeePerGas} wei');

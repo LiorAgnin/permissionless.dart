@@ -16,6 +16,11 @@ class NexusAddresses {
       EthereumAddress.fromHex('0x00000004171351c442B202678c48D8AB5B321E8f');
 }
 
+/// K1ValidatorFactory `createAccount(address eoaOwner, uint256 index,
+/// address[] attesters, uint8 threshold)`.
+const String nexusCreateAccountSignature =
+    'createAccount(address,uint256,address[],uint8)';
+
 /// Nexus function selectors.
 class NexusSelectors {
   NexusSelectors._();

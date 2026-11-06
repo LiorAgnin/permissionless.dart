@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 
+import '../config.dart';
 import 'home_screen.dart';
 
 /// Transaction funding mode
@@ -62,14 +63,12 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
   Future<void> _initializeAccount() async {
     _webAuthnAccount = createWebAuthnAccount(
       credential: widget.credential,
-      rpId: '28fc478be30e2f.lhr.life', // localhost.run - match registration
+      rpId: passkeyRpId,
     );
 
     if (widget.accountType == AccountType.kernel) {
       // Kernel account needs a publicClient to compute address via RPC
-      final publicClient = createPublicClient(
-        url: 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY',
-      );
+      final publicClient = createPublicClient(url: sepoliaRpcUrl);
       _account = createKernelSmartAccount(
         owner: _webAuthnAccount,
         chainId: _chainId,
@@ -129,10 +128,7 @@ class _SendTransactionScreenState extends State<SendTransactionScreen> {
       );
 
       // Create public client for nonce queries
-      final publicClient = createPublicClient(
-        url: 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY',
-        // url: 'https://rpc.sepolia.org',
-      );
+      final publicClient = createPublicClient(url: sepoliaRpcUrl);
 
       // Create paymaster client if sponsored
       PaymasterClient? paymasterClient;

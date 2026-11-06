@@ -1,8 +1,3 @@
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart' as crypto;
-import 'package:web3dart/web3dart.dart' show EthPrivateKey;
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -11,11 +6,14 @@ import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
-import '../../utils/encoding.dart';
 import '../../utils/erc7579.dart';
 import '../../utils/message_hash.dart';
+import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
+import '../erc7579_calls.dart';
 import 'constants.dart';
+import 'kernel_abi.dart';
 import 'kernel_erc1271.dart';
 
 /// Owner abstraction for EIP-7702 Kernel accounts.
@@ -31,7 +29,8 @@ abstract class Eip7702KernelOwner {
   /// The Ethereum address of this owner (the EOA).
   EthereumAddress get address;
 
-  /// Signs a raw message hash and returns the signature.
+  /// Signs [messageHash] as is (raw ECDSA, no EIP-191 prefix) and returns
+  /// the 65-byte signature.
   Future<String> signHash(String messageHash);
 
   /// Signs EIP-712 typed data and returns the signature.
@@ -57,49 +56,22 @@ class PrivateKeyEip7702KernelOwner implements Eip7702KernelOwner {
   /// print(owner.address); // The EOA address derived from this key
   /// ```
   PrivateKeyEip7702KernelOwner(String privateKeyHex)
-      : _privateKey = EthPrivateKey.fromHex(privateKeyHex),
+      : _owner = PrivateKeyOwner(privateKeyHex),
         _privateKeyHex = privateKeyHex;
 
-  final EthPrivateKey _privateKey;
+  final PrivateKeyOwner _owner;
   final String _privateKeyHex;
 
   @override
-  EthereumAddress get address =>
-      EthereumAddress.fromHex(_privateKey.address.eip55With0x);
+  EthereumAddress get address => _owner.address;
 
   @override
-  Future<String> signHash(String messageHash) async {
-    final hash = Hex.decode(messageHash);
-
-    // Sign directly without EIP-191 prefix (raw hash signing)
-    final sig = crypto.sign(Uint8List.fromList(hash), _privateKey.privateKey);
-
-    // Encode as r (32 bytes) + s (32 bytes) + v (1 byte)
-    final r = Hex.fromBigInt(sig.r, byteLength: 32);
-    final s = Hex.fromBigInt(sig.s, byteLength: 32);
-    var v = sig.v;
-    if (v < 27) {
-      v += 27;
-    }
-
-    return Hex.concat([r, s, Hex.fromBigInt(BigInt.from(v), byteLength: 1)]);
-  }
+  Future<String> signHash(String messageHash) =>
+      _owner.signRawHash(messageHash);
 
   @override
-  Future<String> signTypedData(TypedData typedData) async {
-    final hash = hashTypedData(typedData);
-    final hashBytes = Hex.decode(hash);
-
-    // Sign the typed data hash directly using raw sign function
-    final sig =
-        crypto.sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
-
-    // Pack r, s, v into 65 bytes
-    final rBytes = Hex.decode(Hex.fromBigInt(sig.r, byteLength: 32));
-    final sBytes = Hex.decode(Hex.fromBigInt(sig.s, byteLength: 32));
-
-    return Hex.fromBytes(Uint8List.fromList([...rBytes, ...sBytes, sig.v]));
-  }
+  Future<String> signTypedData(TypedData typedData) =>
+      _owner.signTypedData(typedData);
 
   @override
   Future<Eip7702Authorization> createAuthorization({
@@ -149,12 +121,7 @@ class Eip7702KernelSmartAccountConfig {
         'Use v0.3.3 or later.',
       );
     }
-    if (nonceKey != null && nonceKey! > BigInt.from(0xffff)) {
-      throw ArgumentError(
-        'nonce key must be equal or less than 2 bytes(maxUint16) for '
-        'Kernel version ${version.value}',
-      );
-    }
+    checkKernelV3NonceKey(nonceKey, version);
   }
 
   /// The owner of this EIP-7702 account (the EOA).
@@ -210,14 +177,17 @@ class Eip7702KernelSmartAccountConfig {
 /// // Get authorization for submitting to bundler
 /// final auth = await account.getAuthorization(nonce: BigInt.zero);
 /// ```
-class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
+class Eip7702KernelSmartAccount
+    implements Eip7702SmartAccount, EntryPointVersioned {
   /// Creates an EIP-7702 Kernel smart account from the given configuration.
   ///
   /// Prefer using [createEip7702KernelSmartAccount] factory function instead
   /// of calling this constructor directly.
-  Eip7702KernelSmartAccount(this._config);
+  Eip7702KernelSmartAccount(this._config)
+      : _accountOwner = _Eip7702KernelAccountOwner(_config.owner);
 
   final Eip7702KernelSmartAccountConfig _config;
+  final _Eip7702KernelAccountOwner _accountOwner;
 
   /// The owner of this account.
   Eip7702KernelOwner get owner => _config.owner;
@@ -231,6 +201,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   bool get isEip7702 => true;
 
   /// The EntryPoint version (v0.7 for Kernel EIP-7702).
+  @override
   EntryPointVersion get entryPointVersion => EntryPointVersion.v07;
 
   /// The chain ID.
@@ -240,41 +211,18 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// The EntryPoint address for this account.
   @override
   EthereumAddress get entryPoint =>
-      _config.entryPointAddress ?? EntryPointAddresses.v07;
+      _config.entryPointAddress ??
+      EntryPointAddresses.fromVersion(entryPointVersion);
 
   /// The nonce key for this account.
   ///
   /// For Kernel v3, the nonce key encodes: mode (1) + type (1) + validatorAddress (20) + salt (2).
   /// Uses ROOT type (0x00) with the ECDSA validator address.
   @override
-  BigInt get nonceKey {
-    final userKey = _config.nonceKey ?? BigInt.zero;
-    if (userKey > BigInt.from(0xffff)) {
-      throw StateError(
-        'nonce key must be equal or less than 2 bytes(maxUint16) for '
-        'Kernel version ${_config.version.value}',
+  BigInt get nonceKey => encodeKernelV3NonceKey(
+        validator: _config.ecdsaValidatorAddress,
+        nonceKey: _config.nonceKey,
       );
-    }
-
-    // Kernel v3 nonce key: mode (1) + type (1) + validatorAddress (20) + salt (2) = 24 bytes
-    final validatorBytes = Hex.decode(_config.ecdsaValidatorAddress.hex);
-
-    final bytes = Uint8List(24);
-    // Mode: default (0x00)
-    bytes[0] = KernelValidatorMode.sudo;
-    // Type: ROOT (0x00)
-    bytes[1] = KernelValidatorType.root;
-    // Validator address (20 bytes)
-    for (var i = 0; i < 20; i++) {
-      bytes[2 + i] = validatorBytes[i];
-    }
-    // Salt from user nonce key (2 bytes)
-    final saltBytes = Hex.decode(Hex.fromBigInt(userKey, byteLength: 2));
-    bytes[22] = saltBytes[0];
-    bytes[23] = saltBytes[1];
-
-    return Hex.toBigInt(Hex.fromBytes(bytes));
-  }
 
   @override
   bool get isWebAuthn => false;
@@ -318,17 +266,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
 
   /// Encodes multiple calls using ERC-7579 batch format.
   @override
-  String encodeCalls(List<Call> calls) {
-    if (calls.isEmpty) {
-      throw ArgumentError('At least one call is required');
-    }
-
-    if (calls.length == 1) {
-      return encodeCall(calls.first);
-    }
-
-    return encode7579ExecuteBatch(calls);
-  }
+  String encodeCalls(List<Call> calls) => encodeErc7579AccountCalls(calls);
 
   @override
   List<Call> decodeCalls(String callData) => decode7579Calls(callData).calls;
@@ -342,7 +280,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   /// the raw ECDSA signature without any validator identifier prefix.
   /// The validator identifier is only used for message/typedData signing (EIP-1271).
   @override
-  String getStubSignature() => kernelDummyEcdsaSignature;
+  String getStubSignature() => ecdsaStubSignature;
 
   /// Gets the EIP-7702 validator identifier.
   ///
@@ -360,122 +298,16 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   ///
   /// This matches permissionless.js which uses owner.signMessage({ message: { raw: hash } }).
   @override
-  Future<String> signUserOperation(UserOperationV07 userOp) async {
-    final userOpHash = _computeUserOpHash(userOp);
-
-    // Apply EIP-191 prefix: "\x19Ethereum Signed Message:\n32" + hashBytes
-    // This matches viem's signMessage({ message: { raw: hash } }) behavior
-    final prefixedHash = _hashMessageRaw(userOpHash);
-
-    return _config.owner.signHash(prefixedHash);
-  }
-
-  /// Applies EIP-191 personal message prefix to raw bytes (32-byte hash).
-  ///
-  /// Format: keccak256("\x19Ethereum Signed Message:\n32" + hashBytes)
-  ///
-  /// This matches viem's `signMessage({ message: { raw: hash } })` which
-  /// treats the raw bytes as the message content.
-  String _hashMessageRaw(String hashHex) {
-    final hashBytes = Hex.decode(hashHex);
-    const prefix = '\x19Ethereum Signed Message:\n32';
-    final prefixBytes = Uint8List.fromList(prefix.codeUnits);
-
-    final combined = Uint8List(prefixBytes.length + hashBytes.length)
-      ..setRange(0, prefixBytes.length, prefixBytes)
-      ..setRange(
-        prefixBytes.length,
-        prefixBytes.length + hashBytes.length,
-        hashBytes,
+  Future<String> signUserOperation(UserOperationV07 userOp) =>
+      _accountOwner.signPersonalMessage(
+        getUserOperationHash(
+          userOperation: userOp,
+          entryPointAddress: entryPoint,
+          entryPointVersion: entryPointVersion,
+          chainId: chainId,
+          eip7702DelegationAddress: accountLogicAddress,
+        ),
       );
-
-    return Hex.fromBytes(crypto.keccak256(combined));
-  }
-
-  /// Computes the UserOperation hash for v0.7.
-  String _computeUserOpHash(UserOperationV07 userOp) {
-    final packedUserOp = _packUserOp(userOp);
-    final userOpHashInner = crypto.keccak256(Hex.decode(packedUserOp));
-
-    final finalPreImage = Hex.concat([
-      Hex.fromBytes(userOpHashInner),
-      AbiEncoder.encodeAddress(entryPoint),
-      AbiEncoder.encodeUint256(chainId),
-    ]);
-
-    return Hex.fromBytes(crypto.keccak256(Hex.decode(finalPreImage)));
-  }
-
-  /// Packs a UserOperation for hashing (v0.7 format).
-  String _packUserOp(UserOperationV07 userOp) {
-    // Pack initCode (EIP-7702 marker → use account logic as delegation)
-    final initCode = packUserOperationInitCode(
-      factory: userOp.factory,
-      factoryData: userOp.factoryData,
-      delegationAddress:
-          isEip7702FactoryMarker(userOp.factory) ? accountLogicAddress : null,
-    );
-    final initCodeHash = crypto.keccak256(Hex.decode(initCode));
-    // Pack callData
-    final callDataHash = crypto.keccak256(Hex.decode(userOp.callData));
-
-    // Pack accountGasLimits (v0.7 packing)
-    final verificationGasLimitHex = Hex.fromBigInt(
-      userOp.verificationGasLimit,
-      byteLength: 16,
-      name: 'verificationGasLimit',
-    );
-    final callGasLimitHex = Hex.fromBigInt(
-      userOp.callGasLimit,
-      byteLength: 16,
-      name: 'callGasLimit',
-    );
-    final accountGasLimits =
-        Hex.concat([verificationGasLimitHex, callGasLimitHex]);
-
-    // Pack gasFees
-    final maxPriorityFeeHex = Hex.fromBigInt(
-      userOp.maxPriorityFeePerGas,
-      byteLength: 16,
-      name: 'maxPriorityFeePerGas',
-    );
-    final maxFeeHex = Hex.fromBigInt(
-      userOp.maxFeePerGas,
-      byteLength: 16,
-      name: 'maxFeePerGas',
-    );
-    final gasFees = Hex.concat([maxPriorityFeeHex, maxFeeHex]);
-
-    // Pack paymasterAndData
-    final paymasterAndData = userOp.paymaster != null
-        ? Hex.concat([
-            userOp.paymaster!.hex,
-            Hex.fromBigInt(
-              userOp.paymasterVerificationGasLimit ?? BigInt.zero,
-              byteLength: 16,
-              name: 'paymasterVerificationGasLimit',
-            ),
-            Hex.fromBigInt(
-              userOp.paymasterPostOpGasLimit ?? BigInt.zero,
-              byteLength: 16,
-              name: 'paymasterPostOpGasLimit',
-            ),
-            Hex.strip0x(userOp.paymasterData ?? '0x'),
-          ])
-        : '0x';
-    final paymasterAndDataHash = crypto.keccak256(Hex.decode(paymasterAndData));
-
-    return Hex.concat([
-      AbiEncoder.encodeAddress(userOp.sender),
-      AbiEncoder.encodeUint256(userOp.nonce),
-      Hex.fromBytes(initCodeHash),
-      Hex.fromBytes(callDataHash),
-      Hex.strip0x(accountGasLimits),
-      AbiEncoder.encodeUint256(userOp.preVerificationGas),
-      Hex.strip0x(gasFees),
-      Hex.fromBytes(paymasterAndDataHash),
-    ]);
-  }
 
   /// Signs a personal message using Kernel's EIP-712 wrapper.
   ///
@@ -488,7 +320,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   Future<String> signMessage(String message) async {
     await _ensureDeployedForEip1271();
     final signature = await signKernelMessage(
-      owner: _Eip7702KernelAccountOwner(_config.owner),
+      owner: _accountOwner,
       message: message,
       address: _config.owner.address,
       version: _config.version,
@@ -512,7 +344,7 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
   Future<String> signTypedData(TypedData typedData) async {
     await _ensureDeployedForEip1271();
     final signature = await signKernelTypedData(
-      owner: _Eip7702KernelAccountOwner(_config.owner),
+      owner: _accountOwner,
       typedData: typedData,
       address: _config.owner.address,
       version: _config.version,
@@ -525,26 +357,16 @@ class Eip7702KernelSmartAccount implements Eip7702SmartAccount {
     ]);
   }
 
-  /// Checks if the account is deployed (delegated) before EIP-1271 signing.
-  ///
-  /// EIP-7702 accounts are not EIP-1271 compliant before delegation because
-  /// the EOA has no code to execute `isValidSignature`.
-  Future<void> _ensureDeployedForEip1271() async {
-    if (_config.publicClient == null) return;
-
-    final address = await getAddress();
-    final isDeployed = await _config.publicClient!.isDeployed(address);
-    if (!isDeployed) {
-      throw StateError(
-        'Kernel with EIP-7702 is not EIP-1271 compliant before delegation. '
-        'Submit a UserOperation with the EIP-7702 authorization first.',
+  Future<void> _ensureDeployedForEip1271() => ensureEip7702Delegated(
+        accountName: 'Kernel with EIP-7702',
+        publicClient: _config.publicClient,
+        address: getAddress,
       );
-    }
-  }
 }
 
-/// Adapts [Eip7702KernelOwner] to [AccountOwner] for [signKernelMessage] /
-/// [signKernelTypedData]. The 7702 path only uses [signTypedData].
+/// Adapts [Eip7702KernelOwner] to [AccountOwner]: [signRawHash] is the
+/// owner's raw `signHash`, [signPersonalMessage] is EIP-191 over the hash
+/// bytes (viem `signMessage({ message: { raw } })`) signed raw.
 class _Eip7702KernelAccountOwner extends AccountOwner {
   const _Eip7702KernelAccountOwner(this._owner);
 
@@ -561,11 +383,8 @@ class _Eip7702KernelAccountOwner extends AccountOwner {
   Future<String> signRawHash(String hash) => _owner.signHash(hash);
 
   @override
-  Future<String> signPersonalMessage(String hash) {
-    throw UnsupportedError(
-      'EIP-7702 Kernel owner does not implement personal_sign',
-    );
-  }
+  Future<String> signPersonalMessage(String hash) =>
+      _owner.signHash(hashMessageBytes(Hex.decode(hash)));
 }
 
 /// Creates an EIP-7702 Kernel smart account.

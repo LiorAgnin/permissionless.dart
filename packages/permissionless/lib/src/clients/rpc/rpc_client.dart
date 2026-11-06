@@ -2,12 +2,20 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import 'types.dart';
+import 'rpc_errors.dart';
+
+/// Request timeout used when a client is created without one.
+const Duration defaultRpcTimeout = Duration(seconds: 30);
 
 /// A JSON-RPC 2.0 client for HTTP transport.
 ///
 /// Handles request/response formatting and error parsing for
 /// communicating with Ethereum nodes and ERC-4337 bundlers.
+///
+/// It is the transport of every client in this package (bundler, public,
+/// paymaster, Pimlico, Etherspot, passkey server), so a JSON-RPC error from
+/// any of them is thrown as [BundlerRpcError], and a non-200 HTTP status as
+/// [BundlerHttpError] (a subtype of [BundlerRpcError]).
 class JsonRpcClient {
   /// Creates a JSON-RPC client with the given configuration.
   ///
@@ -21,7 +29,7 @@ class JsonRpcClient {
     required this.url,
     http.Client? httpClient,
     this.headers = const {},
-    this.timeout = const Duration(seconds: 30),
+    this.timeout = defaultRpcTimeout,
   }) : _httpClient = httpClient ?? http.Client();
 
   /// The RPC endpoint URL.
@@ -135,7 +143,6 @@ class JsonRpcClient {
       results[id] = responseMap['result'];
     }
 
-    // Return results in request order
     return [
       for (var i = startId; i <= _requestId; i++) results[i],
     ];
@@ -193,13 +200,18 @@ class RpcRequest {
 }
 
 /// Creates a [JsonRpcClient] from a URL string.
+///
+/// Every `create*Client` factory builds its transport here, so they share
+/// the same defaults.
 JsonRpcClient createRpcClient(
   String url, {
+  http.Client? httpClient,
   Map<String, String>? headers,
   Duration? timeout,
 }) =>
     JsonRpcClient(
       url: Uri.parse(url),
-      headers: headers ?? {},
-      timeout: timeout ?? const Duration(seconds: 30),
+      httpClient: httpClient,
+      headers: headers ?? const {},
+      timeout: timeout ?? defaultRpcTimeout,
     );

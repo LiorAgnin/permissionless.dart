@@ -5,5 +5,6 @@
 /// gas prices, and L2 compressed UserOperations.
 library;
 
+export 'fees.dart';
 export 'pimlico_client.dart';
 export 'types.dart';

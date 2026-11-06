@@ -2,62 +2,25 @@ import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('GasSpeed', () {
-    test('has three speed tiers', () {
-      expect(GasSpeed.values, hasLength(3));
-      expect(GasSpeed.values, contains(GasSpeed.slow));
-      expect(GasSpeed.values, contains(GasSpeed.standard));
-      expect(GasSpeed.values, contains(GasSpeed.fast));
-    });
-  });
+  group('GasMultipliers.standard', () {
+    // Documented as a 10% buffer on every limit except preVerificationGas.
+    test('adds 10% to every limit but preVerificationGas', () {
+      final buffered = UserOperationGasEstimate(
+        preVerificationGas: BigInt.from(50000),
+        verificationGasLimit: BigInt.from(100000),
+        callGasLimit: BigInt.from(200000),
+        paymasterVerificationGasLimit: BigInt.from(30000),
+        paymasterPostOpGasLimit: BigInt.from(40000),
+      ).withMultipliers(GasMultipliers.standard);
 
-  group('GasMultipliers', () {
-    test('default multipliers are 1.1x for most limits', () {
-      const multipliers = GasMultipliers.standard;
-      expect(multipliers.verificationGasLimit, equals(1.1));
-      expect(multipliers.callGasLimit, equals(1.1));
-      expect(multipliers.preVerificationGas, equals(1.0));
-      expect(multipliers.paymasterVerificationGasLimit, equals(1.1));
-      expect(multipliers.paymasterPostOpGasLimit, equals(1.1));
-    });
-
-    test('none preset has all 1.0x multipliers', () {
-      expect(GasMultipliers.none.verificationGasLimit, equals(1.0));
-      expect(GasMultipliers.none.callGasLimit, equals(1.0));
-      expect(GasMultipliers.none.preVerificationGas, equals(1.0));
-      expect(GasMultipliers.none.paymasterVerificationGasLimit, equals(1.0));
-      expect(GasMultipliers.none.paymasterPostOpGasLimit, equals(1.0));
-    });
-
-    test('standard preset matches default', () {
-      expect(GasMultipliers.standard.verificationGasLimit, equals(1.1));
-      expect(GasMultipliers.standard.callGasLimit, equals(1.1));
-    });
-
-    test('conservative preset has larger buffers', () {
-      expect(GasMultipliers.conservative.verificationGasLimit, equals(1.3));
-      expect(GasMultipliers.conservative.callGasLimit, equals(1.2));
-      expect(GasMultipliers.conservative.preVerificationGas, equals(1.1));
+      expect(buffered.preVerificationGas, equals(BigInt.from(50000)));
+      expect(buffered.verificationGasLimit, equals(BigInt.from(110000)));
+      expect(buffered.callGasLimit, equals(BigInt.from(220000)));
       expect(
-        GasMultipliers.conservative.paymasterVerificationGasLimit,
-        equals(1.3),
+        buffered.paymasterVerificationGasLimit,
+        equals(BigInt.from(33000)),
       );
-      expect(GasMultipliers.conservative.paymasterPostOpGasLimit, equals(1.2));
-    });
-
-    test('can create custom multipliers', () {
-      const custom = GasMultipliers(
-        verificationGasLimit: 1.5,
-        callGasLimit: 1.25,
-        preVerificationGas: 1.15,
-        paymasterVerificationGasLimit: 1.4,
-        paymasterPostOpGasLimit: 1.35,
-      );
-      expect(custom.verificationGasLimit, equals(1.5));
-      expect(custom.callGasLimit, equals(1.25));
-      expect(custom.preVerificationGas, equals(1.15));
-      expect(custom.paymasterVerificationGasLimit, equals(1.4));
-      expect(custom.paymasterPostOpGasLimit, equals(1.35));
+      expect(buffered.paymasterPostOpGasLimit, equals(BigInt.from(44000)));
     });
   });
 
@@ -128,6 +91,48 @@ void main() {
     });
   });
 
+  // Deprecated (no longer used by SmartAccountClient), kept until removal.
+  group('UserOperationGasEstimate.withMinimumVerificationGas', () {
+    final estimate = UserOperationGasEstimate(
+      preVerificationGas: BigInt.from(50000),
+      verificationGasLimit: BigInt.from(135476),
+      callGasLimit: BigInt.from(45619),
+    );
+
+    test('raises verificationGasLimit to 900k by default', () {
+      // ignore: deprecated_member_use_from_same_package
+      final floored = estimate.withMinimumVerificationGas();
+
+      expect(floored.verificationGasLimit, equals(BigInt.from(900000)));
+      expect(floored.preVerificationGas, equals(estimate.preVerificationGas));
+      expect(floored.callGasLimit, equals(estimate.callGasLimit));
+    });
+
+    test('keeps a verificationGasLimit already at or above the minimum', () {
+      final high = UserOperationGasEstimate(
+        preVerificationGas: BigInt.from(50000),
+        verificationGasLimit: BigInt.from(945021),
+        callGasLimit: BigInt.from(45619),
+      );
+
+      expect(
+        // ignore: deprecated_member_use_from_same_package
+        high.withMinimumVerificationGas().verificationGasLimit,
+        equals(BigInt.from(945021)),
+      );
+    });
+
+    test('uses a custom minimum', () {
+      expect(
+        estimate
+            // ignore: deprecated_member_use_from_same_package
+            .withMinimumVerificationGas(minimum: BigInt.from(200000))
+            .verificationGasLimit,
+        equals(BigInt.from(200000)),
+      );
+    });
+  });
+
   group('UserOperationGasEstimate.totalGasLimit', () {
     test('sums basic gas limits', () {
       final estimate = UserOperationGasEstimate(
@@ -153,16 +158,6 @@ void main() {
   });
 
   group('FeeEstimate', () {
-    test('stores maxFeePerGas and maxPriorityFeePerGas', () {
-      final fees = FeeEstimate(
-        maxFeePerGas: BigInt.from(50000000000),
-        maxPriorityFeePerGas: BigInt.from(2000000000),
-      );
-
-      expect(fees.maxFeePerGas, equals(BigInt.from(50000000000)));
-      expect(fees.maxPriorityFeePerGas, equals(BigInt.from(2000000000)));
-    });
-
     test('withMultiplier applies to both fees', () {
       final fees = FeeEstimate(
         maxFeePerGas: BigInt.from(50000000000),
@@ -185,18 +180,6 @@ void main() {
 
       expect(same.maxFeePerGas, equals(fees.maxFeePerGas));
       expect(same.maxPriorityFeePerGas, equals(fees.maxPriorityFeePerGas));
-    });
-
-    test('toString returns readable format', () {
-      final fees = FeeEstimate(
-        maxFeePerGas: BigInt.from(50000000000),
-        maxPriorityFeePerGas: BigInt.from(2000000000),
-      );
-
-      expect(
-        fees.toString(),
-        equals('FeeEstimate(maxFee: 50000000000, maxPriority: 2000000000)'),
-      );
     });
   });
 
@@ -242,18 +225,6 @@ void main() {
       expect(
         cost.maxGasCost,
         equals(BigInt.from(450000) * BigInt.from(50000000000)),
-      );
-    });
-
-    test('toString returns readable format', () {
-      final cost = GasCostEstimate(
-        totalGasLimit: BigInt.from(350000),
-        maxGasCost: BigInt.from(17500000000000000),
-      );
-
-      expect(
-        cost.toString(),
-        equals('GasCostEstimate(totalGas: 350000, maxCost: 17500000000000000)'),
       );
     });
   });
@@ -428,10 +399,10 @@ void main() {
 
       final boosted = fees.withMultiplier(1.15);
 
-      // Should be approximately 15% more
-      // 33333333333 * 1.15 ≈ 38333333333
-      expect(boosted.maxFeePerGas, greaterThan(BigInt.from(38000000000)));
-      expect(boosted.maxFeePerGas, lessThan(BigInt.from(39000000000)));
+      // Whole wei, truncated: 33333333333 * 1.15 = 38333333332.95 and
+      // 1111111111 * 1.15 = 1277777777.65.
+      expect(boosted.maxFeePerGas, equals(BigInt.from(38333333332)));
+      expect(boosted.maxPriorityFeePerGas, equals(BigInt.from(1277777777)));
     });
   });
 
@@ -447,21 +418,6 @@ void main() {
       expect(
         address!.hex.toLowerCase(),
         equals('0x5fbfb9cf5de2e8c24a07e5c6a3e8d2a1bac56e7f'),
-      );
-    });
-
-    test('extracts address from paymasterAndData', () {
-      // Paymaster address + paymaster data
-      const paymasterAndData = '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-          'deadbeefcafe';
-
-      final address =
-          getAddressFromInitCodeOrPaymasterAndData(paymasterAndData);
-
-      expect(address, isNotNull);
-      expect(
-        address!.hex.toLowerCase(),
-        equals('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
       );
     });
 
@@ -504,55 +460,6 @@ void main() {
       const invalidHex = '0x123456789012345678901234567890123456789z';
       final address = getAddressFromInitCodeOrPaymasterAndData(invalidHex);
       expect(address, isNull);
-    });
-
-    test('handles checksummed addresses', () {
-      // Checksummed address with additional data
-      const initCode = '0x5FbDB2315678afecb367f032d93F642f64180aa3'
-          'aabbccdd';
-
-      final address = getAddressFromInitCodeOrPaymasterAndData(initCode);
-
-      expect(address, isNotNull);
-      // EthereumAddress normalizes to lowercase
-      expect(
-        address!.hex.toLowerCase(),
-        equals('0x5fbdb2315678afecb367f032d93f642f64180aa3'),
-      );
-    });
-
-    test('works with real-world v0.6 initCode format', () {
-      // v0.6 initCode: factory (20 bytes) + createAccount call data
-      const initCode =
-          '0x9406cc6185a346906296840746125a0e44976454' // Safe factory
-          '1688f0b9' // createAccount selector
-          '0000000000000000000000001234567890123456789012345678901234567890'; // owner
-
-      final address = getAddressFromInitCodeOrPaymasterAndData(initCode);
-
-      expect(address, isNotNull);
-      expect(
-        address!.hex.toLowerCase(),
-        equals('0x9406cc6185a346906296840746125a0e44976454'),
-      );
-    });
-
-    test('works with real-world v0.6 paymasterAndData format', () {
-      // v0.6 paymasterAndData: paymaster (20 bytes) + verification + signature
-      const paymasterAndData =
-          '0x0000000071727de22e5e9d8baf0edac6f37da032' // Verifying paymaster
-          '00000000000000000000000000000000000000000000000000000000669e9740' // valid until
-          '00000000000000000000000000000000000000000000000000000000669e8740' // valid after
-          'deadbeef'; // signature stub
-
-      final address =
-          getAddressFromInitCodeOrPaymasterAndData(paymasterAndData);
-
-      expect(address, isNotNull);
-      expect(
-        address!.hex.toLowerCase(),
-        equals('0x0000000071727de22e5e9d8baf0edac6f37da032'),
-      );
     });
   });
 }

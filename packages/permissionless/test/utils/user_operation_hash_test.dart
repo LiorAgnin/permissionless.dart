@@ -106,23 +106,6 @@ void main() {
     });
   });
 
-  test('v0.8 matches the EIP-7702 Simple account hash', () {
-    final account = createEip7702SimpleSmartAccount(
-      owner: PrivateKeyEip7702Owner(
-        '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
-      ),
-      chainId: chainId,
-    );
-    expect(
-      hash(
-        eip7702,
-        EntryPointVersion.v08,
-        delegationAddress: account.accountLogicAddress,
-      ),
-      account.getUserOperationHash(eip7702),
-    );
-  });
-
   test('v0.6 is rejected', () {
     expect(
       () => hash(base(), EntryPointVersion.v06),

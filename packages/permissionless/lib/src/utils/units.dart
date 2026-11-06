@@ -38,11 +38,10 @@ class GasUnits {
   /// Converts gwei to wei.
   ///
   /// Example: `gweiToWei(50)` returns 50 * 10^9 wei
-  static BigInt gweiToWei(num gwei) {
-    // Handle decimal gwei values by scaling up
-    final scaledGwei = (gwei * 1e9).round();
-    return BigInt.from(scaledGwei);
-  }
+  ///
+  /// Converts the shortest decimal form of [gwei] (`0.1` is exactly
+  /// 10^8 wei); digits below one wei round half up.
+  static BigInt gweiToWei(num gwei) => _scaleDecimal(_numToDecimal(gwei), 9);
 
   /// Converts wei to gwei.
   ///
@@ -52,11 +51,11 @@ class GasUnits {
   /// Converts ether to wei.
   ///
   /// Example: `etherToWei(1.5)` returns 1.5 * 10^18 wei
-  static BigInt etherToWei(num ether) {
-    // Handle decimal ether values by scaling up
-    final scaledEther = (ether * 1e18).round();
-    return BigInt.from(scaledEther);
-  }
+  ///
+  /// Converts the shortest decimal form of [ether] (`0.1` is exactly
+  /// 10^17 wei); digits below one wei round half up.
+  static BigInt etherToWei(num ether) =>
+      _scaleDecimal(_numToDecimal(ether), 18);
 
   /// Converts wei to ether.
   ///
@@ -78,7 +77,8 @@ class GasUnits {
   /// - "1.5 eth", "1.5eth", "1.5 ether", "1.5 ETH"
   /// - "1000000000" (wei, no suffix)
   ///
-  /// Returns the value in wei.
+  /// Returns the value in wei, computed exactly from the decimal digits.
+  /// Digits below one wei round half up, as viem `parseUnits` does.
   ///
   /// Example:
   /// ```dart
@@ -87,35 +87,23 @@ class GasUnits {
   /// GasUnits.parse('1000');     // 1000 wei
   /// ```
   static BigInt parse(String value) {
-    final trimmed = value.trim().toLowerCase();
-
-    // Try to extract number and unit
-    final match =
-        RegExp(r'^([\d.]+)\s*(gwei|eth|ether|wei)?$').firstMatch(trimmed);
-
+    final match = RegExp(r'^([\d.]+)\s*(gwei|eth|ether|wei)?$')
+        .firstMatch(value.trim().toLowerCase());
     if (match == null) {
       throw FormatException('Invalid gas unit format: $value');
     }
-
-    final numStr = match.group(1)!;
-    final unit = match.group(2) ?? 'wei';
-
-    final num = double.tryParse(numStr);
-    if (num == null) {
-      throw FormatException('Invalid number: $numStr');
-    }
-
-    return switch (unit) {
-      'gwei' => gweiToWei(num),
-      'eth' || 'ether' => etherToWei(num),
-      'wei' || '' => BigInt.from(num),
-      _ => throw FormatException('Unknown unit: $unit'),
+    final decimals = switch (match.group(2)) {
+      'gwei' => 9,
+      'eth' || 'ether' => 18,
+      _ => 0,
     };
+    return _scaleDecimal(match.group(1)!, decimals);
   }
 
   /// Formats a wei value as a human-readable string.
   ///
-  /// Automatically chooses the best unit (wei, gwei, or ether).
+  /// Automatically chooses the best unit (wei, gwei, or ether) and rounds
+  /// the exact value half up to [decimals] places.
   ///
   /// Example:
   /// ```dart
@@ -124,27 +112,64 @@ class GasUnits {
   /// ```
   static String format(BigInt wei, {int decimals = 4}) {
     if (wei >= EthUnits.weiPerEther) {
-      final eth = weiToEther(wei);
-      return '${_formatDecimal(eth, decimals)} ETH';
+      return '${_formatUnits(wei, 18, decimals)} ETH';
     } else if (wei >= EthUnits.weiPerGwei) {
-      final gwei = weiToGwei(wei);
-      return '${_formatDecimal(gwei, decimals)} gwei';
+      return '${_formatUnits(wei, 9, decimals)} gwei';
     } else {
       return '$wei wei';
     }
   }
 
-  /// Formats a decimal number with specified precision.
-  static String _formatDecimal(double value, int decimals) {
-    final str = value.toStringAsFixed(decimals);
-    // Remove trailing zeros after decimal point
-    if (str.contains('.')) {
-      var result = str.replaceAll(RegExp(r'0+$'), '');
-      if (result.endsWith('.')) {
-        result = result.substring(0, result.length - 1);
-      }
-      return result;
+  static final _decimalNumber =
+      RegExp(r'^(-?)(\d*)(?:\.(\d*))?(?:e([+-]?\d+))?$', caseSensitive: false);
+
+  /// Dart prints the shortest decimal that round-trips, so `0.1` becomes
+  /// `'0.1'` rather than its binary expansion.
+  static String _numToDecimal(num value) {
+    if (!value.isFinite) {
+      throw ArgumentError.value(value, 'value', 'must be finite');
     }
-    return str;
+    return value.toString();
+  }
+
+  /// [number] * 10^[decimals], with digits below 1 rounded half up (viem
+  /// `parseUnits` rounding).
+  static BigInt _scaleDecimal(String number, int decimals) {
+    final match = _decimalNumber.firstMatch(number);
+    final integer = match?.group(2) ?? '';
+    final fraction = match?.group(3) ?? '';
+    if (match == null || (integer.isEmpty && fraction.isEmpty)) {
+      throw FormatException('Invalid number: $number');
+    }
+    final shift = decimals + int.parse(match.group(4) ?? '0') - fraction.length;
+    final digits = BigInt.parse('0$integer$fraction');
+    BigInt scaled;
+    if (shift >= 0) {
+      scaled = digits * BigInt.from(10).pow(shift);
+    } else {
+      final divisor = BigInt.from(10).pow(-shift);
+      scaled = digits ~/ divisor;
+      if (digits.remainder(divisor) * BigInt.two >= divisor) {
+        scaled += BigInt.one;
+      }
+    }
+    return match.group(1) == '-' ? -scaled : scaled;
+  }
+
+  /// Positive [value] / 10^[unitDecimals] rounded half up to [decimals]
+  /// places, trailing zeros dropped.
+  static String _formatUnits(BigInt value, int unitDecimals, int decimals) {
+    RangeError.checkNotNegative(decimals, 'decimals');
+    final kept = decimals < unitDecimals ? decimals : unitDecimals;
+    final divisor = BigInt.from(10).pow(unitDecimals - kept);
+    var scaled = value ~/ divisor;
+    if (value.remainder(divisor) * BigInt.two >= divisor) {
+      scaled += BigInt.one;
+    }
+    final digits = scaled.toString().padLeft(kept + 1, '0');
+    final integer = digits.substring(0, digits.length - kept);
+    final fraction =
+        digits.substring(digits.length - kept).replaceFirst(RegExp(r'0+$'), '');
+    return fraction.isEmpty ? integer : '$integer.$fraction';
   }
 }

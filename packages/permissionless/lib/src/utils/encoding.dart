@@ -4,7 +4,7 @@ import 'package:web3dart/web3dart.dart';
 
 import '../types/address.dart';
 import '../types/hex.dart';
-import 'sort_addresses.dart';
+import 'abi_type.dart';
 
 /// ABI encoding utilities for Ethereum smart contract interactions.
 class AbiEncoder {
@@ -45,7 +45,6 @@ class AbiEncoder {
     final data = Hex.decode(hexData);
     final length = encodeUint256(BigInt.from(data.length));
 
-    // Pad data to 32-byte boundary
     final paddedLength = ((data.length + 31) ~/ 32) * 32;
     final paddedData = Uint8List(paddedLength)..setRange(0, data.length, data);
 
@@ -86,6 +85,10 @@ class AbiEncoder {
   /// - `bytes` / `bytesN`: hex [String] or [Uint8List]
   /// - `string`: [String]
   /// - arrays / tuples: [List], converted element-wise
+  ///
+  /// Throws [ArgumentError] for a type viem rejects (e.g. `uint7`, `int264`,
+  /// `bytes33`, `bytes0`), an argument count mismatch, or a value that does
+  /// not fit its type.
   static String encodeFunctionData(
     String functionSignature, [
     List<dynamic> args = const [],
@@ -98,11 +101,8 @@ class AbiEncoder {
       );
     }
 
-    final parameters = <FunctionParameter<dynamic>>[
-      for (var i = 0; i < parsed.types.length; i++)
-        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
-    ];
-    final function = ContractFunction(parsed.name, parameters);
+    final function =
+        ContractFunction(parsed.name, _abiParameters(parsed.types));
     final converted = <dynamic>[
       for (var i = 0; i < args.length; i++)
         _convertAbiArg(parsed.types[i], args[i]),
@@ -110,6 +110,27 @@ class AbiEncoder {
 
     return Hex.fromBytes(function.encodeCall(converted));
   }
+
+  /// ABI-encodes [values] as the tuple [types] (Solidity `abi.encode`, viem
+  /// `encodeAbiParameters`), e.g. constructor arguments or struct hashes.
+  ///
+  /// Accepts the same argument forms as [encodeFunctionData].
+  static String encodeParameters(List<String> types, List<dynamic> values) =>
+      Hex.slice(encodeFunctionData(_parametersSignature(types), values), 4);
+
+  /// Inverse of [encodeParameters] (viem `decodeAbiParameters`).
+  static List<dynamic> decodeParameters(List<String> types, String data) {
+    final signature = _parametersSignature(types);
+    return decodeFunctionData(
+      signature,
+      Hex.concat([functionSelector(signature), data]),
+    );
+  }
+
+  // `abi.encode(params)` is the argument block of any function taking those
+  // params, so the parameter codec reuses the function codec.
+  static String _parametersSignature(List<String> types) =>
+      'parameters(${types.join(',')})';
 
   /// Decodes function calldata produced by [encodeFunctionData] (or equivalent).
   ///
@@ -125,10 +146,7 @@ class AbiEncoder {
     String data,
   ) {
     final parsed = _parseFunctionSignature(functionSignature);
-    final parameters = <FunctionParameter<dynamic>>[
-      for (var i = 0; i < parsed.types.length; i++)
-        FunctionParameter<dynamic>('arg$i', parseAbiType(parsed.types[i])),
-    ];
+    final parameters = _abiParameters(parsed.types);
     final function = ContractFunction(parsed.name, parameters);
     final expectedSelector = Hex.fromBytes(function.selector).toLowerCase();
 
@@ -164,7 +182,6 @@ class AbiEncoder {
       if (isStatic) {
         staticParts.add(data);
       } else {
-        // Add offset pointer
         staticParts.add(encodeUint256(BigInt.from(dynamicOffset)));
         dynamicParts.add(data);
         dynamicOffset += Hex.byteLength(data);
@@ -190,6 +207,32 @@ class AbiEncoder {
 
     final paramsStr = signature.substring(paramsStart + 1, paramsEnd);
     return (name: name, types: _splitAbiParameterTypes(paramsStr));
+  }
+
+  static List<FunctionParameter<dynamic>> _abiParameters(List<String> types) =>
+      [
+        for (var i = 0; i < types.length; i++)
+          FunctionParameter<dynamic>(
+            'arg$i',
+            parseAbiType(_checkAbiType(types[i])),
+          ),
+      ];
+
+  static final RegExp _arrayType = RegExp(r'^(.*)\[(\d*)\]$');
+
+  /// Throws [ArgumentError] unless [type] is a Solidity ABI type with valid
+  /// widths throughout (see [atomicAbiType]); returns [type].
+  static String _checkAbiType(String type) {
+    final array = _arrayType.firstMatch(type);
+    if (array != null) {
+      _checkAbiType(array.group(1)!);
+    } else if (type.startsWith('(') && type.endsWith(')')) {
+      _splitAbiParameterTypes(type.substring(1, type.length - 1))
+          .forEach(_checkAbiType);
+    } else if (!atomicAbiType.hasMatch(type)) {
+      throw ArgumentError.value(type, 'type', 'not a Solidity ABI type');
+    }
+    return type;
   }
 
   /// Splits a top-level ABI parameter list, respecting nested tuples.
@@ -232,7 +275,7 @@ class AbiEncoder {
 
   /// Converts a Dart-friendly argument into the form web3dart expects.
   static dynamic _convertAbiArg(String type, dynamic value) {
-    final arrayMatch = RegExp(r'^(.*)\[(\d*)\]$').firstMatch(type);
+    final arrayMatch = _arrayType.firstMatch(type);
     if (arrayMatch != null) {
       final elementType = arrayMatch.group(1)!;
       if (value is! List) {
@@ -297,12 +340,29 @@ class AbiEncoder {
     }
 
     if (type.startsWith('uint') || type.startsWith('int')) {
-      if (value is BigInt) return value;
-      if (value is int) return BigInt.from(value);
-      return BigInt.parse(value.toString());
+      final number = switch (value) {
+        final BigInt v => v,
+        final int v => BigInt.from(v),
+        _ => BigInt.parse(value.toString()),
+      };
+      _checkIntegerRange(type, number);
+      return number;
     }
 
     return value;
+  }
+
+  /// web3dart only `assert`s integer widths, so release builds would
+  /// silently encode an out-of-range value.
+  static void _checkIntegerRange(String type, BigInt value) {
+    final signed = type.startsWith('int');
+    final widthText = type.substring(signed ? 3 : 4);
+    final bits = widthText.isEmpty ? 256 : int.parse(widthText);
+    final min = signed ? -(BigInt.one << (bits - 1)) : BigInt.zero;
+    final maxExclusive = BigInt.one << (signed ? bits - 1 : bits);
+    if (value < min || value >= maxExclusive) {
+      throw ArgumentError.value(value, type, 'out of range for $type');
+    }
   }
 
   static Uint8List _toBytes(dynamic value, {int? fixedLength}) {
@@ -323,407 +383,4 @@ class AbiEncoder {
     }
     return bytes;
   }
-}
-
-/// Common function selectors for Safe contracts.
-///
-/// Contains 4-byte function selectors used for encoding Safe contract calls.
-class SafeSelectors {
-  SafeSelectors._();
-
-  /// Selector for Safe singleton `setup` function.
-  static final String setup = AbiEncoder.functionSelector(
-    'setup(address[],uint256,address,bytes,address,address,uint256,address)',
-  );
-
-  /// Selector for Safe 4337 module `executeUserOp` function.
-  static final String executeUserOp = AbiEncoder.functionSelector(
-    'executeUserOp(address,uint256,bytes,uint8)',
-  );
-
-  /// Selector for Safe 4337 module `executeUserOpWithErrorString` function.
-  static final String executeUserOpWithErrorString =
-      AbiEncoder.functionSelector(
-    'executeUserOpWithErrorString(address,uint256,bytes,uint8)',
-  );
-
-  /// Selector for Safe proxy factory `createProxyWithNonce` function.
-  static final String createProxyWithNonce = AbiEncoder.functionSelector(
-    'createProxyWithNonce(address,bytes,uint256)',
-  );
-
-  /// Selector for Safe module setup `enableModules` function.
-  static final String enableModules =
-      AbiEncoder.functionSelector('enableModules(address[])');
-
-  /// Selector for MultiSend `multiSend` function.
-  static final String multiSend =
-      AbiEncoder.functionSelector('multiSend(bytes)');
-
-  /// Selector for SafeProxyFactory `proxyCreationCode` function.
-  static final String proxyCreationCode =
-      AbiEncoder.functionSelector('proxyCreationCode()');
-}
-
-/// Encodes a Safe `setup` function call.
-String encodeSafeSetup({
-  required List<EthereumAddress> owners,
-  required BigInt threshold,
-  required EthereumAddress to,
-  required String data,
-  required EthereumAddress fallbackHandler,
-  required EthereumAddress paymentToken,
-  required BigInt payment,
-  required EthereumAddress paymentReceiver,
-}) {
-  // Encode owners array
-  const ownersOffset = 8 * 32; // 8 parameters * 32 bytes each for static parts
-  final ownersEncoded = _encodeAddressArray(owners);
-
-  // Encode data bytes
-  final dataOffset = ownersOffset + Hex.byteLength(ownersEncoded);
-  final dataEncoded = AbiEncoder.encodeBytes(data);
-
-  final params = Hex.concat([
-    // Offset to owners array
-    AbiEncoder.encodeUint256(BigInt.from(ownersOffset)),
-    // threshold
-    AbiEncoder.encodeUint256(threshold),
-    // to
-    AbiEncoder.encodeAddress(to),
-    // Offset to data
-    AbiEncoder.encodeUint256(BigInt.from(dataOffset)),
-    // fallbackHandler
-    AbiEncoder.encodeAddress(fallbackHandler),
-    // paymentToken
-    AbiEncoder.encodeAddress(paymentToken),
-    // payment
-    AbiEncoder.encodeUint256(payment),
-    // paymentReceiver
-    AbiEncoder.encodeAddress(paymentReceiver),
-    // owners array (dynamic)
-    Hex.strip0x(ownersEncoded),
-    // data bytes (dynamic)
-    Hex.strip0x(dataEncoded),
-  ]);
-
-  return Hex.concat([SafeSelectors.setup, Hex.strip0x(params)]);
-}
-
-/// Encodes an array of addresses.
-String _encodeAddressArray(List<EthereumAddress> addresses) {
-  final parts = <String>[
-    AbiEncoder.encodeUint256(BigInt.from(addresses.length)),
-    ...addresses.map((a) => Hex.strip0x(AbiEncoder.encodeAddress(a))),
-  ];
-  return Hex.concat(parts);
-}
-
-/// Encodes an `enableModules` call for Safe module setup.
-String encodeEnableModules(List<EthereumAddress> modules) {
-  const modulesOffset = 32; // Single parameter, offset to dynamic array
-  final modulesEncoded = _encodeAddressArray(modules);
-
-  return Hex.concat([
-    SafeSelectors.enableModules,
-    AbiEncoder.encodeUint256(BigInt.from(modulesOffset)),
-    Hex.strip0x(modulesEncoded),
-  ]);
-}
-
-/// Encodes an `executeUserOpWithErrorString` call.
-String encodeExecuteUserOp({
-  required EthereumAddress to,
-  required BigInt value,
-  required String data,
-  required int operation,
-}) {
-  // Offset for the bytes data parameter
-  const dataOffset = 4 * 32; // 4 static parameters
-  final dataEncoded = AbiEncoder.encodeBytes(data);
-
-  return Hex.concat([
-    SafeSelectors.executeUserOpWithErrorString,
-    AbiEncoder.encodeAddress(to),
-    AbiEncoder.encodeUint256(value),
-    AbiEncoder.encodeUint256(BigInt.from(dataOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(operation)),
-    Hex.strip0x(dataEncoded),
-  ]);
-}
-
-/// Encodes a `createProxyWithNonce` call.
-String encodeCreateProxyWithNonce({
-  required EthereumAddress singleton,
-  required String initializer,
-  required BigInt saltNonce,
-}) {
-  const initializerOffset = 3 * 32; // 3 static parameters
-  final initializerEncoded = AbiEncoder.encodeBytes(initializer);
-
-  return Hex.concat([
-    SafeSelectors.createProxyWithNonce,
-    AbiEncoder.encodeAddress(singleton),
-    AbiEncoder.encodeUint256(BigInt.from(initializerOffset)),
-    AbiEncoder.encodeUint256(saltNonce),
-    Hex.strip0x(initializerEncoded),
-  ]);
-}
-
-// ============================================================================
-// Safe 7579 Encoding Functions
-// ============================================================================
-
-/// Function selectors for Safe 7579 contracts.
-class Safe7579Selectors {
-  Safe7579Selectors._();
-
-  /// initSafe7579(address,tuple[],tuple[],tuple[],address[],uint8)
-  static final String initSafe7579 = AbiEncoder.functionSelector(
-    'initSafe7579(address,(address,bytes)[],(address,bytes)[],(address,bytes)[],address[],uint8)',
-  );
-
-  /// preValidationSetup(bytes32,address,bytes)
-  static final String preValidationSetup = AbiEncoder.functionSelector(
-    'preValidationSetup(bytes32,address,bytes)',
-  );
-
-  /// setupSafe(tuple)
-  /// The tuple contains the full Safe7579 init data
-  static final String setupSafe = AbiEncoder.functionSelector(
-    'setupSafe((address,address[],uint256,address,bytes,address,(address,bytes)[],bytes))',
-  );
-}
-
-/// Encodes an array of ModuleInit tuples.
-///
-/// Each ModuleInit is: (address module, bytes initData)
-String _encodeModuleInitArray(
-  List<(EthereumAddress module, String initData)> modules,
-) {
-  if (modules.isEmpty) {
-    // Empty array: just the length (0)
-    return AbiEncoder.encodeUint256(BigInt.zero);
-  }
-
-  // Array length
-  final length = AbiEncoder.encodeUint256(BigInt.from(modules.length));
-
-  // Calculate offsets for each struct
-  // Each struct needs an offset pointer (32 bytes each)
-  final structOffsets = <String>[];
-  final structData = <String>[];
-
-  var currentOffset = modules.length * 32; // Start after all offset pointers
-
-  for (final (module, initData) in modules) {
-    structOffsets.add(AbiEncoder.encodeUint256(BigInt.from(currentOffset)));
-
-    // Encode the struct: (address, bytes)
-    // address is static (32 bytes), bytes needs offset + data
-    final initDataEncoded = AbiEncoder.encodeBytes(initData);
-    const bytesOffset = 2 * 32; // address (32) + offset pointer (32)
-
-    final structEncoded = Hex.concat([
-      AbiEncoder.encodeAddress(module),
-      AbiEncoder.encodeUint256(BigInt.from(bytesOffset)),
-      Hex.strip0x(initDataEncoded),
-    ]);
-
-    structData.add(structEncoded);
-    currentOffset += Hex.byteLength(structEncoded);
-  }
-
-  return Hex.concat([
-    length,
-    ...structOffsets.map(Hex.strip0x),
-    ...structData.map(Hex.strip0x),
-  ]);
-}
-
-/// Encodes the `initSafe7579` function call.
-///
-/// Function signature:
-/// ```solidity
-/// function initSafe7579(
-///     address safe7579,
-///     ModuleInit[] calldata executors,
-///     ModuleInit[] calldata fallbacks,
-///     ModuleInit[] calldata hooks,
-///     address[] calldata attesters,
-///     uint8 threshold
-/// ) external;
-/// ```
-String encodeInitSafe7579({
-  required EthereumAddress safe7579,
-  required List<(EthereumAddress module, String initData)> executors,
-  required List<(EthereumAddress module, String initData)> fallbacks,
-  required List<(EthereumAddress module, String initData)> hooks,
-  required List<EthereumAddress> attesters,
-  required int threshold,
-}) {
-  final sortedAttesters = sortAddresses(attesters);
-
-  // Encode each dynamic array
-  final executorsEncoded = _encodeModuleInitArray(executors);
-  final fallbacksEncoded = _encodeModuleInitArray(fallbacks);
-  final hooksEncoded = _encodeModuleInitArray(hooks);
-  final attestersEncoded = _encodeAddressArray(sortedAttesters);
-
-  // Calculate offsets
-  // Static parts: safe7579 (32) + 4 offsets (4*32) + threshold (32) = 192
-  const staticSize = 6 * 32;
-  const executorsOffset = staticSize;
-  final fallbacksOffset = executorsOffset + Hex.byteLength(executorsEncoded);
-  final hooksOffset = fallbacksOffset + Hex.byteLength(fallbacksEncoded);
-  final attestersOffset = hooksOffset + Hex.byteLength(hooksEncoded);
-
-  return Hex.concat([
-    Safe7579Selectors.initSafe7579,
-    AbiEncoder.encodeAddress(safe7579),
-    AbiEncoder.encodeUint256(BigInt.from(executorsOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(fallbacksOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(hooksOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(attestersOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(threshold)),
-    Hex.strip0x(executorsEncoded),
-    Hex.strip0x(fallbacksEncoded),
-    Hex.strip0x(hooksEncoded),
-    Hex.strip0x(attestersEncoded),
-  ]);
-}
-
-/// Encodes the `preValidationSetup` function call.
-///
-/// Function signature:
-/// ```solidity
-/// function preValidationSetup(
-///     bytes32 initHash,
-///     address to,
-///     bytes calldata preInit
-/// ) external;
-/// ```
-String encodePreValidationSetup({
-  required String initHash,
-  required EthereumAddress to,
-  required String preInit,
-}) {
-  const preInitOffset = 3 * 32; // 3 static parameters
-  final preInitEncoded = AbiEncoder.encodeBytes(preInit);
-
-  return Hex.concat([
-    Safe7579Selectors.preValidationSetup,
-    Hex.strip0x(AbiEncoder.encodeBytes32(initHash)),
-    AbiEncoder.encodeAddress(to),
-    AbiEncoder.encodeUint256(BigInt.from(preInitOffset)),
-    Hex.strip0x(preInitEncoded),
-  ]);
-}
-
-/// Data structure for Safe 7579 initialization.
-///
-/// Contains all parameters needed to initialize a Safe account with
-/// ERC-7579 module support via the Safe7579 launchpad.
-class Safe7579InitData {
-  /// Creates initialization data for a Safe 7579 deployment.
-  ///
-  /// All fields correspond to the `InitData` struct in the Safe7579 launchpad.
-  const Safe7579InitData({
-    required this.singleton,
-    required this.owners,
-    required this.threshold,
-    required this.setupTo,
-    required this.setupData,
-    required this.safe7579,
-    required this.validators,
-    required this.callData,
-  });
-
-  /// The Safe singleton (implementation) contract address.
-  final EthereumAddress singleton;
-
-  /// List of initial Safe owners.
-  final List<EthereumAddress> owners;
-
-  /// Number of required owner signatures for transactions.
-  final BigInt threshold;
-
-  /// Address of the setup contract to delegate call during initialization.
-  final EthereumAddress setupTo;
-
-  /// Calldata for the setup delegate call.
-  final String setupData;
-
-  /// The Safe7579 adapter module address.
-  final EthereumAddress safe7579;
-
-  /// List of ERC-7579 validators to install during initialization.
-  final List<(EthereumAddress module, String initData)> validators;
-
-  /// Additional calldata to execute after Safe initialization.
-  final String callData;
-}
-
-/// Encodes the `setupSafe` function call for Safe 7579.
-///
-/// This is called during the first UserOperation to initialize the Safe
-/// with ERC-7579 support.
-String encodeSetupSafe(Safe7579InitData initData) {
-  // The initData struct has these fields:
-  // - address singleton
-  // - address[] owners
-  // - uint256 threshold
-  // - address setupTo
-  // - bytes setupData
-  // - address safe7579
-  // - ModuleInit[] validators
-  // - bytes callData
-
-  // Encode dynamic fields
-  final ownersEncoded = _encodeAddressArray(initData.owners);
-  final setupDataEncoded = AbiEncoder.encodeBytes(initData.setupData);
-  final validatorsEncoded = _encodeModuleInitArray(initData.validators);
-  final callDataEncoded = AbiEncoder.encodeBytes(initData.callData);
-
-  // Calculate offsets for tuple encoding
-  // The tuple is passed as a single parameter, so offset 32 points to it
-  // Inside the tuple:
-  // - singleton (32)
-  // - owners offset (32)
-  // - threshold (32)
-  // - setupTo (32)
-  // - setupData offset (32)
-  // - safe7579 (32)
-  // - validators offset (32)
-  // - callData offset (32)
-  // Total static: 8 * 32 = 256
-
-  const tupleStaticSize = 8 * 32;
-  const ownersOffset = tupleStaticSize;
-  final setupDataOffset = ownersOffset + Hex.byteLength(ownersEncoded);
-  final validatorsOffset = setupDataOffset + Hex.byteLength(setupDataEncoded);
-  final callDataOffset = validatorsOffset + Hex.byteLength(validatorsEncoded);
-
-  // Encode the inner tuple
-  final tupleData = Hex.concat([
-    AbiEncoder.encodeAddress(initData.singleton),
-    AbiEncoder.encodeUint256(BigInt.from(ownersOffset)),
-    AbiEncoder.encodeUint256(initData.threshold),
-    AbiEncoder.encodeAddress(initData.setupTo),
-    AbiEncoder.encodeUint256(BigInt.from(setupDataOffset)),
-    AbiEncoder.encodeAddress(initData.safe7579),
-    AbiEncoder.encodeUint256(BigInt.from(validatorsOffset)),
-    AbiEncoder.encodeUint256(BigInt.from(callDataOffset)),
-    Hex.strip0x(ownersEncoded),
-    Hex.strip0x(setupDataEncoded),
-    Hex.strip0x(validatorsEncoded),
-    Hex.strip0x(callDataEncoded),
-  ]);
-
-  // The function takes a single tuple parameter, so offset to the tuple is 32
-  return Hex.concat([
-    Safe7579Selectors.setupSafe,
-    AbiEncoder.encodeUint256(BigInt.from(32)), // Offset to tuple
-    Hex.strip0x(tupleData),
-  ]);
 }

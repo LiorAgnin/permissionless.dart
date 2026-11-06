@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web3_signers/web3_signers.dart';
+
+import '../config.dart';
 
 const _credentialKey = 'saved_passkey_credential';
 
@@ -42,7 +45,6 @@ class CredentialState {
 class CredentialNotifier extends Notifier<CredentialState> {
   @override
   CredentialState build() {
-    // Try to load saved credential on startup
     _loadSavedCredential();
     return const CredentialState();
   }
@@ -62,7 +64,8 @@ class CredentialNotifier extends Notifier<CredentialState> {
         );
       }
     } catch (e) {
-      // Ignore errors loading saved credential - user can register a new one
+      // The user can still register a new passkey.
+      debugPrint('Failed to load saved credential: $e');
     }
   }
 
@@ -72,7 +75,8 @@ class CredentialNotifier extends Notifier<CredentialState> {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_credentialKey, credential.toJson());
     } catch (e) {
-      // Ignore save errors - credential is still usable this session
+      // The credential is still usable this session.
+      debugPrint('Failed to save credential: $e');
     }
   }
 
@@ -80,32 +84,25 @@ class CredentialNotifier extends Notifier<CredentialState> {
   Future<bool> registerPasskey({
     required String username,
     required String displayName,
-    String rpId = '28fc478be30e2f.lhr.life',
+    String rpId = passkeyRpId,
     String appName = 'Passkeys Example',
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      final config = PassKeyConfig(
+      final credential = await createPasskeyCredential(
         rpId: rpId,
         rpName: appName,
+        userName: username,
+        displayName: displayName,
         authenticatorAttachment: 'platform',
       );
 
-      // Use generatePassKey from web3_signers to register a new passkey
-      final publicKey = await generatePassKey(
-        config: config,
-        username: username,
-        displayname: displayName,
-      );
-      final credential = WebAuthnCredential.fromPublicKey(publicKey);
-
-      // Save credential for future sessions
       await _saveCredential(credential);
 
       state = state.copyWith(
         credential: credential,
-        publicKey: publicKey,
+        publicKey: credential.raw,
         isLoading: false,
       );
 
@@ -121,7 +118,9 @@ class CredentialNotifier extends Notifier<CredentialState> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_credentialKey);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to remove saved credential: $e');
+    }
     state = const CredentialState();
   }
 

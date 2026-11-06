@@ -1,3 +1,4 @@
+import '../../constants/entry_point.dart';
 import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
@@ -120,9 +121,8 @@ abstract class SmartAccount {
 
   /// Whether this account uses WebAuthn/Passkey authentication.
   ///
-  /// WebAuthn accounts require P256 signature verification which costs
-  /// approximately 800k gas on-chain without the RIP-7212 precompile.
-  /// This flag enables automatic gas adjustments in SmartAccountClient.
+  /// WebAuthn accounts verify a P-256 signature on chain: ~450k gas per op
+  /// with the Solidity verifier, ~120k with a P-256 precompile.
   ///
   /// Override to return true in account implementations that use
   /// WebAuthn owners (passkeys).
@@ -195,4 +195,37 @@ abstract class Eip7702SmartAccount implements SmartAccount {
   /// final auth = await account.getAuthorization(nonce: nonce);
   /// ```
   Future<Eip7702Authorization> getAuthorization({required BigInt nonce});
+}
+
+/// Capability of accounts bound to one EntryPoint version.
+///
+/// The version holds even when [SmartAccount.entryPoint] is a custom
+/// address, which [entryPointVersionOf] cannot map back. Every built-in
+/// account implements it; actions that hash UserOperations themselves (e.g.
+/// `sendUserOperationSync`) read it and fall back to [entryPointVersionOf]
+/// for accounts without it. Mirrors permissionless.js
+/// `account.entryPoint.version`.
+abstract interface class EntryPointVersioned {
+  /// The EntryPoint version this account signs UserOperations for.
+  EntryPointVersion get entryPointVersion;
+}
+
+/// The EntryPoint version [account] signs for: its own when it is
+/// [EntryPointVersioned], else the canonical version of its EntryPoint
+/// address (`null` for an unknown address).
+EntryPointVersion? entryPointVersionOfAccount(SmartAccount account) =>
+    switch (account) {
+      final EntryPointVersioned versioned => versioned.entryPointVersion,
+      _ => entryPointVersionOf(account.entryPoint),
+    };
+
+/// Capability of accounts whose first (deploying) UserOperation needs
+/// different call data than later ones, e.g. an ERC-7579 Safe whose launchpad
+/// must receive `setupSafe(initData)` wrapping the user's calls.
+///
+/// [SmartAccountClient] uses [encodeCallsForDeployment] whenever the
+/// UserOperation deploys the account, and [encodeCalls] otherwise.
+abstract interface class DeploymentCallsEncoder implements SmartAccount {
+  /// Encodes [calls] for the UserOperation that deploys this account.
+  String encodeCallsForDeployment(List<Call> calls);
 }

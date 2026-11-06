@@ -1,4 +1,4 @@
-import '../../utils/parsing.dart';
+import '../../types/parsing.dart';
 
 /// Gas price response from Etherspot's Skandha bundler.
 ///

@@ -106,6 +106,10 @@ LightVariant? parseLightVariant(String raw) {
 }
 
 /// Run a sponsored (or self-funded) self-ping UserOp for [variant].
+///
+/// Network, bundler and account errors come back as a failed [LightRunResult]
+/// instead of being thrown, so multi-variant runners can continue. A missing
+/// setting in [ExampleConfig.load] still throws.
 Future<LightRunResult> runLightVariant({
   required LightVariant variant,
   bool selfFunded = false,
@@ -149,13 +153,6 @@ Future<LightRunResult> runLightVariant({
     '${variant.version == LightAccountVersion.v200 ? "yes (0x00 EOA)" : "no (v1.1.0)"}',
   );
 
-  final accountAddress = await account.getAddress();
-  final isDeployed = await publicClient.isDeployed(accountAddress);
-  log(
-    'Account: ${accountAddress.checksummed} '
-    '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
-  );
-
   final bundler = createBundlerClient(url: pimlicoUrl, entryPoint: ep);
   final pimlico = createPimlicoClient(url: pimlicoUrl, entryPoint: ep);
   final paymaster = selfFunded ? null : createPaymasterClient(url: pimlicoUrl);
@@ -168,6 +165,13 @@ Future<LightRunResult> runLightVariant({
   );
 
   try {
+    final accountAddress = await account.getAddress();
+    final isDeployed = await publicClient.isDeployed(accountAddress);
+    log(
+      'Account: ${accountAddress.checksummed} '
+      '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
+    );
+
     log('\n--- Account Status ---');
     final gasPrices = await pimlico.getUserOperationGasPrice();
     log('Gas prices - Fast: ${gasPrices.fast.maxFeePerGas} wei');

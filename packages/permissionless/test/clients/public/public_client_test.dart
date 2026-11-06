@@ -191,7 +191,8 @@ void main() {
 
         final params = capturedRequests[0]['params'] as List<dynamic>;
         final callParams = params[0] as Map<String, dynamic>;
-        expect(callParams.containsKey('value'), isTrue);
+        // cast to-hex 1000000000000000000
+        expect(callParams['value'], equals('0xde0b6b3a7640000'));
       });
 
       test('deployless factory call omits to and embeds factory bytecode',
@@ -314,12 +315,13 @@ void main() {
 
     group('getFeeData', () {
       test('returns gas price and priority fee', () async {
-        var callCount = 0;
-        final mockClient = createMockClient((body) {
-          callCount++;
-          if (callCount == 1) return '0x3b9aca00'; // gas price: 1 gwei
-          return '0x77359400'; // priority fee: 2 gwei
-        });
+        final mockClient = createMockClient(
+          (body) => switch (body['method']) {
+            'eth_gasPrice' => '0x3b9aca00', // 1 gwei
+            'eth_maxPriorityFeePerGas' => '0x77359400', // 2 gwei
+            _ => null,
+          },
+        );
         client = createPublicClient(
           url: 'http://localhost:8545',
           httpClient: mockClient,
@@ -356,8 +358,16 @@ void main() {
         final callParams = params[0] as Map<String, dynamic>;
         expect(callParams['to'], equals(EntryPointAddresses.v07.hex));
 
-        // Verify function selector (getNonce)
-        expect(callParams['data'].toString().startsWith('0x35567e1a'), isTrue);
+        // cast calldata "getNonce(address,uint192)" \
+        //   0x1234567890123456789012345678901234567890 0
+        expect(
+          callParams['data'],
+          equals(
+            '0x35567e1a'
+            '0000000000000000000000001234567890123456789012345678901234567890'
+            '0000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
       });
 
       test('supports custom nonce key', () async {
@@ -378,28 +388,18 @@ void main() {
 
         expect(nonce, equals(BigInt.one));
 
-        // Verify nonce key is encoded in call data
         final params = capturedRequests[0]['params'] as List<dynamic>;
         final callParams = params[0] as Map<String, dynamic>;
-        final data = callParams['data'] as String;
-        // Nonce key should be last 32 bytes (64 hex chars)
+        // cast calldata "getNonce(address,uint192)" \
+        //   0x1234567890123456789012345678901234567890 1
         expect(
-          data.endsWith('0000000000000000000000000000000000000001'),
-          isTrue,
+          callParams['data'],
+          equals(
+            '0x35567e1a'
+            '0000000000000000000000001234567890123456789012345678901234567890'
+            '0000000000000000000000000000000000000000000000000000000000000001',
+          ),
         );
-      });
-    });
-
-    group('createPublicClient', () {
-      test('creates client with factory function', () {
-        final mockClient = createMockClient((_) => '0x1');
-
-        final public = createPublicClient(
-          url: 'http://localhost:8545',
-          httpClient: mockClient,
-        );
-
-        expect(public, isA<PublicClient>());
       });
     });
 
@@ -454,7 +454,7 @@ void main() {
 
         expect(
           () => client.getSenderAddress(
-            initCode: '0xinvalid',
+            initCode: '0x1234',
             entryPoint: EntryPointAddresses.v07,
           ),
           throwsA(isA<PublicRpcError>()),
@@ -505,52 +505,6 @@ void main() {
         // initCode bytes present in tail
         expect(capturedData!.contains('aabbccdd'), isTrue);
       });
-    });
-  });
-
-  group('FeeData', () {
-    test('stores gas price', () {
-      final feeData = FeeData(gasPrice: BigInt.zero);
-
-      expect(feeData.gasPrice, equals(BigInt.zero));
-      expect(feeData.maxPriorityFeePerGas, isNull);
-    });
-
-    test('stores priority fee when provided', () {
-      final feeData = FeeData(
-        gasPrice: BigInt.from(1000000000),
-        maxPriorityFeePerGas: BigInt.from(2000000000),
-      );
-
-      expect(feeData.gasPrice, equals(BigInt.from(1000000000)));
-      expect(feeData.maxPriorityFeePerGas, equals(BigInt.from(2000000000)));
-    });
-  });
-
-  group('PublicRpcError', () {
-    test('formats error message', () {
-      const error = PublicRpcError(
-        code: -32000,
-        message: 'execution reverted',
-        data: 'revert reason',
-      );
-
-      expect(
-        error.toString(),
-        equals('PublicRpcError(-32000): execution reverted - revert reason'),
-      );
-    });
-
-    test('formats error without data', () {
-      const error = PublicRpcError(
-        code: -32602,
-        message: 'invalid params',
-      );
-
-      expect(
-        error.toString(),
-        equals('PublicRpcError(-32602): invalid params'),
-      );
     });
   });
 }

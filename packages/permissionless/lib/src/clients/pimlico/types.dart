@@ -1,5 +1,5 @@
 import '../../types/address.dart';
-import '../../utils/parsing.dart';
+import '../../types/parsing.dart';
 import '../bundler/types.dart';
 
 /// Detailed status of a UserOperation from Pimlico.
@@ -172,15 +172,10 @@ class PimlicoTokenQuote {
         paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
         postOpGas: parseBigInt(json['postOpGas']),
         exchangeRate: parseBigInt(json['exchangeRate']),
-        exchangeRateNativeToUsd: json['exchangeRateNativeToUsd'] != null
-            ? parseBigInt(json['exchangeRateNativeToUsd'])
-            : null,
-        balanceSlot: json['balanceSlot'] != null
-            ? parseBigInt(json['balanceSlot'])
-            : null,
-        allowanceSlot: json['allowanceSlot'] != null
-            ? parseBigInt(json['allowanceSlot'])
-            : null,
+        exchangeRateNativeToUsd:
+            parseBigIntOrNull(json['exchangeRateNativeToUsd']),
+        balanceSlot: parseBigIntOrNull(json['balanceSlot']),
+        allowanceSlot: parseBigIntOrNull(json['allowanceSlot']),
       );
 
   /// The ERC-20 token address.

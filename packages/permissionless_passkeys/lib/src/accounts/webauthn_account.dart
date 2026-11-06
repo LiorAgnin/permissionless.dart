@@ -102,7 +102,7 @@ class WebAuthnSignReturnType {
 ///
 /// Example:
 /// ```dart
-/// final account = toWebAuthnAccount(
+/// final account = createWebAuthnAccount(
 ///   credential: credential,
 ///   rpId: 'myapp.com',
 /// );
@@ -143,7 +143,8 @@ abstract class WebAuthnAccount extends WebAuthnAccountOwner {
   ///
   /// The message is hashed before signing according to EIP-191.
   ///
-  /// [message] - The message to sign (string or bytes).
+  /// [message] - The message to sign: a `String` (hashed as UTF-8 text, even
+  /// if it looks like hex) or bytes (`List<int>`).
   ///
   /// Returns a [WebAuthnSignReturnType] with the signature and metadata.
   Future<WebAuthnSignReturnType> signMessage({required dynamic message});

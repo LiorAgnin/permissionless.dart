@@ -1,7 +1,9 @@
 /// Dart implementation of permissionless.js for ERC-4337 smart accounts.
 ///
 /// This library provides tools for creating and managing ERC-4337 smart
-/// accounts, starting with Safe account support.
+/// accounts (Safe, Kernel, Nexus, Light, Simple, Thirdweb, Trust, Etherspot,
+/// Biconomy, and EIP-7702 Simple and Kernel), and the bundler, paymaster and
+/// public clients that send their UserOperations.
 ///
 /// Example:
 /// ```dart
@@ -20,7 +22,6 @@
 /// ```
 library;
 
-// Accounts
 export 'src/accounts/account_owner.dart';
 export 'src/accounts/biconomy/biconomy.dart';
 export 'src/accounts/etherspot/etherspot.dart';
@@ -33,40 +34,35 @@ export 'src/accounts/thirdweb/thirdweb.dart';
 export 'src/accounts/trust/trust.dart';
 export 'src/accounts/webauthn_owner.dart';
 export 'src/accounts/webauthn_utils.dart';
-// Actions
 export 'src/actions/erc7579/erc7579.dart';
 export 'src/actions/pimlico/pimlico.dart';
 export 'src/actions/smart_account/smart_account.dart';
-// Clients
 export 'src/clients/bundler/bundler.dart';
 export 'src/clients/etherspot/etherspot.dart';
 export 'src/clients/passkey_server/passkey_server.dart';
 export 'src/clients/paymaster/paymaster.dart';
+export 'src/clients/pimlico/erc20_paymaster.dart';
 export 'src/clients/pimlico/pimlico.dart';
 export 'src/clients/public/public.dart';
 export 'src/clients/smart_account/smart_account.dart';
-// Constants
 export 'src/constants/entry_point.dart';
+export 'src/errors/errors.dart';
 // Experimental (API may change)
 export 'src/experimental/experimental.dart';
-// Types
 export 'src/types/address.dart';
 export 'src/types/calls_status.dart';
 export 'src/types/eip7702.dart';
 export 'src/types/hex.dart';
 export 'src/types/typed_data.dart';
 export 'src/types/user_operation.dart';
-// Utilities
 export 'src/utils/encoding.dart';
 export 'src/utils/erc20.dart';
-export 'src/utils/erc20_paymaster.dart';
 export 'src/utils/erc7579.dart';
 export 'src/utils/gas.dart';
 export 'src/utils/message_hash.dart';
-export 'src/utils/multisend.dart';
 export 'src/utils/packed_user_operation.dart';
 export 'src/utils/rip7212.dart';
 export 'src/utils/sort_addresses.dart';
+export 'src/utils/state_override.dart';
 export 'src/utils/units.dart';
 export 'src/utils/user_operation_hash.dart';
-export 'src/utils/webauthn_encoding.dart';

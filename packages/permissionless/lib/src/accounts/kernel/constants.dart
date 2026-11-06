@@ -1,4 +1,6 @@
 import '../../types/address.dart';
+import '../../utils/erc7579.dart';
+import '../account_support.dart';
 
 /// Kernel smart account version.
 ///
@@ -46,7 +48,11 @@ enum KernelVersion {
   /// Whether this version uses ERC-7579 encoding.
   bool get usesErc7579 => isV3;
 
-  /// Whether this version requires a separate validator address.
+  /// Whether the validator is addressed through the v0.3.x root validator id
+  /// (and nonce key) rather than passed to the v0.2.x `initialize`.
+  ///
+  /// Every version needs an ECDSA validator address; see
+  /// [KernelAddresses.ecdsaValidator].
   bool get hasExternalValidator => isV3;
 
   /// Whether this version supports EIP-7702.
@@ -78,7 +84,8 @@ class KernelAddresses {
   /// - [accountImplementation]: The Kernel account implementation address
   /// - [factory]: The factory contract for deploying accounts
   /// - [metaFactory]: Meta factory for v0.3.x deployments (optional)
-  /// - [ecdsaValidator]: ECDSA validator address (optional)
+  /// - [ecdsaValidator]: ECDSA validator address (required by
+  ///   [KernelSmartAccountConfig] for every version)
   /// - [webAuthnValidator]: WebAuthn validator address for passkeys (optional)
   const KernelAddresses({
     required this.accountImplementation,
@@ -98,6 +105,9 @@ class KernelAddresses {
   final EthereumAddress? metaFactory;
 
   /// ECDSA validator address.
+  ///
+  /// Nullable for source compatibility, but [KernelSmartAccountConfig] throws
+  /// [ArgumentError] when it is missing.
   final EthereumAddress? ecdsaValidator;
 
   /// WebAuthn (P256) validator address for passkey support.
@@ -243,7 +253,7 @@ class KernelSelectors {
 
   /// v0.3.x: execute(bytes32,bytes) - ERC-7579 standard
   /// `keccak256("execute(bytes32,bytes)")[0:4]` = 0xe9ae5c53
-  static const String executeV3 = '0xe9ae5c53';
+  static const String executeV3 = Erc7579Selectors.execute;
 
   /// v0.2.x: Factory createAccount(address,bytes,uint256)
   /// `keccak256("createAccount(address,bytes,uint256)")[0:4]` = 0x296601cd
@@ -298,5 +308,4 @@ class KernelValidatorType {
 }
 
 /// Dummy ECDSA signature for gas estimation.
-const String kernelDummyEcdsaSignature =
-    '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+const String kernelDummyEcdsaSignature = ecdsaStubSignature;

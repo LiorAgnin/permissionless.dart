@@ -42,6 +42,10 @@ class Simple7702AccountAddresses {
       EthereumAddress.fromHex('0xe6Cae83BdE06E4c305530e199D7217f42808555B');
 }
 
+/// SimpleAccountFactory `createAccount(address owner, uint256 salt)`.
+const String simpleAccountCreateAccountSignature =
+    'createAccount(address,uint256)';
+
 /// Function selectors for SimpleAccount contracts.
 class SimpleAccountSelectors {
   SimpleAccountSelectors._();

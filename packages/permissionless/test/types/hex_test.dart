@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:permissionless/src/types/hex.dart';
+import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {

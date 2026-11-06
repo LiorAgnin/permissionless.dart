@@ -100,6 +100,45 @@ void main() {
         }),
       );
 
+  const revert = {
+    'error': {'code': -32000, 'message': 'execution reverted'},
+  };
+
+  /// Answers eth_call like an undeployed account: the direct call (has `to`)
+  /// gets [direct]; the deployless factory call (no `to`) gets [deployless].
+  /// Every call's tx object is appended to [txs].
+  PublicClient undeployedAccount(
+    List<Map<String, dynamic>> txs, {
+    required Object direct,
+    required String deployless,
+  }) =>
+      publicClientFromHandler((body) {
+        final tx = (body['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+        txs.add(tx);
+        return tx.containsKey('to') ? direct : deployless;
+      });
+
+  /// One direct eth_call to the account with [calldata], then one deployless
+  /// call that wraps the same calldata with the Safe factory (viem
+  /// deploylessCallViaFactory: bytecode ++ abi.encode(to, data, factory,
+  /// factoryData)).
+  void expectDirectThenDeployless(
+    List<Map<String, dynamic>> txs,
+    String calldata,
+  ) {
+    expect(txs, hasLength(2));
+    expect(txs[0]['to'], equals(mockAddress.hex));
+    expect(txs[0]['data'], equals(calldata));
+    expect(txs[1].containsKey('to'), isFalse);
+    final data = txs[1]['data'] as String;
+    expect(data, startsWith('0x608060405234801561001057600080fd5b50'));
+    expect(data, contains(calldata.substring(2)));
+    // SafeProxyFactory 1.4.1 and its factoryData, a createProxyWithNonce call
+    // (`cast sig "createProxyWithNonce(address,bytes,uint256)"` = 0x1688f0b9).
+    expect(data, contains('4e1dcf7ad4e460cfd30791ccc4f9c8a4f820ec67'));
+    expect(data, contains('1688f0b9'));
+  }
+
   group('ERC-7579 query parity', () {
     test('supportsModule succeeds on direct eth_call', () async {
       final client = createClient();
@@ -115,61 +154,43 @@ void main() {
     test(
       'supportsModule falls back to factory deployless call when direct fails',
       () async {
-        final client = createClient();
-        var callCount = 0;
-        final public = publicClientFromHandler((body) {
-          callCount++;
-          final params = body['params'] as List<dynamic>;
-          final tx = params[0] as Map<String, dynamic>;
-          if (callCount == 1) {
-            // Direct call to account (has `to`) — simulate undeployed revert
-            expect(tx.containsKey('to'), isTrue);
-            return {
-              'error': {
-                'code': -32000,
-                'message': 'execution reverted',
-              },
-            };
-          }
-          // Deployless factory fallback — no `to`
-          expect(tx.containsKey('to'), isFalse);
-          final data = tx['data'] as String;
-          expect(
-            data.startsWith('0x608060405234801561001057600080fd5b50'),
-            isTrue,
-          );
-          return boolTrue;
-        });
-
-        final result = await client.supportsModule(
-          publicClient: public,
+        final txs = <Map<String, dynamic>>[];
+        final result = await createClient().supportsModule(
+          publicClient:
+              undeployedAccount(txs, direct: revert, deployless: boolTrue),
           moduleType: Erc7579ModuleType.validator,
         );
+
         expect(result, isTrue);
-        expect(callCount, equals(2));
+        // cast calldata "supportsModule(uint256)" 1
+        expectDirectThenDeployless(
+          txs,
+          '0xf2dc691d'
+          '0000000000000000000000000000000000000000000000000000000000000001',
+        );
       },
     );
 
     test('isModuleInstalled uses factory fallback', () async {
-      final client = createClient();
-      var callCount = 0;
-      final public = publicClientFromHandler((body) {
-        callCount++;
-        if (callCount == 1) {
-          return {
-            'error': {'code': -32000, 'message': 'execution reverted'},
-          };
-        }
-        return boolTrue;
-      });
-
-      final result = await client.isModuleInstalled(
-        publicClient: public,
+      final txs = <Map<String, dynamic>>[];
+      final result = await createClient().isModuleInstalled(
+        publicClient:
+            undeployedAccount(txs, direct: revert, deployless: boolTrue),
         type: Erc7579ModuleType.validator,
         address: moduleAddress,
       );
+
       expect(result, isTrue);
-      expect(callCount, equals(2));
+      // cast calldata "isModuleInstalled(uint256,address,bytes)" 1 \
+      //   0xabcdefabcdefabcdefabcdefabcdefabcdefabcd 0x
+      expectDirectThenDeployless(
+        txs,
+        '0x112d3a7d'
+        '0000000000000000000000000000000000000000000000000000000000000001'
+        '000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd'
+        '0000000000000000000000000000000000000000000000000000000000000060'
+        '0000000000000000000000000000000000000000000000000000000000000000',
+      );
     });
 
     test(
@@ -177,68 +198,98 @@ void main() {
       () async {
         // Geth-style nodes often return success with "0x" for eth_call to an
         // undeployed address instead of reverting.
-        final client = createClient();
-        var callCount = 0;
-        final public = publicClientFromHandler((body) {
-          callCount++;
-          if (callCount == 1) {
-            return '0x';
-          }
-          final params = body['params'] as List<dynamic>;
-          final tx = params[0] as Map<String, dynamic>;
-          expect(tx.containsKey('to'), isFalse);
-          return boolTrue;
-        });
-
-        final result = await client.supportsModule(
-          publicClient: public,
+        final txs = <Map<String, dynamic>>[];
+        final result = await createClient().supportsModule(
+          publicClient:
+              undeployedAccount(txs, direct: '0x', deployless: boolTrue),
           moduleType: Erc7579ModuleType.validator,
         );
+
         expect(result, isTrue);
-        expect(callCount, equals(2));
+        expectDirectThenDeployless(
+          txs,
+          '0xf2dc691d'
+          '0000000000000000000000000000000000000000000000000000000000000001',
+        );
       },
     );
 
     test('getAccountId uses factory fallback and decodes string', () async {
-      final client = createClient();
-      var callCount = 0;
-      final public = publicClientFromHandler((body) {
-        callCount++;
-        if (callCount == 1) {
-          return {
-            'error': {'code': -32000, 'message': 'execution reverted'},
-          };
-        }
-        return accountIdResult;
-      });
+      final txs = <Map<String, dynamic>>[];
+      final id = await createClient().getAccountId(
+        publicClient:
+            undeployedAccount(txs, direct: revert, deployless: accountIdResult),
+      );
 
-      final id = await client.getAccountId(publicClient: public);
       expect(id, equals('kernel.advanced.0.3.1'));
-      expect(callCount, equals(2));
+      // cast calldata "accountId()"
+      expectDirectThenDeployless(txs, '0x9cfd7cff');
     });
 
     test('supportsExecutionMode uses factory fallback', () async {
-      final client = createClient();
-      var callCount = 0;
-      final public = publicClientFromHandler((body) {
-        callCount++;
-        if (callCount == 1) {
-          return {
-            'error': {'code': -32000, 'message': 'execution reverted'},
-          };
-        }
-        return boolTrue;
-      });
-
-      final result = await client.supportsExecutionMode(
-        publicClient: public,
+      final txs = <Map<String, dynamic>>[];
+      final result = await createClient().supportsExecutionMode(
+        publicClient:
+            undeployedAccount(txs, direct: revert, deployless: boolTrue),
         mode: const ExecutionMode(
           type: Erc7579CallKind.batchCall,
           revertOnError: true,
         ),
       );
+
       expect(result, isTrue);
-      expect(callCount, equals(2));
+      // callType 0x01 (batch); execType 0x01 for revertOnError: true —
+      // permissionless.js supportsExecutionMode encodes
+      // `revertOnError ? "0x01" : "0x00"` (polarity documented on
+      // ExecutionMode). cast calldata "supportsExecutionMode(bytes32)" \
+      //   0x0101000000000000000000000000000000000000000000000000000000000000
+      expectDirectThenDeployless(
+        txs,
+        '0xd03c7914'
+        '0101000000000000000000000000000000000000000000000000000000000000',
+      );
+    });
+
+    test('queries default to the client publicClient', () async {
+      final txs = <Map<String, dynamic>>[];
+      final client = createSmartAccountClient(
+        account: createSafeSmartAccount(
+          owners: [PrivateKeyOwner(testPrivateKey)],
+          chainId: BigInt.from(1),
+          address: mockAddress,
+        ),
+        bundler: createBundlerClient(
+          url: 'http://localhost:4337',
+          entryPoint: EntryPointAddresses.v07,
+        ),
+        publicClient: publicClientFromHandler((body) {
+          final tx =
+              (body['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+          txs.add(tx);
+          return tx['data'] == '0x9cfd7cff' ? accountIdResult : boolTrue;
+        }),
+      );
+
+      expect(
+        await client.supportsModule(moduleType: Erc7579ModuleType.validator),
+        isTrue,
+      );
+      expect(
+        await client.supportsExecutionMode(
+          mode: const ExecutionMode(type: Erc7579CallKind.call),
+        ),
+        isTrue,
+      );
+      expect(
+        await client.isModuleInstalled(
+          type: Erc7579ModuleType.validator,
+          address: moduleAddress,
+        ),
+        isTrue,
+      );
+      expect(await client.getAccountId(), equals('kernel.advanced.0.3.1'));
+      expect(txs, hasLength(4));
+      expect(txs.every((tx) => tx['to'] == mockAddress.hex), isTrue);
     });
 
     test('propagates error when direct and factory fallback both fail',

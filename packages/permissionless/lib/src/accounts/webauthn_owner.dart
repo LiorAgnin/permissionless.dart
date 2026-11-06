@@ -1,8 +1,9 @@
 import 'dart:typed_data';
 
-import 'package:web3dart/web3dart.dart';
+import 'package:web3dart/web3dart.dart' show keccak256;
 
 import '../types/address.dart';
+import '../types/hex.dart';
 import '../types/typed_data.dart';
 import 'account_owner.dart';
 
@@ -47,11 +48,19 @@ class P256SignatureData {
 /// Unlike ECDSA owners that have an Ethereum address, WebAuthn owners
 /// are identified by their P256 public key coordinates (x, y).
 ///
+/// Smart accounts recognise a WebAuthn owner by this class (see
+/// `isWebAuthnAccount`) and sign through [signP256]. The [AccountOwner]
+/// signing methods throw [UnsupportedError]: they must return a finished
+/// signature, but a WebAuthn assertion (authenticatorData, clientDataJSON,
+/// r, s) has no account-independent encoding. Each account's verifier
+/// decodes its own ABI layout (`encodeKernelWebAuthnSignature` for the
+/// Kernel WebAuthn validator, `encodeSafeWebAuthnSignature` for the Safe
+/// shared signer), so only the account can wrap it.
+///
 /// Example:
 /// ```dart
-/// // WebAuthn owners can be used with smart accounts that support them
 /// final kernelAccount = createKernelSmartAccount(
-///   owner: webAuthnOwner,  // Detected via isWebAuthnAccount()
+///   owner: webAuthnOwner,
 ///   chainId: chainId,
 ///   version: KernelVersion.v0_3_1,
 ///   publicClient: publicClient,
@@ -77,28 +86,22 @@ abstract class WebAuthnAccountOwner implements AccountOwner {
   Uint8List get credentialId;
 
   /// The 64-byte P256 public key as hex (0x + x(64 hex) + y(64 hex)).
-  String get publicKeyHex {
-    final xHex = x.toRadixString(16).padLeft(64, '0');
-    final yHex = y.toRadixString(16).padLeft(64, '0');
-    return '0x$xHex$yHex';
-  }
+  String get publicKeyHex => Hex.concat([
+        Hex.fromBigInt(x, byteLength: 32, name: 'x'),
+        Hex.fromBigInt(y, byteLength: 32, name: 'y'),
+      ]);
 
   /// Returns a dummy Ethereum address derived from the P256 public key.
   ///
   /// WebAuthn accounts don't have a real Ethereum address since they use
-  /// P256 instead of secp256k1. This returns a deterministic address
-  /// derived from the public key for compatibility with interfaces that
-  /// require an address.
+  /// P256 instead of secp256k1. This returns a deterministic address (the
+  /// last 20 bytes of `keccak256(x ‖ y)`) for compatibility with interfaces
+  /// that require an address.
   ///
   /// **Note:** This address cannot receive funds or sign transactions directly.
   @override
-  EthereumAddress get address {
-    // Create a deterministic "address" from the P256 public key hash
-    // This is for compatibility only - WebAuthn owners don't have real addresses
-    final pubKeyBytes = _bigIntToBytes(x, 32) + _bigIntToBytes(y, 32);
-    final hash = keccak256(Uint8List.fromList(pubKeyBytes));
-    return EthereumAddress(hash.sublist(12));
-  }
+  EthereumAddress get address =>
+      EthereumAddress(keccak256(Hex.decode(publicKeyHex)).sublist(12));
 
   /// Signs a hash directly and returns raw P256 signature data.
   ///
@@ -112,10 +115,8 @@ abstract class WebAuthnAccountOwner implements AccountOwner {
   /// WebAuthn metadata needed for on-chain verification.
   Future<P256SignatureData> signP256(String hash);
 
-  /// Not supported for WebAuthn owners.
-  ///
-  /// WebAuthn signatures require account-specific encoding. Use [signP256]
-  /// and encode the result using the appropriate encoding function.
+  /// Always throws [UnsupportedError]: a WebAuthn signature only has an
+  /// account-specific encoding (see [WebAuthnAccountOwner]). Use [signP256].
   @override
   Future<String> signRawHash(String hash) async {
     throw UnsupportedError(
@@ -124,10 +125,8 @@ abstract class WebAuthnAccountOwner implements AccountOwner {
     );
   }
 
-  /// Not supported for WebAuthn owners.
-  ///
-  /// WebAuthn signatures require account-specific encoding. Use [signP256]
-  /// and encode the result using the appropriate encoding function.
+  /// Always throws [UnsupportedError]: a WebAuthn signature only has an
+  /// account-specific encoding (see [WebAuthnAccountOwner]). Use [signP256].
   @override
   Future<String> signPersonalMessage(String hash) async {
     throw UnsupportedError(
@@ -136,25 +135,13 @@ abstract class WebAuthnAccountOwner implements AccountOwner {
     );
   }
 
-  /// Not supported for WebAuthn owners.
-  ///
-  /// WebAuthn signatures require account-specific encoding. Use [signP256]
-  /// and encode the result using the appropriate encoding function.
+  /// Always throws [UnsupportedError]: a WebAuthn signature only has an
+  /// account-specific encoding (see [WebAuthnAccountOwner]). Use [signP256].
   @override
   Future<String> signTypedData(TypedData typedData) async {
     throw UnsupportedError(
       'WebAuthn owners do not support signTypedData directly. '
       'Use signP256() and encode with the appropriate encoding function.',
     );
-  }
-
-  /// Converts BigInt to fixed-length bytes.
-  static List<int> _bigIntToBytes(BigInt value, int length) {
-    final hex = value.toRadixString(16).padLeft(length * 2, '0');
-    final result = <int>[];
-    for (var i = 0; i < hex.length; i += 2) {
-      result.add(int.parse(hex.substring(i, i + 2), radix: 16));
-    }
-    return result;
   }
 }

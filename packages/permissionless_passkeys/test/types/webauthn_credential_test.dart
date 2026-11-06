@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:permissionless_passkeys/src/types/webauthn_credential.dart';
+import 'package:permissionless_passkeys/permissionless_passkeys.dart';
 import 'package:web3_signers/web3_signers.dart';
 
 import '../helpers/test_fixtures.dart';
@@ -206,14 +206,63 @@ void main() {
         expect(credential.raw, equals(pair));
       });
     });
+
+    group('publicKeyHex range', () {
+      test('rejects a coordinate wider than 32 bytes', () {
+        final credential = WebAuthnCredential(
+          id: testCredentialId,
+          rawId: testCredentialIdBytes,
+          x: BigInt.one << 256,
+          y: testPublicKeyY,
+          raw: _createMockPassKeyPair(),
+        );
+
+        expect(() => credential.publicKeyHex, throwsArgumentError);
+      });
+    });
+
+    group('JSON', () {
+      test('toJson/fromJson round-trips every field', () {
+        final original = WebAuthnCredential.fromPublicKey(
+          PassKeyPublicKey(
+            x: Uint256(BigInt.from(0x1234)),
+            y: Uint256(testPublicKeyY),
+            // 7 bytes: base64url needs '==' padding, which toJson strips.
+            credentialId: Uint8List.fromList('mock-id'.codeUnits),
+            userName: 'test@example.com',
+            aaGuid: '00000000-0000-0000-0000-000000000000',
+          ),
+        );
+
+        final restored = WebAuthnCredential.fromJson(original.toJson());
+
+        expect(restored.id, original.id);
+        expect(restored.id, 'bW9jay1pZA');
+        expect(restored.rawId, original.rawId);
+        expect(restored.x, original.x);
+        expect(restored.y, original.y);
+        expect(restored.publicKeyHex, original.publicKeyHex);
+        expect(restored.raw.userName, 'test@example.com');
+        expect(restored.raw.aaGuid, '00000000-0000-0000-0000-000000000000');
+        expect(restored.toJson(), original.toJson());
+      });
+
+      test('fromJson defaults missing userName and aaGuid to empty', () {
+        final credential = WebAuthnCredential.fromJson(
+          '{"raw":{"x":"0x01","y":"0x02","credentialId":"bW9jay1pZA"}}',
+        );
+
+        expect(credential.x, BigInt.one);
+        expect(credential.y, BigInt.two);
+        expect(credential.rawId, 'mock-id'.codeUnits);
+        expect(credential.raw.userName, '');
+        expect(credential.raw.aaGuid, '');
+      });
+    });
   });
 }
 
 /// Creates a mock PassKeyPublicKey for testing.
-///
-/// Note: This creates a minimal mock that satisfies type requirements.
-/// For full round-trip testing (fromJson/toJson), real WebAuthn hardware
-/// would be needed.
 PassKeyPublicKey _createMockPassKeyPair() {
   return PassKeyPublicKey(
     x: Uint256(testPublicKeyX),

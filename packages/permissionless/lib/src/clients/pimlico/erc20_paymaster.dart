@@ -1,14 +1,15 @@
-import '../clients/pimlico/types.dart';
-import '../clients/public/public_client.dart';
-import '../types/address.dart';
-import '../types/user_operation.dart';
-import 'erc20.dart';
+import '../../types/address.dart';
+import '../../types/user_operation.dart';
+import '../../utils/erc20.dart';
+import '../public/public_client.dart';
+import 'erc20_cost.dart';
+import 'types.dart';
 
-/// Gas buffer for ERC-20 paymaster verification.
+/// A typical postOp gas figure for ERC-20 paymasters (about 75,000).
 ///
-/// ERC-20 paymasters require additional gas for the token transfer
-/// that occurs in the postOp phase. This is typically around 75,000
-/// gas units, though the exact amount is returned in [PimlicoTokenQuote.postOpGas].
+/// Nothing in this library reads it: the ERC-20 cost uses the quote's own
+/// [PimlicoTokenQuote.postOpGas].
+@Deprecated('Unused; the cost uses PimlicoTokenQuote.postOpGas')
 const int erc20PaymasterGasBuffer = 75000;
 
 /// Checks the token allowance for a spender.
@@ -18,6 +19,10 @@ const int erc20PaymasterGasBuffer = 75000;
 ///
 /// Use this to check if a token approval is needed before submitting
 /// a UserOperation with an ERC-20 paymaster.
+///
+/// Throws [StateError] when the call returns no data (`0x`): [token] has no
+/// code on this chain (wrong chain or mistyped address). viem's
+/// `readContract` throws `ContractFunctionZeroDataError` there too.
 ///
 /// Example:
 /// ```dart
@@ -39,13 +44,18 @@ Future<BigInt> getTokenAllowance({
   required EthereumAddress spender,
 }) async {
   final callData = encodeErc20AllowanceCall(owner: owner, spender: spender);
-  final result = await publicClient.call(Call(to: token, data: callData));
+  final result =
+      await _readToken(publicClient, token, callData, 'getTokenAllowance');
   return decodeUint256Result(result);
 }
 
 /// Checks the token balance of an account.
 ///
 /// Returns the balance of [token] held by [account].
+///
+/// Throws [StateError] when the call returns no data (`0x`): [token] has no
+/// code on this chain (wrong chain or mistyped address). viem's
+/// `readContract` throws `ContractFunctionZeroDataError` there too.
 ///
 /// Example:
 /// ```dart
@@ -62,8 +72,26 @@ Future<BigInt> getTokenBalance({
   required EthereumAddress account,
 }) async {
   final callData = encodeErc20BalanceOfCall(account: account);
-  final result = await publicClient.call(Call(to: token, data: callData));
+  final result =
+      await _readToken(publicClient, token, callData, 'getTokenBalance');
   return decodeUint256Result(result);
+}
+
+/// `eth_call` to [token]; `0x` is an error, as with viem `readContract`.
+Future<String> _readToken(
+  PublicClient publicClient,
+  EthereumAddress token,
+  String callData,
+  String function,
+) async {
+  final result = await publicClient.call(Call(to: token, data: callData));
+  if (result.isEmpty || result == '0x') {
+    throw StateError(
+      '$function: eth_call to token ${token.checksummed} returned no data; '
+      'is it an ERC-20 contract on this chain?',
+    );
+  }
+  return result;
 }
 
 /// Creates an approval call for the paymaster.
@@ -117,25 +145,12 @@ Call createPaymasterApprovalCall({
 /// ```
 BigInt estimateTokenCost({
   required PimlicoTokenQuote quote,
-  required UserOperationV07 userOp,
-}) {
-  // Total gas = preVerificationGas + verificationGas + callGas + paymasterPostOp
-  final totalGas = userOp.preVerificationGas +
-      userOp.verificationGasLimit +
-      userOp.callGasLimit +
-      (userOp.paymasterPostOpGasLimit ?? BigInt.zero) +
-      quote.postOpGas;
-
-  // Cost in wei
-  final weiCost = totalGas * userOp.maxFeePerGas;
-
-  // Convert to tokens using exchange rate
-  // exchangeRate is token per wei with 18 decimals precision
-  // tokenCost = weiCost * exchangeRate / 10^18
-  final tokenCost = (weiCost * quote.exchangeRate) ~/ BigInt.from(10).pow(18);
-
-  return tokenCost;
-}
+  required UserOperation userOp,
+}) =>
+    weiToTokenUnits(
+      erc20PaymasterMaxCostInWei(userOp, quote.postOpGas),
+      quote.exchangeRate,
+    );
 
 /// Checks if approval is needed and returns an optional approval call.
 ///
@@ -144,6 +159,8 @@ BigInt estimateTokenCost({
 ///
 /// Returns an approval [Call] if the current allowance is less than
 /// [requiredAmount], or null if no approval is needed.
+///
+/// Throws [StateError] like [getTokenAllowance] when [token] has no code.
 ///
 /// Example:
 /// ```dart

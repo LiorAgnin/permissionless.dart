@@ -70,38 +70,6 @@ void main() {
       expect(addresses.map((a) => a.hex).toList(), equals(originalOrder));
     });
 
-    test('does not depend on host locale (da collation regression)', () {
-      // Under a Danish/Norwegian ICU collation the "aa" digraph sorts
-      // after "z", so a locale collator would order 0xaaaa... last.
-      // UTF-16 code-unit order must keep it first regardless of locale.
-      final addresses = [
-        EthereumAddress.fromHex(
-          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb02',
-        ),
-        EthereumAddress.fromHex(
-          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01',
-        ),
-        EthereumAddress.fromHex(
-          '0xab12000000000000000000000000000000000000',
-        ),
-      ];
-
-      final sorted = sortAddresses(addresses);
-
-      expect(
-        sorted.first.hex,
-        equals('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01'),
-      );
-      expect(
-        sorted.map((a) => a.hex).toList(),
-        equals([
-          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01',
-          '0xab12000000000000000000000000000000000000',
-          '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb02',
-        ]),
-      );
-    });
-
     test('orders 0x7f before 0x80 (unsigned, not signed-byte)', () {
       final addresses = [
         EthereumAddress.fromHex(

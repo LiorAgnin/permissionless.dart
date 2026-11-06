@@ -1,12 +1,10 @@
+import 'dart:convert';
 import 'dart:typed_data';
-
-import 'package:permissionless/permissionless.dart';
 
 /// Test fixtures for WebAuthn passkeys tests.
 ///
-/// These fixtures provide mock data for testing encoding functions,
-/// account implementations, and other functionality without requiring
-/// actual WebAuthn hardware or biometric authentication.
+/// Mock data for testing without WebAuthn hardware or biometric
+/// authentication.
 
 /// Mock P256 public key X coordinate (32 bytes).
 final BigInt testPublicKeyX = BigInt.parse(
@@ -51,10 +49,25 @@ final Uint8List testAuthenticatorData = Uint8List.fromList([
   0x00, 0x00, 0x00, 0x01,
 ]);
 
-/// Mock client data JSON for WebAuthn assertion.
+/// The hash the account tests sign.
+const String testHash =
+    '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+
+/// Mock client data JSON for a WebAuthn assertion over [testHash].
+///
+/// The challenge is base64url([testHash] bytes), unpadded:
+/// python3 -c "import base64;print(base64.urlsafe_b64encode(bytes.fromhex(
+///   '1234567890abcdef'*4)).decode().rstrip('='))"
 const String testClientDataJSON =
     '{"type":"webauthn.get",'
-    '"challenge":"dGVzdC1jaGFsbGVuZ2U",'
+    '"challenge":"EjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJCrze8",'
+    '"origin":"https://example.com",'
+    '"crossOrigin":false}';
+
+/// Mock client data JSON for a WebAuthn assertion over [challenge].
+String clientDataJsonFor(List<int> challenge) =>
+    '{"type":"webauthn.get",'
+    '"challenge":"${base64Url.encode(challenge).replaceAll('=', '')}",'
     '"origin":"https://example.com",'
     '"crossOrigin":false}';
 
@@ -64,49 +77,7 @@ const String testClientDataJSON =
 /// Note: getTypeLocation() returns the position of the key, not the value.
 const int testResponseTypeLocation = 1;
 
-/// Creates a mock Ethereum address for testing.
-EthereumAddress testAddress([
-  String hex = '0x1234567890123456789012345678901234567890',
-]) {
-  return EthereumAddress.fromHex(hex);
-}
-
-/// Test chain IDs.
-class TestChainIds {
-  TestChainIds._();
-
-  static final BigInt sepolia = BigInt.from(11155111);
-  static final BigInt baseSepolia = BigInt.from(84532);
-  static final BigInt mainnet = BigInt.from(1);
-  static final BigInt optimism = BigInt.from(10);
-  static final BigInt unsupported = BigInt.from(999999);
-}
-
 /// Encodes a BigInt to a 32-byte hex string (without 0x prefix).
 String bigIntToHex32(BigInt value) {
   return value.toRadixString(16).padLeft(64, '0');
-}
-
-/// Encodes bytes to a hex string (without 0x prefix).
-String bytesToHex(Uint8List bytes) {
-  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-}
-
-/// Mock Call for transaction encoding tests.
-Call testCall({EthereumAddress? to, BigInt? value, String data = '0x'}) {
-  return Call(to: to ?? testAddress(), value: value ?? BigInt.zero, data: data);
-}
-
-/// Mock calls for batch transaction tests.
-List<Call> testCalls({int count = 3}) {
-  return List.generate(
-    count,
-    (i) => Call(
-      to: EthereumAddress.fromHex(
-        '0x${(i + 1).toRadixString(16).padLeft(40, '0')}',
-      ),
-      value: BigInt.from(i * 1000),
-      data: '0x${(i + 1).toRadixString(16).padLeft(8, '0')}',
-    ),
-  );
 }

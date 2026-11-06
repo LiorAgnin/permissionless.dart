@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -66,19 +67,29 @@ void main() {
     });
 
     group('LightAccountSelectors', () {
-      test('execute selector is correct', () {
-        // keccak256("execute(address,uint256,bytes)")[0:4] = 0xb61d27f6
-        expect(LightAccountSelectors.execute, equals('0xb61d27f6'));
-      });
-
-      test('executeBatch selector is correct', () {
-        // keccak256("executeBatch(address[],uint256[],bytes[])")[0:4] = 0x47e1da2a
-        expect(LightAccountSelectors.executeBatch, equals('0x47e1da2a'));
-      });
-
-      test('createAccount selector is correct', () {
-        // keccak256("createAccount(address,uint256)")[0:4] = 0x5fbfb9cf
+      // cast sig 'createAccount(address,uint256)'
+      test('createAccount matches cast sig', () {
         expect(LightAccountSelectors.createAccount, equals('0x5fbfb9cf'));
+      });
+
+      test('are the selectors of the signatures the account encodes', () {
+        for (final (selector, signature) in [
+          (LightAccountSelectors.execute, executeSignature),
+          (
+            LightAccountSelectors.executeBatch,
+            ExecuteBatchAbi.addressesValuesAndBytes.signature
+          ),
+          (
+            LightAccountSelectors.createAccount,
+            lightAccountCreateAccountSignature
+          ),
+        ]) {
+          expect(
+            selector,
+            AbiEncoder.functionSelector(signature),
+            reason: signature,
+          );
+        }
       });
     });
 
@@ -96,42 +107,6 @@ void main() {
       });
     });
 
-    group('PrivateKeyOwner', () {
-      test('creates from hex private key', () {
-        final owner = PrivateKeyOwner(
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-        );
-
-        expect(owner.address.hex, startsWith('0x'));
-        expect(owner.address.hex.length, equals(42));
-      });
-
-      test('address is derived correctly', () {
-        // Known test key from hardhat
-        final owner = PrivateKeyOwner(
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-        );
-
-        // This is the expected address for this private key
-        expect(
-          owner.address.hex.toLowerCase(),
-          equals('0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266'.toLowerCase()),
-        );
-      });
-
-      test('signHash signs message hash correctly', () async {
-        final owner = PrivateKeyOwner(
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-        );
-
-        final signature = await owner.signPersonalMessage('0x${'00' * 32}');
-
-        expect(signature, startsWith('0x'));
-        // 65 bytes = 130 hex chars + 0x = 132
-        expect(signature.length, equals(132));
-      });
-    });
-
     group('LightSmartAccount', () {
       late PrivateKeyOwner owner;
 
@@ -141,166 +116,98 @@ void main() {
         );
       });
 
-      test('creates account with default settings', () {
+      test(
+          'v2.0.0 factoryData is createAccount(owner, 0) on the v2.0.0 factory',
+          () async {
         final account = createLightSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        expect(account.entryPointVersion, equals(EntryPointVersion.v07));
-        expect(account.chainId, equals(BigInt.from(1)));
+        final factoryData = (await account.getFactoryData())!;
+
+        expect(factoryData.factory, equals(LightAccountFactoryAddresses.v200));
+        // cast calldata "createAccount(address,uint256)" <owner> 0
+        expect(
+          factoryData.factoryData.toLowerCase(),
+          equals(
+            '0x5fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
       });
 
-      test('creates account for v0.6 EntryPoint', () {
+      test('salt is the createAccount salt', () async {
         final account = createLightSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
+          salt: BigInt.from(12345),
+          address: mockAddress,
+        );
+
+        // cast calldata "createAccount(address,uint256)" <owner> 12345
+        expect(
+          (await account.getFactoryData())!.factoryData.toLowerCase(),
+          equals(
+            '0x5fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000003039',
+          ),
+        );
+      });
+
+      test('v1.1.0 initCode is the v1.1.0 factory ++ createAccount(owner, 0)',
+          () async {
+        final account = createLightSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
           entryPointVersion: EntryPointVersion.v06,
           address: mockAddress,
         );
 
-        expect(account.entryPointVersion, equals(EntryPointVersion.v06));
-      });
-
-      test('address is deterministic', () async {
-        final account1 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.from(12345),
-          address: mockAddress,
-        );
-
-        final account2 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.from(12345),
-          address: mockAddress,
-        );
-
-        final address1 = await account1.getAddress();
-        final address2 = await account2.getAddress();
-
-        expect(address1.hex.toLowerCase(), equals(address2.hex.toLowerCase()));
-      });
-
-      test('different salt produces different address', () async {
-        final mockAddress1 = EthereumAddress.fromHex(
-          '0x1111111111111111111111111111111111111111',
-        );
-        final mockAddress2 = EthereumAddress.fromHex(
-          '0x2222222222222222222222222222222222222222',
-        );
-
-        final account1 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.from(11111),
-          address: mockAddress1,
-        );
-
-        final account2 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.from(22222),
-          address: mockAddress2,
-        );
-
-        final address1 = await account1.getAddress();
-        final address2 = await account2.getAddress();
-
+        // cast concat-hex 0x00004EC70002a32400f8ae005A26081065620D20 \
+        //   $(cast calldata "createAccount(address,uint256)" <owner> 0)
         expect(
-          address1.hex.toLowerCase(),
-          isNot(equals(address2.hex.toLowerCase())),
-        );
-      });
-
-      test('different owners produce different addresses', () async {
-        final owner2 = PrivateKeyOwner(
-          '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d',
-        );
-        final mockAddress1 = EthereumAddress.fromHex(
-          '0x1111111111111111111111111111111111111111',
-        );
-        final mockAddress2 = EthereumAddress.fromHex(
-          '0x2222222222222222222222222222222222222222',
-        );
-
-        final account1 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          address: mockAddress1,
-        );
-
-        final account2 = createLightSmartAccount(
-          owner: owner2,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          address: mockAddress2,
-        );
-
-        final address1 = await account1.getAddress();
-        final address2 = await account2.getAddress();
-
-        expect(
-          address1.hex.toLowerCase(),
-          isNot(equals(address2.hex.toLowerCase())),
-        );
-      });
-
-      test('getFactoryData returns valid data', () async {
-        final account = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final factoryData = await account.getFactoryData();
-
-        expect(factoryData, isNotNull);
-        expect(factoryData!.factory.hex, startsWith('0x'));
-        expect(factoryData.factoryData, startsWith('0x'));
-        // Factory data should start with createAccount selector
-        expect(
-          factoryData.factoryData.toLowerCase(),
-          startsWith(LightAccountSelectors.createAccount),
-        );
-      });
-
-      test('encodeCall encodes single call correctly', () {
-        final account = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final call = Call(
-          to: EthereumAddress.fromHex(
-            '0x1234567890123456789012345678901234567890',
+          (await account.getInitCode()).toLowerCase(),
+          equals(
+            '0x00004ec70002a32400f8ae005a26081065620d205fbfb9cf000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb922660000000000000000000000000000000000000000000000000000000000000000',
           ),
-          value: BigInt.from(1000),
-          data: '0xabcd',
+        );
+      });
+
+      test('encodeCall encodes execute(to, value, data)', () {
+        final account = createLightSmartAccount(
+          owner: owner,
+          chainId: BigInt.one,
+          address: mockAddress,
         );
 
-        final callData = account.encodeCall(call);
+        final callData = account.encodeCall(
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
+            value: BigInt.from(1000),
+            data: '0xabcd',
+          ),
+        );
 
-        expect(callData, startsWith('0x'));
-        // Should start with execute selector
+        // cast calldata "execute(address,uint256,bytes)" \
+        //   0x1234567890123456789012345678901234567890 1000 0xabcd
         expect(
           callData.toLowerCase(),
-          startsWith(LightAccountSelectors.execute),
+          equals(
+            '0xb61d27f6000000000000000000000000123456789012345678901234567890123456789000000000000000000000000000000000000000000000000000000000000003e800000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000002abcd000000000000000000000000000000000000000000000000000000000000',
+          ),
         );
       });
 
-      test('encodeCalls encodes batch calls correctly', () {
+      test('encodeCalls encodes executeBatch(address[],uint256[],bytes[])', () {
         final account = createLightSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        final calls = [
+        final callData = account.encodeCalls([
           Call(
             to: EthereumAddress.fromHex(
               '0x1111111111111111111111111111111111111111',
@@ -315,118 +222,47 @@ void main() {
             value: BigInt.from(100),
             data: '0xaabb',
           ),
-        ];
+        ]);
 
-        final callData = account.encodeCalls(calls);
-
-        expect(callData, startsWith('0x'));
-        // Should start with executeBatch selector
+        // cast calldata "executeBatch(address[],uint256[],bytes[])" \
+        //   "[0x1111…1111,0x2222…2222]" "[0,100]" "[0x,0xaabb]"
         expect(
           callData.toLowerCase(),
-          startsWith(LightAccountSelectors.executeBatch),
+          equals(
+            '0x47e1da2a000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000020000000000000000000000001111111111111111111111111111111111111111000000000000000000000000222222222222222222222222222222222222222200000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002aabb000000000000000000000000000000000000000000000000000000000000',
+          ),
         );
       });
 
-      test('getStubSignature returns valid dummy', () {
+      // permissionless.js toLightSmartAccount getStubSignature(): the ECDSA
+      // dummy, prefixed with SignatureType.EOA (0x00) on 2.0.0.
+      const ecdsaDummy =
+          '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+
+      test('v1.1.0 stub signature is the bare ECDSA dummy', () {
         final account = createLightSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        final dummy = account.getStubSignature();
-
-        expect(dummy, startsWith('0x'));
-        // v2.0.0: 1 type byte + 65 signature bytes = 66 bytes = 132 hex + 0x
-        expect(dummy.length, equals(134));
-      });
-
-      test('signMessage creates EIP-1271 compatible signature', () async {
-        final account = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          address: mockAddress,
-        );
-
-        // Simulate account being deployed
-        const message = 'Hello, Light Account!';
-        final signature = await account.signMessage(message);
-
-        expect(signature, startsWith('0x'));
-        // Should be a valid signature
-        expect(signature.length, greaterThan(100));
-      });
-    });
-
-    group('Light Account v0.6 vs v0.7', () {
-      late PrivateKeyOwner owner;
-
-      setUp(() {
-        owner = PrivateKeyOwner(
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
-        );
-      });
-
-      test('v0.6 uses different factory than v0.7', () async {
-        final account06 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
+          chainId: BigInt.one,
           entryPointVersion: EntryPointVersion.v06,
           address: mockAddress,
         );
 
-        final account07 = createLightSmartAccount(
+        expect(account.getStubSignature(), equals(ecdsaDummy));
+      });
+
+      test('v2.0.0 stub signature is 0x00 ++ ECDSA dummy', () {
+        final account = createLightSmartAccount(
           owner: owner,
-          chainId: BigInt.from(1),
-          entryPointVersion: EntryPointVersion.v07,
+          chainId: BigInt.one,
           address: mockAddress,
         );
 
-        final factory06 = (await account06.getFactoryData())!.factory;
-        final factory07 = (await account07.getFactoryData())!.factory;
-
+        // cast concat-hex 0x00 <ecdsaDummy>
         expect(
-          factory06.hex.toLowerCase(),
-          equals(LightAccountFactoryAddresses.v110.hex.toLowerCase()),
-        );
-        expect(
-          factory07.hex.toLowerCase(),
-          equals(LightAccountFactoryAddresses.v200.hex.toLowerCase()),
-        );
-      });
-
-      test('same owner produces different addresses for v0.6 vs v0.7',
-          () async {
-        final mockAddress06 = EthereumAddress.fromHex(
-          '0x1111111111111111111111111111111111111111',
-        );
-        final mockAddress07 = EthereumAddress.fromHex(
-          '0x2222222222222222222222222222222222222222',
-        );
-
-        final account06 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress06,
-        );
-
-        final account07 = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.from(1),
-          salt: BigInt.zero,
-          entryPointVersion: EntryPointVersion.v07,
-          address: mockAddress07,
-        );
-
-        final address06 = await account06.getAddress();
-        final address07 = await account07.getAddress();
-
-        // Different factories = different addresses
-        expect(
-          address06.hex.toLowerCase(),
-          isNot(equals(address07.hex.toLowerCase())),
+          account.getStubSignature(),
+          equals(
+            '0x00fffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c',
+          ),
         );
       });
     });
@@ -517,17 +353,54 @@ void main() {
           throwsA(isA<UnsupportedError>()),
         );
       });
+    });
+    group('version / EntryPoint combinations', () {
+      // permissionless.js LightAccountVersion<ep>: "0.6" -> "1.1.0",
+      // "0.7" -> "2.0.0"; no other pairing exists.
+      final owner = PrivateKeyOwner(
+        '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+      );
 
-      test('implements SmartAccountV06 for client v0.6 pipeline', () {
-        final account = createLightSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress,
-        );
+      for (final (version, entryPointVersion) in [
+        (LightAccountVersion.v110, EntryPointVersion.v06),
+        (LightAccountVersion.v200, EntryPointVersion.v07),
+      ]) {
+        test(
+            'accepts ${version.version} with EntryPoint '
+            '${entryPointVersion.value}', () {
+          final account = createLightSmartAccount(
+            owner: owner,
+            chainId: BigInt.one,
+            version: version,
+            entryPointVersion: entryPointVersion,
+            address: mockAddress,
+          );
+          expect(account.version, equals(version));
+          expect(account.entryPointVersion, equals(entryPointVersion));
+        });
+      }
 
-        expect(account, isA<SmartAccountV06>());
-      });
+      for (final (version, entryPointVersion) in [
+        (LightAccountVersion.v110, EntryPointVersion.v07),
+        (LightAccountVersion.v110, EntryPointVersion.v08),
+        (LightAccountVersion.v200, EntryPointVersion.v06),
+        (LightAccountVersion.v200, EntryPointVersion.v08),
+      ]) {
+        test(
+            'rejects ${version.version} with EntryPoint '
+            '${entryPointVersion.value}', () {
+          expect(
+            () => createLightSmartAccount(
+              owner: owner,
+              chainId: BigInt.one,
+              version: version,
+              entryPointVersion: entryPointVersion,
+              address: mockAddress,
+            ),
+            throwsArgumentError,
+          );
+        });
+      }
     });
   });
 }

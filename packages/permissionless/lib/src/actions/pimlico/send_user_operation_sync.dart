@@ -1,14 +1,15 @@
 import 'dart:async';
 
+import '../../clients/bundler/bundler_client.dart';
 import '../../clients/bundler/types.dart';
-import '../../clients/bundler/user_operation_request.dart';
 import '../../clients/paymaster/types.dart';
+import '../../clients/rpc/user_operation_request.dart';
 import '../../clients/smart_account/smart_account_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../errors/errors.dart';
 import '../../types/address.dart';
 import '../../types/user_operation.dart';
-import '../../utils/erc20.dart';
+import '../../utils/state_override.dart';
 import '../../utils/user_operation_hash.dart';
 
 /// What happened when [PimlicoActions.sendUserOperationSync] failed.
@@ -131,9 +132,10 @@ extension PimlicoActions on SmartAccountClient {
     List<StateOverride>? stateOverride,
     EthereumAddress? entryPointAddress,
     Duration? timeout,
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
-    final entryPointVersion = entryPointVersionOf(account.entryPoint);
+    final currentAccount = account;
+    final entryPointVersion = entryPointVersionOfAccount(currentAccount);
     if (entryPointVersion != EntryPointVersion.v07 &&
         entryPointVersion != EntryPointVersion.v08) {
       throw UnsupportedError(
@@ -163,7 +165,6 @@ extension PimlicoActions on SmartAccountClient {
         ? prepared.userOp
         : await signUserOperation(prepared.userOp);
 
-    final currentAccount = account;
     final userOperationHash = getUserOperationHash(
       userOperation: userOp,
       entryPointAddress: entryPoint,

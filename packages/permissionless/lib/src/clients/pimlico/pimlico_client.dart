@@ -5,7 +5,8 @@ import '../../types/hex.dart';
 import '../../types/user_operation.dart';
 import '../../utils/gas.dart';
 import '../bundler/bundler_client.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
+import 'erc20_cost.dart';
 import 'types.dart';
 
 /// Pimlico-specific bundler client with enhanced features.
@@ -119,31 +120,20 @@ class PimlicoClient extends BundlerClient {
   Future<PimlicoUserOperationStatus> waitForUserOperationStatus(
     String userOpHash, {
     Duration timeout = const Duration(seconds: 60),
-    Duration pollingInterval = const Duration(seconds: 2),
+    Duration pollingInterval = defaultReceiptPollingInterval,
   }) async {
     final deadline = DateTime.now().add(timeout);
 
     while (DateTime.now().isBefore(deadline)) {
       final status = await getUserOperationStatus(userOpHash);
 
-      // Return if we've reached a terminal state
-      if (status.status == 'included' ||
-          status.status == 'rejected' ||
-          status.status == 'reverted' ||
-          status.status == 'failed') {
-        return status;
-      }
+      if (status.status == 'included' || status.isFailed) return status;
 
       await Future<void>.delayed(pollingInterval);
     }
 
-    // Return the last status even if not terminal
     return getUserOperationStatus(userOpHash);
   }
-
-  // ================================================================
-  // ERC-20 Paymaster Methods
-  // ================================================================
 
   /// Gets token quotes for ERC-20 paymaster gas payment.
   ///
@@ -156,6 +146,10 @@ class PimlicoClient extends BundlerClient {
   /// - [PimlicoTokenQuote.exchangeRate]: Token/ETH exchange rate
   /// - [PimlicoTokenQuote.postOpGas]: Additional gas for token transfer (~75k)
   ///
+  /// The quotes are for the ERC-20 paymaster of [entryPoint], which defaults
+  /// to [BundlerClient.entryPoint]. Pass the account's EntryPoint when it
+  /// differs (permissionless.js takes `entryPointAddress` per call).
+  ///
   /// Example:
   /// ```dart
   /// final quotes = await pimlico.getTokenQuotes([usdcAddress, daiAddress]);
@@ -164,22 +158,19 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoTokenQuote>> getTokenQuotes(
-    List<EthereumAddress> tokens,
-  ) async {
+    List<EthereumAddress> tokens, {
+    EthereumAddress? entryPoint,
+  }) async {
     final chain = await chainId();
     final result = await rpcClient.call(
       'pimlico_getTokenQuotes',
       [
-        // First param: object with tokens array
         {'tokens': tokens.map((t) => t.hex).toList()},
-        // Second param: entryPoint address
-        entryPoint.hex,
-        // Third param: chainId in hex
+        (entryPoint ?? this.entryPoint).hex,
         Hex.fromBigInt(chain),
       ],
     );
 
-    // API returns { quotes: [...] }
     final quotes = (result as Map<String, dynamic>)['quotes'] as List<dynamic>;
     return quotes
         .cast<Map<String, dynamic>>()
@@ -200,24 +191,8 @@ class PimlicoClient extends BundlerClient {
   /// }
   /// ```
   Future<List<PimlicoSupportedToken>> getSupportedTokens() async {
-    final result = await rpcClient.call(
-      'pimlico_getSupportedTokens',
-      [],
-    );
-
-    // API returns a list directly
-    if (result is List) {
-      return result
-          .cast<Map<String, dynamic>>()
-          .map(PimlicoSupportedToken.fromJson)
-          .toList();
-    }
-
-    // Fallback for wrapped response format
-    final tokens = result['tokens'] as List<dynamic>?;
-    if (tokens == null) return [];
-
-    return tokens
+    final result = await rpcClient.call('pimlico_getSupportedTokens', []);
+    return (result as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .map(PimlicoSupportedToken.fromJson)
         .toList();
@@ -230,7 +205,9 @@ class PimlicoClient extends BundlerClient {
   /// permissionless.js `estimateErc20PaymasterCost` (no dedicated RPC).
   ///
   /// [userOperation] is the UserOperation to estimate cost for (v0.6 or v0.7).
-  /// [token] is the ERC-20 token to pay gas with.
+  /// [token] is the ERC-20 token to pay gas with. [entryPoint] is the
+  /// EntryPoint whose paymaster quotes the token; it defaults to
+  /// [BundlerClient.entryPoint].
   ///
   /// Example:
   /// ```dart
@@ -245,52 +222,29 @@ class PimlicoClient extends BundlerClient {
   Future<PimlicoErc20PaymasterCost> estimateErc20PaymasterCost({
     required UserOperation userOperation,
     required EthereumAddress token,
+    EthereumAddress? entryPoint,
   }) async {
-    final quotes = await getTokenQuotes([token]);
-    if (quotes.isEmpty) {
-      throw ArgumentError(
-        'Token $token is not supported by the Pimlico ERC-20 paymaster',
-      );
-    }
+    final quote = tokenQuoteFor(
+      token,
+      await getTokenQuotes([token], entryPoint: entryPoint),
+    );
+    final maxCostInWei =
+        erc20PaymasterMaxCostInWei(userOperation, quote.postOpGas);
+    final costInToken = weiToTokenUnits(maxCostInWei, quote.exchangeRate);
 
-    final quote = quotes.first;
-    final BigInt userOperationMaxCost;
-    final BigInt maxFeePerGas;
-
-    if (userOperation is UserOperationV07) {
-      userOperationMaxCost = getRequiredPrefund(userOperation);
-      maxFeePerGas = userOperation.maxFeePerGas;
-    } else if (userOperation is UserOperationV06) {
-      userOperationMaxCost = getRequiredPrefundV06(userOperation);
-      maxFeePerGas = userOperation.maxFeePerGas;
-    } else {
-      throw ArgumentError(
-        'Unsupported UserOperation type: ${userOperation.runtimeType}',
-      );
-    }
-
-    // max cost in wei including paymaster postOp gas
-    final maxCostInWei = userOperationMaxCost + quote.postOpGas * maxFeePerGas;
-
-    // cost in token denomination (wei-scale exchange rate)
-    final costInToken =
-        (maxCostInWei * quote.exchangeRate) ~/ BigInt.from(10).pow(18);
-
+    // permissionless.js requires the field; a missing rate is not a $0 cost.
+    final usdRate = quote.exchangeRateNativeToUsd ??
+        (throw StateError(
+          'Pimlico quote for ${token.hex} has no exchangeRateNativeToUsd',
+        ));
     // cost in USD with 6 decimals of precision (matches permissionless.js)
-    final exchangeRateNativeToUsd =
-        quote.exchangeRateNativeToUsd ?? BigInt.zero;
-    final costInUsd =
-        (maxCostInWei * exchangeRateNativeToUsd) ~/ BigInt.from(10).pow(18);
+    final costInUsd = weiToTokenUnits(maxCostInWei, usdRate);
 
     return PimlicoErc20PaymasterCost(
       costInToken: costInToken,
       costInUsd: costInUsd,
     );
   }
-
-  // ================================================================
-  // Sponsorship Policy Methods
-  // ================================================================
 
   /// Validates sponsorship policy IDs for a UserOperation.
   ///
@@ -305,6 +259,7 @@ class PimlicoClient extends BundlerClient {
   /// [userOperation] is the UserOperation to validate against policies
   /// (v0.6 or v0.7).
   /// [sponsorshipPolicyIds] is a list of policy IDs to check.
+  /// [entryPoint] defaults to [BundlerClient.entryPoint].
   ///
   /// Returns a list of valid policies with their metadata.
   /// Invalid policies are not included in the response.
@@ -323,6 +278,7 @@ class PimlicoClient extends BundlerClient {
   Future<List<PimlicoSponsorshipPolicy>> validateSponsorshipPolicies({
     required UserOperation userOperation,
     required List<String> sponsorshipPolicyIds,
+    EthereumAddress? entryPoint,
   }) async {
     if (sponsorshipPolicyIds.isEmpty) {
       return [];
@@ -332,7 +288,7 @@ class PimlicoClient extends BundlerClient {
       'pm_validateSponsorshipPolicies',
       [
         userOperation.toJson(),
-        entryPoint.hex,
+        (entryPoint ?? this.entryPoint).hex,
         sponsorshipPolicyIds,
       ],
     );
@@ -361,11 +317,11 @@ PimlicoClient createPimlicoClient({
   Duration? timeout,
 }) =>
     PimlicoClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
       entryPoint: entryPoint,
     );

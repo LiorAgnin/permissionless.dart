@@ -72,8 +72,9 @@ KernelVersion? parseKernelVersion(String raw) {
 
 /// Run a sponsored (or self-funded) self-ping UserOp for [version].
 ///
-/// Returns a [KernelRunResult]; does not rethrow bundler/account errors so
-/// multi-version runners can continue.
+/// Network, bundler and account errors come back as a failed
+/// [KernelRunResult] instead of being thrown, so multi-version runners can
+/// continue. A missing setting in [ExampleConfig.load] still throws.
 Future<KernelRunResult> runKernelVersion({
   required KernelVersion version,
   bool selfFunded = false,
@@ -122,13 +123,6 @@ Future<KernelRunResult> runKernelVersion({
     }
   }
 
-  final accountAddress = await account.getAddress();
-  final isDeployed = await publicClient.isDeployed(accountAddress);
-  log(
-    'Account: ${accountAddress.checksummed} '
-    '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
-  );
-
   final bundler = createBundlerClient(url: pimlicoUrl, entryPoint: ep);
   final pimlico = createPimlicoClient(url: pimlicoUrl, entryPoint: ep);
   final paymaster = selfFunded ? null : createPaymasterClient(url: pimlicoUrl);
@@ -141,6 +135,13 @@ Future<KernelRunResult> runKernelVersion({
   );
 
   try {
+    final accountAddress = await account.getAddress();
+    final isDeployed = await publicClient.isDeployed(accountAddress);
+    log(
+      'Account: ${accountAddress.checksummed} '
+      '${isDeployed ? "(already deployed)" : "(will be deployed)"}',
+    );
+
     log('\n--- Account Status ---');
     final gasPrices = await pimlico.getUserOperationGasPrice();
     log('Gas prices - Fast: ${gasPrices.fast.maxFeePerGas} wei');
@@ -200,10 +201,7 @@ Future<KernelRunResult> runKernelVersion({
         log('Paymaster: None (SELF-FUNDED)');
       }
 
-      // KernelSmartAccount exposes signUserOperationV06 but does not implement
-      // SmartAccountV06; sign via the account directly (matches v0.2.4 example).
-      final signature = await account.signUserOperationV06(userOp);
-      final signed = userOp.copyWith(signature: signature);
+      final signed = await smartAccountClient.signUserOperationV06(userOp);
       log('Signature length: ${signed.signature.length} chars');
 
       hash = await smartAccountClient.sendPreparedUserOperationV06(signed);

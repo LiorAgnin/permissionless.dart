@@ -24,7 +24,8 @@
 ///   ),
 /// );
 ///
-/// // 3. Use with a smart account (Kernel v0.3.x or Safe)
+/// // 3. Use as the owner of a smart account: Kernel v0.3.0-beta, v0.3.1 or
+/// //    v0.3.3 (v0.2.x and v0.3.2 have no WebAuthn validator), or Safe
 /// // Note: Smart account integration with WebAuthn owners is
 /// // handled by the permissionless package.
 /// ```
@@ -42,16 +43,7 @@
 /// See the [platform setup guide](https://pub.dev/packages/passkeys) for configuration details.
 library;
 
-// Types
-export 'src/types/webauthn_credential.dart';
-
-// Accounts
-export 'src/accounts/webauthn_account.dart';
 export 'src/accounts/to_webauthn_account.dart';
-
-// Encoding (for advanced use cases)
-export 'src/encoding/kernel_encoding.dart';
-export 'src/encoding/safe_encoding.dart';
-
-// Factory functions
+export 'src/accounts/webauthn_account.dart';
 export 'src/factory.dart';
+export 'src/types/webauthn_credential.dart';

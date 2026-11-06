@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 /// Unit tests for Thirdweb smart account.
@@ -185,29 +186,6 @@ void main() {
       );
     });
 
-    group('creation', () {
-      test('defaults to EntryPoint v0.7', () {
-        expect(account.entryPointVersion, equals(EntryPointVersion.v07));
-        expect(account.chainId, equals(BigInt.one));
-      });
-
-      test('getAddress returns configured address', () async {
-        final address = await account.getAddress();
-        expect(
-          address.hex.toLowerCase(),
-          equals(mockAddress.hex.toLowerCase()),
-        );
-      });
-
-      test('throws without address or publicClient', () {
-        final bare = createThirdwebSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-        );
-        expect(bare.getAddress, throwsA(isA<StateError>()));
-      });
-    });
-
     group('factoryData / initCode / salt', () {
       test('default (empty) salt factoryData matches permissionless.js',
           () async {
@@ -338,16 +316,6 @@ void main() {
           throwsA(isA<UnsupportedError>()),
         );
       });
-
-      test('implements SmartAccountV06 for client v0.6 pipeline', () {
-        final v06 = createThirdwebSmartAccount(
-          owner: owner,
-          chainId: BigInt.one,
-          entryPointVersion: EntryPointVersion.v06,
-          address: mockAddress,
-        );
-        expect(v06, isA<SmartAccountV06>());
-      });
     });
 
     group('ERC-1271 signing', () {
@@ -362,6 +330,74 @@ void main() {
         final signature = await account.signTypedData(sampleTypedData);
         expect(signature.toLowerCase(), equals(jsSignTypedData));
       });
+    });
+    group('EntryPoint versions', () {
+      // permissionless.js toThirdwebSmartAccount supports EntryPoint 0.6 and
+      // 0.7 only (THIRDWEB_ADDRESSES has no "0.8" entry).
+      test('v0.6 resolves the v0.6 factory and EntryPoint', () async {
+        final account = createThirdwebSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: mockAddress,
+        );
+        expect(account.entryPoint, equals(EntryPointAddresses.v06));
+        expect(
+          (await account.getFactoryData())!.factory,
+          equals(ThirdwebAddresses.factoryV06),
+        );
+      });
+
+      test('v0.7 resolves the v0.7 factory and EntryPoint', () async {
+        final account = createThirdwebSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.one,
+          address: mockAddress,
+        );
+        expect(account.entryPoint, equals(EntryPointAddresses.v07));
+        expect(
+          (await account.getFactoryData())!.factory,
+          equals(ThirdwebAddresses.factoryV07),
+        );
+      });
+
+      test('rejects EntryPoint v0.8 at construction', () {
+        expect(
+          () => createThirdwebSmartAccount(
+            owner: PrivateKeyOwner(testPrivateKey),
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v08,
+            address: mockAddress,
+          ),
+          throwsArgumentError,
+        );
+      });
+    });
+  });
+
+  group('ThirdwebSelectors', () {
+    // cast sig 'createAccount(address,bytes)'
+    test('createAccount matches cast sig', () {
+      expect(ThirdwebSelectors.createAccount, equals('0xd8fd8f44'));
+    });
+
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (ThirdwebSelectors.execute, executeSignature),
+        (
+          ThirdwebSelectors.executeBatch,
+          ExecuteBatchAbi.addressesValuesAndBytes.signature
+        ),
+        (ThirdwebSelectors.createAccount, thirdwebCreateAccountSignature),
+        // No encoder sends getAddress (cast sig: 0x8878ed33).
+        (ThirdwebSelectors.getAddress, 'getAddress(address,bytes)'),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 }

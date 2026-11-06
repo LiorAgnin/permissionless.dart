@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:permissionless/permissionless.dart' show Hex;
 import 'package:web3_signers/web3_signers.dart';
 
 /// Wrapper for WebAuthn/Passkey credentials used with smart accounts.
@@ -10,8 +11,12 @@ import 'package:web3_signers/web3_signers.dart';
 ///
 /// Example:
 /// ```dart
-/// // From newly registered passkey
-/// final key = await signer.register('user@example.com', 'User');
+/// // From a newly registered passkey (web3_signers)
+/// final key = await generatePassKey(
+///   config: PassKeyConfig(rpId: 'myapp.com', rpName: 'My App'),
+///   username: 'user@example.com',
+///   displayname: 'User',
+/// );
 /// final credential = WebAuthnCredential.fromPublicKey(key);
 ///
 /// // Access public key coordinates for validator init
@@ -33,9 +38,8 @@ class WebAuthnCredential {
   /// Extracts the credential ID and P256 public key coordinates.
   factory WebAuthnCredential.fromPublicKey(PassKeyPublicKey key) {
     final rawId = Uint8List.fromList(key.credentialId);
-    final id = base64Url.encode(rawId).replaceAll('=', '');
     return WebAuthnCredential(
-      id: id,
+      id: _base64UrlNoPadding(rawId),
       rawId: rawId,
       x: key.x.value,
       y: key.y.value,
@@ -60,18 +64,12 @@ class WebAuthnCredential {
       x: Uint256.fromHex(rawData['x'] as String),
       y: Uint256.fromHex(rawData['y'] as String),
       credentialId: base64Url.decode(
-        _padBase64(rawData['credentialId'] as String),
+        base64Url.normalize(rawData['credentialId'] as String),
       ),
       userName: rawData['userName'] as String? ?? '',
       aaGuid: rawData['aaGuid'] as String? ?? '',
     );
     return WebAuthnCredential.fromPublicKey(key);
-  }
-
-  /// Pads a Base64 string to be a multiple of 4.
-  static String _padBase64(String b64) {
-    final padding = 4 - b64.length % 4;
-    return padding < 4 ? '$b64${"=" * padding}' : b64;
   }
 
   /// Base64-encoded credential ID.
@@ -101,12 +99,9 @@ class WebAuthnCredential {
 
   /// Hex-encoded public key (x || y, 64 bytes).
   ///
-  /// Format used by some on-chain verifiers.
-  String get publicKeyHex {
-    final xBytes = _bigIntToBytes32(x);
-    final yBytes = _bigIntToBytes32(y);
-    return '0x${_bytesToHex(xBytes)}${_bytesToHex(yBytes)}';
-  }
+  /// Format used by some on-chain verifiers. Throws an [ArgumentError] if a
+  /// coordinate does not fit in 32 bytes.
+  String get publicKeyHex => Hex.concat([_uint256Hex(x), _uint256Hex(y)]);
 
   /// Serializes the credential to JSON.
   ///
@@ -114,44 +109,18 @@ class WebAuthnCredential {
   String toJson() {
     return jsonEncode({
       'raw': {
-        'x': '0x${x.toRadixString(16).padLeft(64, '0')}',
-        'y': '0x${y.toRadixString(16).padLeft(64, '0')}',
-        'credentialId': base64Url.encode(rawId).replaceAll('=', ''),
+        'x': _uint256Hex(x),
+        'y': _uint256Hex(y),
+        'credentialId': _base64UrlNoPadding(rawId),
         'userName': raw.userName,
         'aaGuid': raw.aaGuid,
       },
     });
   }
 
-  /// Converts a [BigInt] to a 32-byte array (left-padded).
-  static Uint8List _bigIntToBytes32(BigInt value) {
-    final bytes = _bigIntToBytes(value);
-    if (bytes.length >= 32) {
-      return Uint8List.fromList(bytes.sublist(bytes.length - 32));
-    }
-    final padded = Uint8List(32);
-    padded.setRange(32 - bytes.length, 32, bytes);
-    return padded;
-  }
+  static String _uint256Hex(BigInt value) =>
+      Hex.fromBigInt(value, byteLength: 32);
 
-  /// Converts a [BigInt] to bytes (big-endian).
-  static Uint8List _bigIntToBytes(BigInt value) {
-    if (value == BigInt.zero) {
-      return Uint8List.fromList([0]);
-    }
-    var hex = value.toRadixString(16);
-    if (hex.length.isOdd) {
-      hex = '0$hex';
-    }
-    final result = Uint8List(hex.length ~/ 2);
-    for (var i = 0; i < result.length; i++) {
-      result[i] = int.parse(hex.substring(i * 2, i * 2 + 2), radix: 16);
-    }
-    return result;
-  }
-
-  /// Converts bytes to hex string (without 0x prefix).
-  static String _bytesToHex(Uint8List bytes) {
-    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  }
+  static String _base64UrlNoPadding(List<int> bytes) =>
+      base64Url.encode(bytes).replaceAll('=', '');
 }

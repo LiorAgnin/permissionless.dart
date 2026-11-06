@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../../types/hex.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Client for a permissionless-compatible passkey server (`pks_*` RPC).
@@ -371,11 +371,11 @@ PasskeyServerClient createPasskeyServerClient({
   Duration? timeout,
 }) =>
     PasskeyServerClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
     );
 

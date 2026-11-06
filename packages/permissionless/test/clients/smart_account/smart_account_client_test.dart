@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -56,6 +57,16 @@ void main() {
                   'actualGasCost': '0x1234',
                   'actualGasUsed': '0x5678',
                   'logs': <dynamic>[],
+                  'receipt': {
+                    'transactionHash': '0x${'cd' * 32}',
+                    'blockHash': '0x${'ef' * 32}',
+                    'blockNumber': '0x1',
+                    'from': '0x1234567890123456789012345678901234567890',
+                    'cumulativeGasUsed': '0x5678',
+                    'gasUsed': '0x5678',
+                    'status': '0x1',
+                    'logs': <dynamic>[],
+                  },
                 },
               _ => null,
             };
@@ -175,9 +186,8 @@ void main() {
         );
 
         final address = await client.getAddress();
-        final accountAddress = await account.getAddress();
 
-        expect(address.hex, equals(accountAddress.hex));
+        expect(address, equals(mockAddress));
       });
     });
 
@@ -213,16 +223,63 @@ void main() {
         expect(userOp.verificationGasLimit, equals(BigInt.from(110000)));
         expect(userOp.callGasLimit, equals(BigInt.from(110000)));
 
-        // Check factory data included
-        expect(userOp.factory, isNotNull);
-        expect(userOp.factoryData, isNotNull);
-
-        // Check bundler was called
-        expect(bundlerRequests.length, equals(1));
+        // Undeployed Safe 1.4.1: SafeProxyFactory.createProxyWithNonce
+        // (permissionless.js safe constants; `cast sig
+        // "createProxyWithNonce(address,bytes,uint256)"` = 0x1688f0b9).
         expect(
-          bundlerRequests[0]['method'],
-          equals('eth_estimateUserOperationGas'),
+          userOp.factory,
+          equals(
+            EthereumAddress.fromHex(
+              '0x4e1DCf7AD4e460CfD30791CCC4F9c8a4f820ec67',
+            ),
+          ),
         );
+        expect(userOp.factoryData, startsWith('0x1688f0b9'));
+
+        // The estimate went to the bundler for this sender and EntryPoint.
+        final estimate = bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_estimateUserOperationGas',
+        );
+        final params = estimate['params'] as List<dynamic>;
+        expect(
+          (params[0] as Map<String, dynamic>)['sender'],
+          equals(mockAddress.hex),
+        );
+        expect(params[1], equals(EntryPointAddresses.v07.hex));
+      });
+
+      // WebAuthn accounts get the same 1.1x buffer as every other account,
+      // as in permissionless.js: no fixed verification-gas floor. The stub
+      // signature (in-range r/s) makes the bundler price the real P-256
+      // verifier; on a no-precompile anvil rig Alto then estimated 573k for
+      // an op that used ~455k.
+      test('does not raise a WebAuthn account estimate to a 900k floor',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+        final client = SmartAccountClient(
+          account: createKernelSmartAccount(
+            owner: _StubWebAuthnOwner(),
+            chainId: BigInt.from(1),
+            version: KernelVersion.v0_3_1,
+            address: mockAddress,
+          ),
+          bundler: bundler,
+          publicClient: createPublicClientMock(),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          callData: '0x',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        // Estimate 0x186a0 = 100000, buffered 1.1x.
+        expect(userOp.verificationGasLimit, equals(BigInt.from(110000)));
+        expect(userOp.callGasLimit, equals(BigInt.from(110000)));
       });
 
       test('applies paymaster stub and final data when paymaster provided',
@@ -323,6 +380,64 @@ void main() {
           equals('pm_getPaymasterStubData'),
         );
         expect(userOp.paymasterData, equals('0x1234567890abcdef'));
+      });
+
+      // viem prepareUserOperation: `paymasterPostOpGasLimit:
+      // request.paymasterPostOpGasLimit ?? gas.paymasterPostOpGasLimit`.
+      // A final stub's gas fields are part of what the paymaster signed, so
+      // they must reach the op unchanged, including a 0 postOp limit.
+      test('keeps the paymaster gas limits of a final stub, including 0',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(
+            responseFactory: (body) => {
+              'preVerificationGas': '0x5208',
+              'verificationGasLimit': '0x186a0',
+              'callGasLimit': '0x186a0',
+              'paymasterVerificationGasLimit': '0x9c40',
+              'paymasterPostOpGasLimit': '0x4e20',
+            },
+          ),
+        );
+        final paymaster = createPaymasterClient(
+          url: 'http://localhost:3001/rpc',
+          httpClient: createPaymasterMock(
+            responseFactory: (body) => {
+              'paymaster': '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+              'paymasterData': '0x1234567890abcdef',
+              'paymasterVerificationGasLimit': '0x7530',
+              'paymasterPostOpGasLimit': '0x0',
+              'isFinal': true,
+            },
+          ),
+        );
+        final client = SmartAccountClient(
+          account: account,
+          bundler: bundler,
+          paymaster: paymaster,
+          publicClient: createPublicClientMock(),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          calls: [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x1234567890123456789012345678901234567890',
+              ),
+              value: BigInt.zero,
+            ),
+          ],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(
+          userOp.paymasterVerificationGasLimit,
+          equals(BigInt.from(30000)),
+        );
+        expect(userOp.paymasterPostOpGasLimit, equals(BigInt.zero));
       });
 
       test('excludes factory data when account is deployed', () async {
@@ -602,7 +717,8 @@ void main() {
 
         // Stub paymaster data retained; gas still estimated.
         expect(prepared.userOp.paymasterData, equals('0xabcdef0123456789'));
-        expect(prepared.userOp.callGasLimit, greaterThan(BigInt.zero));
+        // 0x186a0 (100000) estimate x 1.1 default multiplier.
+        expect(prepared.userOp.callGasLimit, equals(BigInt.from(110000)));
       });
     });
 
@@ -635,10 +751,13 @@ void main() {
         );
       }
 
-      SmartAccountClient create7702Client({PaymasterClient? paymaster}) {
+      SmartAccountClient create7702Client({
+        PaymasterClient? paymaster,
+        EthereumAddress? bundlerEntryPoint,
+      }) {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
-          entryPoint: EntryPointAddresses.v08,
+          entryPoint: bundlerEntryPoint ?? EntryPointAddresses.v08,
           httpClient: createBundlerMock(),
         );
         final publicClient = create7702PublicClientMock();
@@ -695,6 +814,76 @@ void main() {
         }
       });
 
+      // viem's bundler actions take `account.entryPoint.address`; the nonce,
+      // paymaster requests and signature already use the account's
+      // EntryPoint, so estimate and send must target it too.
+      test('estimate and send target the account EntryPoint, not the bundler',
+          () async {
+        final client = create7702Client(
+          bundlerEntryPoint: EntryPointAddresses.v07,
+        );
+        expect(client.account.entryPoint, equals(EntryPointAddresses.v08));
+
+        await client.sendUserOperation(
+          calls: [call],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        for (final method in [
+          'eth_estimateUserOperationGas',
+          'eth_sendUserOperation',
+        ]) {
+          final request = bundlerRequests.singleWhere(
+            (r) => r['method'] == method,
+          );
+          final params = request['params'] as List<dynamic>;
+          expect(
+            params[1],
+            equals(EntryPointAddresses.v08.hex),
+            reason: method,
+          );
+          expect(
+            (params[0] as Map<String, dynamic>).containsKey('eip7702Auth'),
+            isTrue,
+            reason: method,
+          );
+        }
+      });
+
+      // The 0x7702 initCode marker is an EntryPoint v0.8 feature. On v0.7 the
+      // EntryPoint sees non-empty initCode for an EOA that the authorization
+      // already gave code to and reverts AA10 "sender already constructed";
+      // permissionless.js's 7702 Kernel (v0.7) returns no factory, so the
+      // authorization travels alone.
+      test('a first 7702 op on EntryPoint v0.7 carries no factory marker',
+          () async {
+        final publicClient = create7702PublicClientMock();
+        final client = SmartAccountClient(
+          account: createEip7702KernelSmartAccount(
+            owner: PrivateKeyEip7702KernelOwner(testPrivateKey),
+            chainId: BigInt.from(11155111),
+            publicClient: publicClient,
+          ),
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          ),
+          publicClient: publicClient,
+        );
+
+        final prepared = await client.prepareUserOperationWithAuth(
+          calls: [call],
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(prepared.needsAuthorization, isTrue);
+        expect(prepared.userOp.factory, isNull);
+        expect(prepared.userOp.factoryData, isNull);
+      });
+
       test('non-7702 paymaster requests carry NO eip7702Auth', () async {
         final paymaster = createPaymasterClient(
           url: 'http://localhost:3001/rpc',
@@ -728,37 +917,50 @@ void main() {
     });
 
     group('signUserOperation', () {
-      test('signs userOp and returns with signature', () async {
-        final bundler = createBundlerClient(
-          url: 'http://localhost:3000/rpc',
-          entryPoint: EntryPointAddresses.v07,
-          httpClient: createBundlerMock(),
+      test('signs the userOpHash for the account chain and EntryPoint',
+          () async {
+        final simpleAccount = createSimpleSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.from(11155111),
+          address: mockAddress,
         );
-
         final client = SmartAccountClient(
-          account: account,
-          bundler: bundler,
+          account: simpleAccount,
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          ),
           publicClient: createPublicClientMock(),
         );
 
-        final preparedUserOp = await client.prepareUserOperation(
-          calls: [
-            Call(
-              to: EthereumAddress.fromHex(
-                '0x1234567890123456789012345678901234567890',
-              ),
-              value: BigInt.zero,
-            ),
-          ],
-          maxFeePerGas: BigInt.from(1000000000),
-          maxPriorityFeePerGas: BigInt.from(1000000000),
+        final signed = await client.signUserOperation(
+          UserOperationV07(
+            sender: mockAddress,
+            nonce: BigInt.from(5),
+            callData: '0xdeadbeef',
+            callGasLimit: BigInt.from(100000),
+            verificationGasLimit: BigInt.from(200000),
+            preVerificationGas: BigInt.from(50000),
+            maxFeePerGas: BigInt.from(3000000000),
+            maxPriorityFeePerGas: BigInt.from(1000000000),
+          ),
         );
 
-        final signedUserOp = await client.signUserOperation(preparedUserOp);
-
-        // Signature should be different from stub
-        expect(signedUserOp.signature, isNot(equals(preparedUserOp.signature)));
-        expect(signedUserOp.signature.length, greaterThan(10));
+        // viem 2.21.55 getUserOperationHash({ userOperation: <the op above>,
+        //   entryPointAddress: v0.7, entryPointVersion: '0.7',
+        //   chainId: 11155111 })
+        //   = 0xda7036ab884cec44635d3ab30e58eba02b40c8e3d69f17daf61ed3a4143fb0a8
+        // cast wallet sign --private-key <testPrivateKey> <that hash>
+        //   (EIP-191 over the raw 32 bytes, as SimpleAccount verifies)
+        expect(
+          signed.signature,
+          equals(
+            '0x8b98265ff94361c314b28eb0fb7d707281b774dbbe30478759184187e76aa7aa'
+            '52bb91bd3dd1518b83594a967ebcb16f5f1ac52ba8ebee1c2773fef811c2bec5'
+            '1b',
+          ),
+        );
       });
     });
 
@@ -829,13 +1031,30 @@ void main() {
 
         expect(hash, equals('0xabcdef1234567890'));
 
-        // Should have called estimate and send
-        expect(bundlerRequests.length, equals(2));
-        expect(
-          bundlerRequests[0]['method'],
-          equals('eth_estimateUserOperationGas'),
+        final send = bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_sendUserOperation',
         );
-        expect(bundlerRequests[1]['method'], equals('eth_sendUserOperation'));
+        final params = send['params'] as List<dynamic>;
+        final sentOp = params[0] as Map<String, dynamic>;
+        expect(params[1], equals(EntryPointAddresses.v07.hex));
+        expect(sentOp['sender'], equals(mockAddress.hex));
+        // cast calldata \
+        //   "executeUserOpWithErrorString(address,uint256,bytes,uint8)" \
+        //   0x1234567890123456789012345678901234567890 1000000000000000000 0x 0
+        expect(
+          sentOp['callData'],
+          equals(
+            '0x541d63c8'
+            '0000000000000000000000001234567890123456789012345678901234567890'
+            '0000000000000000000000000000000000000000000000000de0b6b3a7640000'
+            '0000000000000000000000000000000000000000000000000000000000000080'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000000',
+          ),
+        );
+        // Estimated gas (0x186a0 x 1.1 = 110000 = 0x1adb0) reached the send.
+        expect(sentOp['callGasLimit'], equals('0x1adb0'));
+        expect(sentOp['verificationGasLimit'], equals('0x1adb0'));
       });
 
       test('includes paymaster context when provided', () async {
@@ -878,6 +1097,51 @@ void main() {
       });
     });
 
+    group('sendUserOperationAndWait', () {
+      test('forwards gas limits, signature and factory to the send', () async {
+        final client = SmartAccountClient(
+          account: account,
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v07,
+            httpClient: createBundlerMock(),
+          ),
+          publicClient: createPublicClientMock(),
+        );
+        final factory = EthereumAddress.fromHex(
+          '0x3333333333333333333333333333333333333333',
+        );
+
+        final receipt = await client.sendUserOperationAndWait(
+          callData: '0xdeadbeef',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(0x1111),
+          verificationGasLimit: BigInt.from(0x2222),
+          preVerificationGas: BigInt.from(0x3333),
+          signature: '0xabcd',
+          factory: factory,
+          factoryData: '0xf00d',
+          pollingInterval: Duration.zero,
+        );
+
+        expect(receipt.success, isTrue);
+        expect(
+          bundlerRequests.map((r) => r['method']),
+          isNot(contains('eth_estimateUserOperationGas')),
+        );
+        final sentOp = (bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_sendUserOperation',
+        )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+        expect(sentOp['callGasLimit'], equals('0x1111'));
+        expect(sentOp['verificationGasLimit'], equals('0x2222'));
+        expect(sentOp['preVerificationGas'], equals('0x3333'));
+        expect(sentOp['signature'], equals('0xabcd'));
+        expect(sentOp['factory'], equals(factory.hex));
+        expect(sentOp['factoryData'], equals('0xf00d'));
+      });
+    });
+
     group('waitForReceipt', () {
       test('returns receipt when found', () async {
         final bundler = createBundlerClient(
@@ -902,46 +1166,790 @@ void main() {
       });
     });
 
-    group('createSmartAccountClient', () {
-      test('creates client with factory function', () {
+    group('writeContract', () {
+      test('appends dataSuffix to the encoded call inside the sent callData',
+          () async {
         final bundler = createBundlerClient(
           url: 'http://localhost:3000/rpc',
           entryPoint: EntryPointAddresses.v07,
           httpClient: createBundlerMock(),
         );
-
-        final client = createSmartAccountClient(
+        final client = SmartAccountClient(
           account: account,
           bundler: bundler,
           publicClient: createPublicClientMock(),
         );
 
-        expect(client, isA<SmartAccountClient>());
-        expect(client.account, equals(account));
-        expect(client.bundler, equals(bundler));
-        expect(client.paymaster, isNull);
+        final txHash = await client.writeContract(
+          address: EthereumAddress.fromHex(
+            '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+          ),
+          functionSignature: 'transfer(address,uint256)',
+          args: [
+            EthereumAddress.fromHex(
+              '0x70997970C51812dc3A010C7d01b75Ec5Bb3E7DcF',
+            ),
+            BigInt.from(1000000),
+          ],
+          dataSuffix: '0xdeadbeefcafe',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          timeout: const Duration(seconds: 5),
+        );
+
+        expect(txHash, equals('0x${'cd' * 32}'));
+        final sentOp = (bundlerRequests.singleWhere(
+          (r) => r['method'] == 'eth_sendUserOperation',
+        )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+        // inner = `cast calldata "transfer(address,uint256)"
+        //   0x70997970C51812dc3A010C7d01b75Ec5Bb3E7DcF 1000000` ++ deadbeefcafe
+        // cast calldata \
+        //   "executeUserOpWithErrorString(address,uint256,bytes,uint8)" \
+        //   0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 0 <inner> 0
+        expect(
+          sentOp['callData'],
+          equals(
+            '0x541d63c8'
+            '0000000000000000000000001c7d4b196cb0c7b01d743fbc6116a902379c7238'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000080'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '000000000000000000000000000000000000000000000000000000000000004a'
+            'a9059cbb'
+            '00000000000000000000000070997970c51812dc3a010c7d01b75ec5bb3e7dcf'
+            '00000000000000000000000000000000000000000000000000000000000f4240'
+            'deadbeefcafe'
+            '00000000000000000000000000000000000000000000',
+          ),
+        );
       });
     });
   });
 
-  group('SmartAccount interface', () {
-    test('SafeSmartAccount implements SmartAccount', () {
-      const testPrivateKey =
-          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
-      final mockAddress =
-          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
-
-      final account = createSafeSmartAccount(
-        owners: [PrivateKeyOwner(testPrivateKey)],
+  group('signUserOperationV06', () {
+    test('signs with a Kernel v0.2.x account', () async {
+      final unusedRpc = MockClient(
+        (request) async => throw StateError('no RPC expected'),
+      );
+      final account = createKernelSmartAccount(
+        owner: PrivateKeyOwner(
+          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+        ),
         chainId: BigInt.from(1),
-        address: mockAddress,
+        version: KernelVersion.v0_2_4,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: unusedRpc,
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: unusedRpc,
+          ),
+        ),
+      );
+      final signed = await client.signUserOperationV06(
+        UserOperationV06(
+          sender: EthereumAddress.fromHex(
+            '0x1234567890123456789012345678901234567890',
+          ),
+          nonce: BigInt.zero,
+          initCode: '0x',
+          callData: '0xdeadbeef',
+          callGasLimit: BigInt.from(100000),
+          verificationGasLimit: BigInt.from(100000),
+          preVerificationGas: BigInt.from(50000),
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        ),
       );
 
-      // Verify it implements the interface
-      expect(account, isA<SmartAccount>());
-      expect(account.chainId, equals(BigInt.from(1)));
-      expect(account.entryPoint.hex, equals(EntryPointAddresses.v07.hex));
-      expect(account.nonceKey, equals(BigInt.zero));
+      // viem 2.21.55 getUserOperationHash({ userOperation: <the op above,
+      //   paymasterAndData 0x>, entryPointAddress: v0.6,
+      //   entryPointVersion: '0.6', chainId: 1 })
+      //   = 0x7cdf1cf2c5ed808db37c34a7a47a8cedfa353613961f581b1f546c618574ccc2
+      // Kernel v2 ROOT mode prefix 0x00000000 (permissionless.js
+      // toKernelSmartAccount 0.2.x) ++
+      // cast wallet sign --private-key <key> <that hash>
+      expect(
+        signed.signature,
+        equals(
+          '0x00000000'
+          'e6a78f9d12048e904f6880eeaea8fae2bfee7217a12a6a0f7e3b0a2cb2b15c04'
+          '2cc08d258e89d6255dcdffc2e92720cb9813928c26b8d0413a046175e3a20ed4'
+          '1b',
+        ),
+      );
     });
   });
+
+  group('prepareUserOperationV06', () {
+    test('reads the nonce from the v0.6 EntryPoint when none is given',
+        () async {
+      final ethCalls = <Map<String, dynamic>>[];
+      final publicClient = PublicClient(
+        rpcClient: JsonRpcClient(
+          url: Uri.parse('http://localhost:8545'),
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final result = switch (body['method'] as String) {
+              'eth_getCode' => '0x6080604052',
+              'eth_call' => () {
+                  ethCalls.add(
+                    (body['params'] as List).first as Map<String, dynamic>,
+                  );
+                  return '0x${'0' * 63}7';
+                }(),
+              'eth_gasPrice' => '0x3b9aca00',
+              'eth_maxPriorityFeePerGas' => '0x5f5e100',
+              _ => null,
+            };
+            return http.Response(
+              jsonEncode(
+                {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+              ),
+              200,
+            );
+          }),
+        ),
+      );
+      final account = createSimpleSmartAccount(
+        owner: PrivateKeyOwner(
+          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+        ),
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': {
+                  'preVerificationGas': '0x5208',
+                  'verificationGasLimit': '0x186a0',
+                  'callGasLimit': '0x186a0',
+                },
+              }),
+              200,
+            );
+          }),
+        ),
+        publicClient: publicClient,
+      );
+
+      final userOp = await client.prepareUserOperationV06(
+        calls: [
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
+            value: BigInt.one,
+          ),
+        ],
+      );
+
+      expect(userOp.nonce, BigInt.from(7));
+      expect(
+        ethCalls.single['to'].toString().toLowerCase(),
+        EntryPointAddresses.v06.hex,
+      );
+    });
+
+    test('a deploying op uses encodeCallsForDeployment like v0.7', () async {
+      MockClient rpc(Object? Function(String method) result) =>
+          MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': result(body['method'] as String),
+              }),
+              200,
+            );
+          });
+      final account = createSafeSmartAccount(
+        owners: [
+          PrivateKeyOwner(
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+          ),
+        ],
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: rpc(
+            (_) => {
+              'preVerificationGas': '0x5208',
+              'verificationGasLimit': '0x186a0',
+              'callGasLimit': '0x186a0',
+            },
+          ),
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_getCode' => '0x',
+                'eth_call' => '0x${'0' * 64}',
+                _ => null,
+              },
+            ),
+          ),
+        ),
+      );
+      final calls = [
+        Call(
+          to: EthereumAddress.fromHex(
+            '0x2222222222222222222222222222222222222222',
+          ),
+          value: BigInt.one,
+        ),
+      ];
+
+      final userOp = await client.prepareUserOperationV06(
+        calls: calls,
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+      );
+
+      expect(userOp.initCode, isNot('0x'));
+      expect(
+        account.encodeCallsForDeployment(calls),
+        isNot(account.encodeCalls(calls)),
+      );
+      expect(userOp.callData, account.encodeCallsForDeployment(calls));
+    });
+
+    // viem prepareUserOperation runs the ERC-7677 flow for every EntryPoint
+    // version (stub → estimate → final data) and fills `paymasterAndData` on
+    // 0.6; permissionless.js keeps pm_sponsorUserOperation as an explicit
+    // Pimlico action only.
+    group('with a paymaster (ERC-7677)', () {
+      // cast concat-hex 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0xabcdef0123456789
+      const stubPaymasterAndData =
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabcdef0123456789';
+      // cast concat-hex 0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0xfedcba9876543210
+      const finalPaymasterAndData =
+          '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafedcba9876543210';
+      final calls = [
+        Call(
+          to: EthereumAddress.fromHex(
+            '0x2222222222222222222222222222222222222222',
+          ),
+          value: BigInt.one,
+        ),
+      ];
+
+      // Bundler and paymaster requests, in the order they were sent.
+      late List<Map<String, dynamic>> rpcLog;
+      List<String> methods() => [for (final r in rpcLog) r['method'] as String];
+      Map<String, dynamic> sent(String method) =>
+          (rpcLog.singleWhere((r) => r['method'] == method)['params']
+              as List<dynamic>)[0] as Map<String, dynamic>;
+
+      SmartAccountClient v06Client({bool stubIsFinal = false}) {
+        rpcLog = [];
+        MockClient rpc(
+          Object? Function(String method) result, {
+          bool log = true,
+        }) =>
+            MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              if (log) rpcLog.add(body);
+              final value = result(body['method'] as String);
+              return http.Response(
+                jsonEncode({
+                  'jsonrpc': '2.0',
+                  'id': body['id'],
+                  if (value == null)
+                    'error': {'code': -32601, 'message': 'Method not found'}
+                  else
+                    'result': value,
+                }),
+                200,
+              );
+            });
+
+        return SmartAccountClient(
+          account: createSimpleSmartAccount(
+            owner: PrivateKeyOwner(
+              '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+            ),
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v06,
+            address: EthereumAddress.fromHex(
+              '0x1234567890123456789012345678901234567890',
+            ),
+          ),
+          bundler: createBundlerClient(
+            url: 'http://localhost:3000/rpc',
+            entryPoint: EntryPointAddresses.v06,
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_estimateUserOperationGas' => {
+                    'preVerificationGas': '0x5208',
+                    'verificationGasLimit': '0x186a0',
+                    'callGasLimit': '0x186a0',
+                  },
+                _ => null,
+              },
+            ),
+          ),
+          // A generic ERC-7677 paymaster: no pm_sponsorUserOperation.
+          paymaster: createPaymasterClient(
+            url: 'http://localhost:3001/rpc',
+            httpClient: rpc(
+              (method) => switch (method) {
+                'pm_getPaymasterStubData' => {
+                    'sponsor': {'name': 'Test'},
+                    'paymasterAndData': stubPaymasterAndData,
+                    'isFinal': stubIsFinal,
+                  },
+                'pm_getPaymasterData' => {
+                    'paymasterAndData': finalPaymasterAndData,
+                  },
+                _ => null,
+              },
+            ),
+          ),
+          publicClient: PublicClient(
+            rpcClient: JsonRpcClient(
+              url: Uri.parse('http://localhost:8545'),
+              httpClient: rpc(
+                log: false,
+                (method) => switch (method) {
+                  'eth_getCode' => '0x6080604052',
+                  'eth_call' => '0x${'0' * 64}',
+                  _ => null,
+                },
+              ),
+            ),
+          ),
+        );
+      }
+
+      test('stub → bundler estimate → final paymasterAndData', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          paymasterContext:
+              const PaymasterContext(sponsorshipPolicyId: 'sp_test'),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+          'pm_getPaymasterData',
+        ]);
+        final stubParams = rpcLog[0]['params'] as List<dynamic>;
+        expect(stubParams[0], containsPair('paymasterAndData', '0x'));
+        expect(stubParams[0], containsPair('initCode', '0x'));
+        expect(stubParams.sublist(1), [
+          EntryPointAddresses.v06.hex,
+          '0x1',
+          {'sponsorshipPolicyId': 'sp_test'},
+        ]);
+        // The bundler estimates with the stub data in place.
+        expect(
+          sent('eth_estimateUserOperationGas'),
+          containsPair('paymasterAndData', stubPaymasterAndData),
+        );
+        // Final data is requested over the estimated (1.1× buffered) op:
+        // 0x1adb0 = 110000 = 100000 × 1.1.
+        final finalRequest = sent('pm_getPaymasterData');
+        expect(finalRequest, containsPair('callGasLimit', '0x1adb0'));
+        expect(finalRequest, containsPair('verificationGasLimit', '0x1adb0'));
+        expect(finalRequest, containsPair('preVerificationGas', '0x5208'));
+        expect(
+          finalRequest,
+          containsPair('paymasterAndData', stubPaymasterAndData),
+        );
+
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+        expect(userOp.callGasLimit, BigInt.from(110000));
+        expect(userOp.verificationGasLimit, BigInt.from(110000));
+        expect(userOp.preVerificationGas, BigInt.from(21000));
+      });
+
+      test('a final stub skips pm_getPaymasterData', () async {
+        final client = v06Client(stubIsFinal: true);
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+        ]);
+        expect(userOp.paymasterAndData, stubPaymasterAndData);
+        expect(userOp.callGasLimit, BigInt.from(110000));
+      });
+
+      test('a user-supplied gas field survives the estimate', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(500000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+          'pm_getPaymasterData',
+        ]);
+        expect(userOp.callGasLimit, BigInt.from(500000));
+        expect(userOp.verificationGasLimit, BigInt.from(110000));
+        expect(userOp.preVerificationGas, BigInt.from(21000));
+        // 500000 = 0x7a120
+        expect(
+          sent('pm_getPaymasterData'),
+          containsPair('callGasLimit', '0x7a120'),
+        );
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+      });
+
+      test('all gas fields supplied: no estimate, values kept', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          callGasLimit: BigInt.from(500000),
+          verificationGasLimit: BigInt.from(400000),
+          preVerificationGas: BigInt.from(60000),
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'pm_getPaymasterData',
+        ]);
+        expect(userOp.callGasLimit, BigInt.from(500000));
+        expect(userOp.verificationGasLimit, BigInt.from(400000));
+        expect(userOp.preVerificationGas, BigInt.from(60000));
+        expect(userOp.paymasterAndData, finalPaymasterAndData);
+      });
+
+      test('skipFinalPaymasterData keeps the stub, like v0.7', () async {
+        final client = v06Client();
+
+        final userOp = await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          skipFinalPaymasterData: true,
+        );
+
+        expect(methods(), [
+          'pm_getPaymasterStubData',
+          'eth_estimateUserOperationGas',
+        ]);
+        expect(userOp.paymasterAndData, stubPaymasterAndData);
+      });
+
+      test('stateOverride reaches the bundler estimate, like v0.7', () async {
+        final client = v06Client();
+
+        await client.prepareUserOperationV06(
+          calls: calls,
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+          stateOverride: [
+            StateOverride(
+              address: EthereumAddress.fromHex(
+                '0x3333333333333333333333333333333333333333',
+              ),
+              balance: BigInt.from(100),
+            ),
+          ],
+        );
+
+        final params = rpcLog.singleWhere(
+          (r) => r['method'] == 'eth_estimateUserOperationGas',
+        )['params'] as List<dynamic>;
+        // eth_estimateUserOperationGas [userOp, entryPoint, stateOverride];
+        // 100 = 0x64.
+        expect(params, hasLength(3));
+        expect(params[2], {
+          '0x3333333333333333333333333333333333333333': {'balance': '0x64'},
+        });
+      });
+    });
+  });
+
+  group('sendUserOperationV06AndWait', () {
+    test('forwards a caller signature and stateOverride', () async {
+      final bundlerRequests = <Map<String, dynamic>>[];
+      MockClient rpc(Object? Function(String method) result) =>
+          MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bundlerRequests.add(body);
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': result(body['method'] as String),
+              }),
+              200,
+            );
+          });
+      final sender =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      final client = SmartAccountClient(
+        account: createSimpleSmartAccount(
+          owner: PrivateKeyOwner(
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+          ),
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: sender,
+        ),
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: rpc(
+            (method) => switch (method) {
+              'eth_estimateUserOperationGas' => {
+                  'preVerificationGas': '0x5208',
+                  'verificationGasLimit': '0x186a0',
+                  'callGasLimit': '0x186a0',
+                },
+              'eth_sendUserOperation' => '0x${'ab' * 32}',
+              'eth_getUserOperationReceipt' => {
+                  'userOpHash': '0x${'ab' * 32}',
+                  'sender': sender.hex,
+                  'nonce': '0x0',
+                  'success': true,
+                  'actualGasCost': '0x1',
+                  'actualGasUsed': '0x1',
+                  'logs': <dynamic>[],
+                  'receipt': {
+                    'transactionHash': '0x${'cd' * 32}',
+                    'blockHash': '0x${'ef' * 32}',
+                    'blockNumber': '0x1',
+                    'from': sender.hex,
+                    'cumulativeGasUsed': '0x1',
+                    'gasUsed': '0x1',
+                    'status': '0x1',
+                    'logs': <dynamic>[],
+                  },
+                },
+              _ => null,
+            },
+          ),
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: MockClient((request) async {
+              final body = jsonDecode(request.body) as Map<String, dynamic>;
+              final result = switch (body['method'] as String) {
+                'eth_getCode' => '0x6080604052',
+                'eth_call' => '0x${'0' * 64}',
+                _ => null,
+              };
+              return http.Response(
+                jsonEncode(
+                  {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+                ),
+                200,
+              );
+            }),
+          ),
+        ),
+      );
+
+      await client.sendUserOperationV06AndWait(
+        callData: '0xdeadbeef',
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        signature: '0xabcd',
+        pollingInterval: Duration.zero,
+      );
+
+      final sentOp = (bundlerRequests.singleWhere(
+        (r) => r['method'] == 'eth_sendUserOperation',
+      )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+      expect(sentOp['signature'], equals('0xabcd'));
+
+      bundlerRequests.clear();
+      await client.sendUserOperationV06AndWait(
+        callData: '0xdeadbeef',
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        signature: '0xabcd',
+        pollingInterval: Duration.zero,
+        stateOverride: [
+          StateOverride(
+            address: EthereumAddress.fromHex(
+              '0x3333333333333333333333333333333333333333',
+            ),
+            balance: BigInt.from(100),
+          ),
+        ],
+      );
+
+      // eth_estimateUserOperationGas [userOp, entryPoint, stateOverride];
+      // 100 = 0x64.
+      final estimateParams = bundlerRequests.singleWhere(
+        (r) => r['method'] == 'eth_estimateUserOperationGas',
+      )['params'] as List<dynamic>;
+      expect(estimateParams[2], {
+        '0x3333333333333333333333333333333333333333': {'balance': '0x64'},
+      });
+    });
+
+    test('forwards gas limits and initCode to the send', () async {
+      final bundlerRequests = <Map<String, dynamic>>[];
+      final sender =
+          EthereumAddress.fromHex('0x1234567890123456789012345678901234567890');
+      MockClient rpc(Object? Function(String method) result) =>
+          MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': result(body['method'] as String),
+              }),
+              200,
+            );
+          });
+      final client = SmartAccountClient(
+        account: createSimpleSmartAccount(
+          owner: PrivateKeyOwner(
+            '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+          ),
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: sender,
+        ),
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            bundlerRequests.add(body);
+            final result = switch (body['method'] as String) {
+              'eth_sendUserOperation' => '0x${'ab' * 32}',
+              'eth_getUserOperationReceipt' => {
+                  'userOpHash': '0x${'ab' * 32}',
+                  'sender': sender.hex,
+                  'nonce': '0x0',
+                  'success': true,
+                  'actualGasCost': '0x1',
+                  'actualGasUsed': '0x1',
+                  'logs': <dynamic>[],
+                  'receipt': {
+                    'transactionHash': '0x${'cd' * 32}',
+                    'blockHash': '0x${'ef' * 32}',
+                    'blockNumber': '0x1',
+                    'from': sender.hex,
+                    'cumulativeGasUsed': '0x1',
+                    'gasUsed': '0x1',
+                    'status': '0x1',
+                    'logs': <dynamic>[],
+                  },
+                },
+              _ => null,
+            };
+            return http.Response(
+              jsonEncode(
+                {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+              ),
+              200,
+            );
+          }),
+        ),
+        publicClient: PublicClient(
+          rpcClient: JsonRpcClient(
+            url: Uri.parse('http://localhost:8545'),
+            httpClient: rpc(
+              (method) => switch (method) {
+                'eth_getCode' => '0x',
+                'eth_call' => '0x${'0' * 64}',
+                _ => null,
+              },
+            ),
+          ),
+        ),
+      );
+
+      await client.sendUserOperationV06AndWait(
+        callData: '0xdeadbeef',
+        maxFeePerGas: BigInt.from(1000000000),
+        maxPriorityFeePerGas: BigInt.from(1000000000),
+        callGasLimit: BigInt.from(0x1111),
+        verificationGasLimit: BigInt.from(0x2222),
+        preVerificationGas: BigInt.from(0x3333),
+        initCode: '0x${'99' * 20}f00d',
+        signature: '0xabcd',
+        pollingInterval: Duration.zero,
+      );
+
+      expect(
+        bundlerRequests.map((r) => r['method']),
+        isNot(contains('eth_estimateUserOperationGas')),
+      );
+      final sentOp = (bundlerRequests.singleWhere(
+        (r) => r['method'] == 'eth_sendUserOperation',
+      )['params'] as List<dynamic>)[0] as Map<String, dynamic>;
+      expect(sentOp['callGasLimit'], equals('0x1111'));
+      expect(sentOp['verificationGasLimit'], equals('0x2222'));
+      expect(sentOp['preVerificationGas'], equals('0x3333'));
+      expect(sentOp['initCode'], equals('0x${'99' * 20}f00d'));
+    });
+  });
+}
+
+/// A WebAuthn owner for paths that never sign (gas preparation only).
+class _StubWebAuthnOwner extends WebAuthnAccountOwner {
+  @override
+  BigInt get x => BigInt.one;
+
+  @override
+  BigInt get y => BigInt.two;
+
+  @override
+  Uint8List get credentialId => Uint8List.fromList([1, 2, 3]);
+
+  @override
+  Future<P256SignatureData> signP256(String hash) =>
+      throw UnsupportedError('not signed in this test');
 }

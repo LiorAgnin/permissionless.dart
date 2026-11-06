@@ -4,7 +4,8 @@ import '../../types/address.dart';
 import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/user_operation.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
+import '../rpc/user_operation_request.dart';
 import 'types.dart';
 
 /// Client for interacting with ERC-4337 paymasters.
@@ -12,6 +13,9 @@ import 'types.dart';
 /// Paymasters are contracts that can sponsor gas fees for users,
 /// enabling "gasless" transactions. This client supports the
 /// standard paymaster API methods.
+///
+/// RPC failures are thrown as `BundlerRpcError` (see [JsonRpcClient]), not
+/// as the deprecated `PaymasterRpcError`.
 ///
 /// Example:
 /// ```dart
@@ -64,10 +68,9 @@ class PaymasterClient {
     PaymasterContext? context,
     Eip7702Authorization? authorization,
   }) async {
-    // viem always sends 4 positional params (context may be null) and ensures
-    // gas fields default to 0x0 when missing.
+    // viem always sends 4 positional params (context may be null).
     final params = <dynamic>[
-      _userOpJsonForPaymaster(userOp, authorization),
+      userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
       context?.toJson(),
@@ -91,10 +94,9 @@ class PaymasterClient {
     PaymasterContext? context,
     Eip7702Authorization? authorization,
   }) async {
-    // viem always sends 4 positional params (context may be null) and ensures
-    // gas fields default to 0x0 when missing.
+    // viem always sends 4 positional params (context may be null).
     final params = <dynamic>[
-      _userOpJsonForPaymaster(userOp, authorization),
+      userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,
       '0x${chainId.toRadixString(16)}',
       context?.toJson(),
@@ -104,37 +106,26 @@ class PaymasterClient {
     return PaymasterData.fromJson(result as Map<String, dynamic>);
   }
 
-  /// Builds paymaster request body matching viem's formatUserOperationRequest
-  /// defaults: gas fields fall back to `0x0` when absent.
-  ///
-  /// When [authorization] is provided (EIP-7702 first op), it is added as the
-  /// separate `eip7702Auth` field — matching viem, which forwards the
-  /// authorization to `pm_getPaymaster*` alongside the op fields.
-  Map<String, dynamic> _userOpJsonForPaymaster(
-    UserOperation userOp,
-    Eip7702Authorization? authorization,
-  ) {
-    final json = userOp.toJson();
-    if (authorization != null) {
-      json['eip7702Auth'] = authorization.toRpcFormat();
-    }
-    json['callGasLimit'] = json['callGasLimit'] ?? '0x0';
-    json['verificationGasLimit'] = json['verificationGasLimit'] ?? '0x0';
-    json['preVerificationGas'] = json['preVerificationGas'] ?? '0x0';
-    return json;
-  }
-
   /// Sponsors a UserOperation in a single call.
   ///
   /// Some paymasters offer a combined endpoint that returns both
   /// gas estimates and paymaster data. This is more efficient than
   /// separate calls to stub + estimate + data.
   ///
-  /// Not all paymasters support this method.
+  /// Not all paymasters support this method: `pm_sponsorUserOperation` is a
+  /// Pimlico extension, as in permissionless.js (an explicit Pimlico action).
+  /// `SmartAccountClient` does not call it; its prepare steps use the
+  /// ERC-7677 [getPaymasterStubData] / [getPaymasterData] on every
+  /// EntryPoint version.
+  ///
+  /// [chainId] is ignored: `pm_sponsorUserOperation` takes
+  /// `[userOperation, entryPoint, context?]` (permissionless.js
+  /// sponsorUserOperation).
   Future<SponsorUserOperationResult> sponsorUserOperation({
     required UserOperation userOp,
     required EthereumAddress entryPoint,
-    required BigInt chainId,
+    @Deprecated('Unused: pm_sponsorUserOperation takes no chain id')
+    BigInt? chainId,
     PaymasterContext? context,
   }) async {
     final params = <dynamic>[
@@ -166,11 +157,11 @@ PaymasterClient createPaymasterClient({
   Duration? timeout,
 }) =>
     PaymasterClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
     );
 
@@ -211,8 +202,9 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   ///
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
+  /// A v0.6 `pm_getPaymasterStubData` answer parsed by
+  /// [PaymasterStubData.fromJson] round-trips to the same bytes.
   UserOperationV06 withPaymasterStubV06(PaymasterStubData stub) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([stub.paymaster.hex, stub.paymasterData]);
     return copyWith(paymasterAndData: paymasterAndData);
@@ -222,8 +214,9 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
   ///
   /// For v0.6, paymaster data is combined into a single `paymasterAndData` field
   /// that concatenates the paymaster address (20 bytes) with the paymaster data.
+  /// A v0.6 `pm_getPaymasterData` answer parsed by [PaymasterData.fromJson]
+  /// round-trips to the same bytes.
   UserOperationV06 withPaymasterDataV06(PaymasterData data) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([data.paymaster.hex, data.paymasterData]);
     return copyWith(paymasterAndData: paymasterAndData);
@@ -231,10 +224,10 @@ extension PaymasterUserOperationV06Extension on UserOperationV06 {
 
   /// Applies sponsored UserOperation result.
   ///
-  /// For v0.6, this applies the paymaster data and gas estimates from
-  /// a sponsorUserOperation call.
+  /// For v0.6, this applies the paymaster data (as `paymasterAndData`, the
+  /// paymaster address followed by the paymaster data) and gas estimates
+  /// from a sponsorUserOperation call.
   UserOperationV06 withSponsorshipV06(SponsorUserOperationResult result) {
-    // v0.6 format: paymasterAndData = paymaster (20 bytes) + paymasterData
     final paymasterAndData =
         Hex.concat([result.paymaster.hex, result.paymasterData]);
     return copyWith(

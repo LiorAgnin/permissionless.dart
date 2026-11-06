@@ -5,7 +5,9 @@
 //
 // Expected variables:
 //   PIMLICO_API_KEY       — required for bundler / paymaster
-//   TEST_PRIVATE_KEY      — owner key (0x-prefixed or raw hex)
+//   TEST_PRIVATE_KEY      — required owner key (0x-prefixed or raw hex). Use a
+//                           throwaway key funded on Sepolia, never a
+//                           well-known one such as Hardhat/Anvil account 0.
 //   SEPOLIA_RPC_URL       — optional; falls back to publicnode
 //   BASE_SEPOLIA_RPC_URL  — optional; falls back to sepolia.base.org
 
@@ -13,11 +15,22 @@ import 'dart:io';
 
 /// Configuration for live example scripts.
 class ExampleConfig {
-  /// Load config from env / `.env`. Throws [StateError] if Pimlico key missing.
+  /// Load config from env / `.env`. Throws [StateError] if `TEST_PRIVATE_KEY`
+  /// is missing, or if `PIMLICO_API_KEY` is missing and [requirePimlico].
   factory ExampleConfig.load({bool requirePimlico = true}) {
     _ensureDotEnvLoaded();
 
-    final rawKey = _env('TEST_PRIVATE_KEY') ?? _hardhatAccount0;
+    final rawKey = _env('TEST_PRIVATE_KEY');
+    if (rawKey == null) {
+      throw StateError(
+        'TEST_PRIVATE_KEY is not set.\n'
+        'Export it or put it in packages/permissionless/.env\n'
+        '  TEST_PRIVATE_KEY=0x...\n'
+        'Use a throwaway key funded on Sepolia, never a well-known key '
+        '(such as Hardhat/Anvil account 0): the examples send real '
+        'transactions on a live testnet.',
+      );
+    }
     final privateKey = rawKey.startsWith('0x') ? rawKey : '0x$rawKey';
 
     final pimlicoApiKey = _env('PIMLICO_API_KEY') ?? '';
@@ -56,9 +69,6 @@ class ExampleConfig {
 
   /// Base Sepolia JSON-RPC URL.
   final String baseSepoliaRpcUrl;
-
-  static const _hardhatAccount0 =
-      '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80';
 
   static const _defaultSepoliaRpc =
       'https://ethereum-sepolia-rpc.publicnode.com';

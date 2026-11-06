@@ -2,23 +2,6 @@ import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('EthUnits', () {
-    test('weiPerGwei is 10^9', () {
-      expect(EthUnits.weiPerGwei, equals(BigInt.from(1000000000)));
-    });
-
-    test('weiPerEther is 10^18', () {
-      expect(
-        EthUnits.weiPerEther,
-        equals(BigInt.parse('1000000000000000000')),
-      );
-    });
-
-    test('gweiPerEther is 10^9', () {
-      expect(EthUnits.gweiPerEther, equals(BigInt.from(1000000000)));
-    });
-  });
-
   group('GasUnits', () {
     group('gweiToWei', () {
       test('converts integer gwei to wei', () {
@@ -228,6 +211,115 @@ void main() {
       });
     });
 
+    group('parse is exact (decimal string arithmetic, no double)', () {
+      // Expected values: `cast to-wei <value> <unit>` (Foundry 1.5.1).
+      test('0.1 eth (cast to-wei 0.1 ether)', () {
+        expect(
+          GasUnits.parse('0.1 eth'),
+          equals(BigInt.parse('100000000000000000')),
+        );
+      });
+
+      test('18 fractional digits (cast to-wei 1.123456789123456789 ether)', () {
+        expect(
+          GasUnits.parse('1.123456789123456789 eth'),
+          equals(BigInt.parse('1123456789123456789')),
+        );
+      });
+
+      test('integer part above 2^53 (cast to-wei 9007199254740993 ether)', () {
+        expect(
+          GasUnits.parse('9007199254740993 ether'),
+          equals(BigInt.parse('9007199254740993000000000000000000')),
+        );
+      });
+
+      test('wei above 2^53 (cast to-wei 9007199254740993 wei)', () {
+        expect(
+          GasUnits.parse('9007199254740993'),
+          equals(BigInt.parse('9007199254740993')),
+        );
+      });
+
+      test('ether above int64 range (cast to-wei 10 ether)', () {
+        expect(
+          GasUnits.parse('10 ether'),
+          equals(BigInt.parse('10000000000000000000')),
+        );
+      });
+
+      test('gwei with 9 fractional digits (cast to-wei 123.456789123 gwei)',
+          () {
+        expect(
+          GasUnits.parse('123.456789123 gwei'),
+          equals(BigInt.parse('123456789123')),
+        );
+      });
+
+      test('leading dot (cast to-wei .5 ether)', () {
+        expect(
+          GasUnits.parse('.5 ether'),
+          equals(BigInt.parse('500000000000000000')),
+        );
+      });
+
+      // Sub-wei digits round half up, as viem parseUnits does:
+      // parseUnits('1.0000000005', 9) === 1000000001n, parseUnits('1.5', 0)
+      // === 2n (bun, viem/src/utils/unit/parseUnits.ts). cast truncates.
+      test('sub-wei gwei digits round half up (viem parseUnits)', () {
+        expect(
+          GasUnits.parse('1.0000000005 gwei'),
+          equals(BigInt.from(1000000001)),
+        );
+      });
+
+      test('fractional wei rounds half up (viem parseUnits)', () {
+        expect(GasUnits.parse('1.5 wei'), equals(BigInt.two));
+      });
+
+      test('rejects more than one decimal point', () {
+        expect(
+          () => GasUnits.parse('1.2.3 eth'),
+          throwsA(isA<FormatException>()),
+        );
+      });
+    });
+
+    group('num conversions are exact for the value as written', () {
+      // Expected values: `cast to-wei <value> <unit>` (Foundry 1.5.1).
+      test('etherToWei(0.1) (cast to-wei 0.1 ether)', () {
+        expect(
+          GasUnits.etherToWei(0.1),
+          equals(BigInt.parse('100000000000000000')),
+        );
+      });
+
+      test('etherToWei(10) above int64 range (cast to-wei 10 ether)', () {
+        expect(
+          GasUnits.etherToWei(10),
+          equals(BigInt.parse('10000000000000000000')),
+        );
+      });
+
+      test('etherToWei(1.123456789) (cast to-wei 1.123456789 ether)', () {
+        expect(
+          GasUnits.etherToWei(1.123456789),
+          equals(BigInt.parse('1123456789000000000')),
+        );
+      });
+
+      test('gweiToWei above int64 range (cast to-wei 10000000000 gwei)', () {
+        expect(
+          GasUnits.gweiToWei(10000000000),
+          equals(BigInt.parse('10000000000000000000')),
+        );
+      });
+
+      test('gweiToWei(1e-7) exponent form (cast to-wei 0.0000001 gwei)', () {
+        expect(GasUnits.gweiToWei(1e-7), equals(BigInt.from(100)));
+      });
+    });
+
     group('format', () {
       test('formats small values as wei', () {
         expect(
@@ -268,6 +360,54 @@ void main() {
         expect(
           GasUnits.format(BigInt.from(1500000000)),
           equals('1.5 gwei'),
+        );
+      });
+
+      // Exact digits: `cast from-wei <wei> [gwei]` (Foundry 1.5.1), then
+      // rounded half up to `decimals` places.
+      test(
+          'ETH integer part above 2^53 (cast from-wei '
+          '9007199254740993000000000000000000)', () {
+        expect(
+          GasUnits.format(BigInt.parse('9007199254740993000000000000000000')),
+          equals('9007199254740993 ETH'),
+        );
+      });
+
+      test(
+          'ETH at or above 1e21 has no exponent '
+          '(cast from-wei 1000000000000000000000000000000000000000)', () {
+        expect(
+          GasUnits.format(
+            BigInt.parse('1000000000000000000000000000000000000000'),
+          ),
+          equals('1000000000000000000000 ETH'),
+        );
+      });
+
+      test(
+          'rounds on exact digits (cast from-wei 1000050000000000001 = '
+          '1.000050000000000001)', () {
+        expect(
+          GasUnits.format(BigInt.parse('1000050000000000001')),
+          equals('1.0001 ETH'),
+        );
+      });
+
+      test('exact half rounds up (cast from-wei 1000050000 gwei = 1.00005)',
+          () {
+        expect(
+          GasUnits.format(BigInt.from(1000050000)),
+          equals('1.0001 gwei'),
+        );
+      });
+
+      test(
+          'decimals beyond the unit keep every digit '
+          '(cast from-wei 1123456789123456789 = 1.123456789123456789)', () {
+        expect(
+          GasUnits.format(BigInt.parse('1123456789123456789'), decimals: 20),
+          equals('1.123456789123456789 ETH'),
         );
       });
     });

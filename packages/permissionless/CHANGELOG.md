@@ -5,6 +5,368 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-11-06
+
+A structural refactor of the package plus the behaviour fixes it turned up
+([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)). Each fix
+landed with a test that failed first. Nothing exported was removed or renamed,
+so calling code keeps compiling. Some things can still break you, all under
+**Changed**:
+
+- Subclasses that override a method which gained a parameter must add it.
+- Some invalid configurations now throw where they used to build.
+- Two Safe setups get a different counterfactual address.
+- EntryPoint v0.6 accounts with a paymaster use different RPC methods.
+- WebAuthn accounts no longer get a 900,000 verification-gas floor.
+
+### Added
+
+- **`EntryPointVersioned`** and **`entryPointVersionOfAccount`**: an interface
+  for accounts that know their EntryPoint version, and a helper that reads it.
+  Every built-in account implements it, so the client and
+  `sendUserOperationSync` no longer have to guess the version from the
+  EntryPoint address. `EtherspotSmartAccount` and `TrustSmartAccount` gain the
+  public `entryPointVersion` getter the other accounts already had
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`DeploymentCallsEncoder`**: the interface an account implements when its
+  first, deploying operation needs different call data. Safe ERC-7579 uses it
+  for the `setupSafe` wrapper. `SmartAccountClient` checks for this interface
+  instead of checking for `SafeSmartAccount`
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`hashMessageBytes`**: EIP-191 hash of raw bytes, like viem's
+  `hashMessage({ raw })`. `hashMessage` and every account now share this one
+  implementation ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`getUserOperationTypedData`**: the EIP-712 typed data an EntryPoint v0.8
+  account signs, under viem's name
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`PermissionlessException`** is exported. `SendUserOperationSyncError`
+  already extended it, but there was no way to catch the library's errors by
+  their common type ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **Solidity signature constants** for the selector tables, such as
+  `erc7579ExecuteSignature`, `erc7579InstallModuleSignature`,
+  `simpleAccountCreateAccountSignature` and `etherspotInitMsaSignature`. The
+  selector tables are now derived from these strings
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`defaultReceiptTimeout`** (120 s) and **`defaultReceiptPollingInterval`**
+  (2 s): the defaults every receipt wait uses
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **New optional parameters.** Each one defaults to the old behaviour
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - `BundlerClient.sendUserOperation` and `estimateUserOperationGas`:
+    `entryPoint` (defaults to the client's) and `authorization` (sent as the
+    operation's `eip7702Auth`).
+  - `SmartAccountClient.sendPreparedUserOperation`: `authorization`.
+  - `SmartAccountClient.sendUserOperationAndWait`: `callGasLimit`,
+    `verificationGasLimit`, `preVerificationGas`, `signature`, `factory` and
+    `factoryData`, forwarded to `sendUserOperation`. Before, the `AndWait`
+    variant had no way to pass them.
+    `sendUserOperationV06AndWait` gains `signature`.
+  - `PimlicoClient.getTokenQuotes`, `estimateErc20PaymasterCost` and
+    `validateSponsorshipPolicies`: `entryPoint` (defaults to the client's).
+  - ERC-7579 queries `supportsExecutionMode`, `supportsModule`,
+    `isModuleInstalled` and `getAccountId`: `publicClient` is optional and
+    defaults to the `SmartAccountClient`'s own.
+  - Experimental `prepareUserOperationForErc20Paymaster`: `publicClient` is
+    optional and defaults to the `SmartAccountClient`'s own. Experimental
+    `estimateErc20PaymasterCost` gains `entryPoint`.
+  - `Hex.fromBytes` accepts any `List<int>`, not only `Uint8List`.
+  - `SmartAccountClient.sendUserOperationV06` and
+    `sendUserOperationV06AndWait`: `callGasLimit`, `verificationGasLimit`,
+    `preVerificationGas`, `initCode` and `stateOverride`, forwarded to
+    `prepareUserOperationV06`. They now take every parameter
+    `prepareUserOperationV06` takes except `skipFinalPaymasterData`, which a
+    sent operation can't use. A supplied gas limit skips the bundler estimate
+    for that field ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+  - `SmartAccountClient.prepareUserOperationV06`:
+    `stateOverride`, sent with `eth_estimateUserOperationGas`, and
+    `skipFinalPaymasterData`, which keeps the stub `paymasterAndData` and skips
+    `pm_getPaymasterData`. Both work as they do in `prepareUserOperation` ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`PaymasterStubData.fromJson` and
+  `PaymasterData.fromJson` accept the ERC-7677 v0.6 response**
+  `{ paymasterAndData, sponsor?, isFinal? }`. They split `paymasterAndData`
+  into `paymaster` (the first 20 bytes) and `paymasterData` (the rest), so
+  `withPaymasterStubV06` and `withPaymasterDataV06` rebuild the same bytes. A
+  value shorter than an address throws `FormatException`. Responses that carry
+  `paymaster` parse as before ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+
+### Changed
+
+- **Subclasses that override these methods must add the new named
+  parameters.** `BundlerClient.sendUserOperation` and
+  `estimateUserOperationGas`, `SmartAccountClient.sendPreparedUserOperation`,
+  `sendUserOperationAndWait` and `sendUserOperationV06AndWait`, and every other
+  method listed under **Added → New optional parameters**. An override that
+  keeps the old parameter list no longer compiles. An override of
+  `PaymasterClient.sponsorUserOperation` that declares `required BigInt
+  chainId` must make it optional. Code that only *calls* these methods is
+  unaffected ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The EntryPoint v0.6 paymaster flow is ERC-7677,
+  as in viem and the v0.7 path.** This affects EntryPoint v0.6 accounts that
+  pass a `paymaster` to `createSmartAccountClient`: Simple, Light, Thirdweb or
+  Safe on v0.6, Kernel v0.2, Biconomy and Trust. v0.7/v0.8 accounts, and v0.6
+  accounts without a paymaster, see no change ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+  - `prepareUserOperationV06`, and the v0.6 send methods through it, no longer
+    call `pm_sponsorUserOperation`. They call `pm_getPaymasterStubData`, then
+    `eth_estimateUserOperationGas` on the bundler if a gas field is missing,
+    then `pm_getPaymasterData`. A stub with `isFinal: true` skips the last call.
+  - Pimlico serves ERC-7677 on v0.6, so Pimlico setups keep working. Only the
+    methods on the wire change. Update request logs, mocks and allow-lists
+    keyed on `pm_sponsorUserOperation`.
+  - `callGasLimit`, `verificationGasLimit` and `preVerificationGas` now come
+    from the bundler's estimate with the client's `gasMultipliers` applied,
+    not from the paymaster's sponsorship response. Values you pass are still
+    used as given.
+  - Any ERC-7677 paymaster now works with v0.6 accounts. Before, non-Pimlico
+    paymasters failed with "method not found".
+  - `PaymasterClient.sponsorUserOperation` is still there as an explicit
+    Pimlico action, as in permissionless.js, if you want the old single call.
+- **WebAuthn accounts no longer get a 900,000
+  verification-gas floor.** `SmartAccountClient` used to raise
+  `verificationGasLimit` to at least 900,000 for every account with
+  `isWebAuthn`. They now get the bundler estimate times the configured
+  `gasMultipliers`, like every other account and as in permissionless.js. The
+  estimate is now realistic because the Kernel WebAuthn stub was fixed (see
+  **Fixed**). To keep a minimum, pass `verificationGasLimit` or use custom
+  `gasMultipliers`. The `GasMultipliers.webAuthn` preset is still there and
+  is opt-in ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **Two Safe setups get a different counterfactual address.** Both old
+  addresses were wrong
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - A Safe in ERC-7579 mode with a WebAuthn owner now lists that owner as the
+    `SafeWebAuthnSharedSigner`, as standard mode and permissionless.js do. The
+    old setup data listed a placeholder address that nobody can sign for.
+  - A Safe v1.5.0 built without a `publicClient` now uses the v1.5.0 proxy
+    creation code. Before, every offline v1.5.0 address was derived from the
+    v1.4.1 proxy code.
+- **Invalid account configs throw `ArgumentError` at construction** instead of
+  building an account that cannot work
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - Kernel `customAddresses` without an `ecdsaValidator`, for every version.
+    Kernel v0.2.x used to put the account implementation in the validator
+    slot, so the initCode could never deploy.
+  - Kernel with a WebAuthn owner on v0.2.x, or without a `webAuthnValidator`
+    address. This used to be a `StateError` from the middle of
+    `prepareUserOperation`, after RPC calls had already run.
+  - Safe with more than one WebAuthn owner. Every WebAuthn owner maps to the
+    same shared-signer address, so `Safe.setup` reverted with GS203/GS204, and
+    the shared signer holds only one P-256 key. permissionless.js accepts this
+    config and derives an address that can't be deployed.
+  - Thirdweb with EntryPoint v0.8. It used to fall back to the v0.6 factory
+    and EntryPoint without saying so.
+  - Light Account pairs other than 1.1.0 with v0.6 and 2.0.0 with v0.7. Other
+    pairs used to sign the wrong hash or use the wrong factory.
+  - Safe with a WebAuthn owner when the resolved
+    addresses lack `webAuthnSharedSignerAddress`, or, outside ERC-7579 mode,
+    `safeP256VerifierAddress`. The built-in Safe 1.4.1 + EntryPoint v0.6 table
+    has neither, so that pair now throws here. In 0.5.0 these configs failed
+    later, with a null-check `TypeError` or a `StateError` from `getAddress`,
+    `getStubSignature` or signing. This deliberately differs from permissionless.js, which reads these
+    addresses only when it builds the setup and silently skips `configure()`
+    without a verifier. Kernel already checks `webAuthnValidator` the same way.
+    One config that used to work now throws: a pre-set `address` of an
+    already-deployed Safe with a WebAuthn owner and custom addresses that
+    have a shared signer but no verifier, in standard mode ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **Encoders range-check their inputs and throw `ArgumentError`**, as viem
+  does ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - `AbiEncoder` rejects out-of-range `uintN`/`intN` values and type widths
+    Solidity doesn't have (`uint7`, `int264`, `bytes33`, `bytes0`), including
+    inside arrays and tuples. Before, debug builds threw `AssertionError` and
+    release builds encoded the bad value.
+  - `hashTypedData` rejects out-of-range integers, a `bytesN` value longer than
+    N bytes and invalid widths. Shorter `bytesN` values are still right-padded.
+  - `ExecutionMode.encode` and `encode7579ExecuteMode` reject a selector over 4
+    bytes, a context over 22 bytes, and a `callType`/`execType` over one byte.
+    They used to truncate (`0x100` became call mode). Valid inputs encode as
+    before.
+- **Some failures now throw, or throw a different type.** Check handlers that
+  catch the old type
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - Safe with a `publicClient`: an RPC error from `proxyCreationCode()` now
+    propagates and nothing is cached. A `0x` or empty result throws
+    `StateError`. Before, any failure fell back to the canonical proxy code
+    and cached that address for the account's lifetime, which is wrong for a
+    custom `safeProxyFactoryAddress`. Without a `publicClient` nothing changes.
+  - Kernel signing an operation layout that doesn't match its EntryPoint
+    version throws `ArgumentError`. It used to return a signature that could
+    never validate (see **Fixed**).
+  - `PimlicoClient.getSupportedTokens` throws when the result is not a JSON
+    array. It used to return `[]` for any unexpected shape and also accepted
+    an undocumented `{tokens: [...]}` object.
+  - `estimateErc20PaymasterCost` throws `StateError` when the token quote has
+    no `exchangeRateNativeToUsd`. It used to report a cost of $0.
+- **Top-level ERC-7579 queries and ERC-20 reads
+  throw `StateError` when the call returns no data (`0x`)**, as viem's
+  `readContract` does ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
+  - `isModuleInstalled`, `supportsModule`, `getAccountId` and
+    `getInstalledModulesOfType` used to return `false`, `''` or `[]`. An
+    account returns `0x` when it has no code on that chain, for example
+    because it is not deployed yet. For a counterfactual account, use the
+    `SmartAccountClient` methods of the same names. They retry through the
+    factory, as permissionless.js does.
+  - `getTokenAllowance` and `getTokenBalance` used to return 0 for an address
+    with no code, such as a token on the wrong chain or a mistyped address.
+    `getApprovalCallIfNeeded` and the experimental
+    `prepareUserOperationForErc20Paymaster` pass the error on instead of
+    building an `approve()` call for a non-token.
+  - The decoders `decode7579BoolResult`, `decode7579StringResult` and
+    `decodeUint256Result` still map `0x` to the default value.
+- **`Eip7702Authorization.toJson` returns the `yParity` wire shape**, the same
+  map as `toRpcFormat`, so `jsonEncode(authorization)` is what bundlers and
+  viem expect. It used to emit the legacy `v` (27/28)
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`GasUnits` rounds sub-wei digits half up**, like viem's `parseUnits`.
+  `GasUnits.parse('1.5 wei')` is now 2; it used to truncate to 1. Gwei and
+  ether inputs already rounded this way
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **WebAuthn owners are recognised by class.** `isWebAuthnAccount(owner)` is
+  `owner is WebAuthnAccountOwner`. An `AccountOwner` that reports
+  `type == 'webAuthn'` without extending `WebAuthnAccountOwner` is treated as
+  an ECDSA owner. Kernel and Safe used to crash on it with a `TypeError`
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **SimpleAccount on EntryPoint v0.6 ignores
+  `Call.value` in a batch of more than one call**, and this is now documented
+  on `createSimpleSmartAccount`, `SimpleSmartAccountConfig` and
+  `SimpleSmartAccount.encodeCalls`. The v0.6 contract's
+  `executeBatch(address[],bytes[])` has no value field. There is no runtime
+  change, matching permissionless.js. To send value, use a single call or
+  EntryPoint v0.7/v0.8. Every other account and version carries value per
+  call ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+
+### Deprecated
+
+All of these still work. All but the last come from
+[#90](https://github.com/LiorAgnin/permissionless.dart/pull/90).
+
+- `BundlerClient.sendUserOperationWithAuthorization` and
+  `estimateUserOperationGasWithAuthorization`. Use `sendUserOperation(userOp,
+  authorization: ...)` and `estimateUserOperationGas(userOp, authorization:
+  ...)`. The old methods only ever sent the first authorization in the list.
+- `PaymasterClient.sponsorUserOperation(chainId:)`. The parameter was never
+  read, because `pm_sponsorUserOperation` takes no chain id. It is now
+  optional; drop it.
+- `PaymasterRpcError`. Nothing throws it; paymaster RPC errors arrive as
+  `BundlerRpcError`.
+- `erc20PaymasterGasBuffer`. Unused; the cost formula uses
+  `PimlicoTokenQuote.postOpGas`.
+- `shouldUseP256Precompile`. Use `supportsRip7212`, which it aliased.
+- `Hex.encode`. Use `Hex.fromBytes`.
+- `UserOperationGasEstimate.withMinimumVerificationGas`.
+  `SmartAccountClient` no longer calls it. For an explicit limit, pass
+  `verificationGasLimit` to `prepareUserOperation` ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+
+### Fixed
+
+- **The Kernel WebAuthn gas-estimation stub was far
+  from a real signature.**
+  `getDummyKernelWebAuthnSignature`, which `KernelSmartAccount.getStubSignature`
+  returns for a WebAuthn owner, used an r outside the P-256 curve order. So
+  bundlers priced a signature check that fails early, and estimates came out
+  far too low. It is now byte-identical to the permissionless.js 0.5.2 stub,
+  with the same r, s, authenticatorData and clientDataJSON, and it always
+  encodes `usePrecompiled = false`. Expect higher, realistic estimates. On a
+  local test chain, Kernel v0.3.1 WebAuthn operations got about 630,000
+  verification gas, or about 945,000 for the operation that deploys the
+  account. The stub prices the Solidity P-256 verifier, so chains with the
+  RIP-7212 precompile get the same estimate while the operation uses about
+  120,000. permissionless.js behaves the same; the cost is a larger required
+  prefund. In 0.5.0 the stub could also price the precompile path for the
+  first operation on a chain whose node lacked it, then send the Solidity
+  encoding ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+
+- **`SimpleSmartAccount.signMessage` and
+  `Eip7702SimpleSmartAccount.signMessage` applied the EIP-191 prefix twice.**
+  The signature verified against neither the message nor its hash, so
+  `isValidSignature` on Simple7702Account rejected every message signed from
+  Dart. Both now return the owner's `personal_sign` of the message.
+  permissionless.js throws for `SimpleSmartAccount.signMessage` because
+  SimpleAccount is not ERC-1271; this package keeps signing so existing
+  callers keep working
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **Kernel signed with the wrong UserOperation hash across versions.** Kernel
+  v0.2.x `signUserOperation` hashed a v0.7 layout for the v0.6 EntryPoint, and
+  v0.3.x `signUserOperationV06` hashed a v0.6 layout for v0.7. Neither
+  signature could validate. Kernel now hashes by its EntryPoint version and
+  implements `SmartAccountV06`, so `SmartAccountClient.signUserOperationV06`
+  accepts Kernel v0.2.x
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **EntryPoint v0.6 operations always used nonce 0.** `prepareUserOperationV06`
+  never read `EntryPoint.getNonce`, so every v0.6 operation after the first
+  failed with AA25 unless you passed `nonce` yourself
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`SmartAccountClient` estimated and sent to the bundler's EntryPoint.**
+  The nonce, paymaster data and signature came from `account.entryPoint`, but
+  the estimate and the send went to `bundler.entryPoint`. An EIP-7702 Simple
+  account (v0.8) paired with a bundler built on `EntryPointAddresses.v07` had
+  a v0.8-signed operation simulated and sent on v0.7. Everything now uses
+  `account.entryPoint`, as viem does
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The ERC-20 paymaster helper quoted tokens for the wrong EntryPoint.**
+  `prepareUserOperationForErc20Paymaster` asked Pimlico for quotes against
+  the `PimlicoClient`'s EntryPoint while the operation ran on the account's.
+  When the two differed, the approval went to the wrong paymaster and the
+  cost used the wrong `postOpGas` and exchange rate
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The first EIP-7702 operation on EntryPoint v0.7 reverted with AA10.** The
+  client set the `0x7702` initCode marker for every first-time 7702
+  operation, but the marker only exists on EntryPoint v0.8. On v0.7,
+  `Eip7702KernelSmartAccount` could never send its first operation. The
+  marker is now set only on v0.8, and on v0.7 the authorization goes alone,
+  as in permissionless.js
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **Paymaster gas limits below 10,000 were replaced.** A
+  `paymasterVerificationGasLimit` or `paymasterPostOpGasLimit` under 10,000,
+  including the 0 that a paymaster without `postOp` returns, was swapped for
+  the bundler's estimate. The operation then carried a different gas field
+  from the one the paymaster signed, which usually fails with AA34. The
+  paymaster's values are now kept
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The ERC-20 paymaster cost left out paymaster verification gas.**
+  `estimateTokenCost`, `PimlicoClient.estimateErc20PaymasterCost` and the
+  experimental helpers under-quoted the token amount, so the approval could
+  be too small. They now share one formula built on the required prefund, as
+  permissionless.js does. Expect higher, correct quotes
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The experimental ERC-20 paymaster helper dropped the Safe ERC-7579
+  `setupSafe` wrapper.** It re-encoded the calls without it, so the first
+  operation of an undeployed ERC-7579 Safe failed. v0.6 deploying operations
+  now follow the same rule as v0.7
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`sendUserOperationSync` rejected accounts with a custom EntryPoint
+  address** as unsupported, though `sendUserOperation` worked for them. It now
+  reads the account's configured EntryPoint version
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`stateOverridesToJson` let overrides for the same address replace each
+  other.** A balance override and an allowance override for one token kept
+  only the last. Serialization now merges them
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`UserOperationV07.fromJson` could not read the `0x7702` factory marker**
+  that `toJson` writes, so a 7702 operation failed to round-trip with a
+  `FormatException` ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **EIP-7702 authorizations built with a 0/1 recovery id** threw "must fit in
+  uint8" from `toRpcFormat`. Both 0/1 and 27/28 now work
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **The RIP-7212 probe cached `false` after one failed call.** A timeout or
+  RPC error in `isRip7212Supported` disabled the precompile for that chain for
+  the rest of the process. Now only a real answer is cached; a failed call
+  returns `false` and the next call probes again
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`GasUnits` lost precision through `double`.** `parse`, `gweiToWei` and
+  `etherToWei` dropped digits past 2^53 and saturated at 2^63 wei, so
+  `'10 ether'` came back as 9223372036854775807. `format` printed `1e+21 ETH`
+  for large values. Both now use exact decimal arithmetic
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`decode7579StringResult` mangled non-ASCII text.** `getAccountId` returned
+  mojibake (`ñ✓` became `Ã±â`). It now decodes UTF-8
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`decode7579Calls` rejected upper-case selectors** and returned no calls for
+  a truncated batch. It now accepts either case, throws on truncated input,
+  and follows ABI head offsets
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+- **`EtherspotSelectors.execute` held `0x61461954`** instead of the ERC-7579
+  `execute(bytes32,bytes)` selector `0xe9ae5c53`. The account's own call data
+  was always correct; only code that read the constant was affected
+  ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
+
 ## [0.5.0] - 2026-11-04
 
 Parity with permissionless.js **0.5.2**: the new `sendUserOperationSync`

@@ -2,7 +2,6 @@ import 'dart:typed_data';
 import 'package:wallet/wallet.dart';
 import 'hex.dart';
 
-// Re-export EthereumAddress from wallet package for convenience
 export 'package:wallet/wallet.dart' show EthereumAddress;
 
 /// Zero address constant.

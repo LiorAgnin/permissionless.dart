@@ -2,7 +2,7 @@ import 'package:http/http.dart' as http;
 
 import '../../types/address.dart';
 import '../bundler/bundler_client.dart';
-import '../bundler/rpc_client.dart';
+import '../rpc/rpc_client.dart';
 import 'types.dart';
 
 /// Etherspot-specific bundler client with Skandha extensions.
@@ -79,11 +79,11 @@ EtherspotClient createEtherspotClient({
   Duration? timeout,
 }) =>
     EtherspotClient(
-      rpcClient: JsonRpcClient(
-        url: Uri.parse(url),
+      rpcClient: createRpcClient(
+        url,
         httpClient: httpClient,
-        headers: headers ?? {},
-        timeout: timeout ?? const Duration(seconds: 30),
+        headers: headers,
+        timeout: timeout,
       ),
       entryPoint: entryPoint,
     );

@@ -81,7 +81,7 @@ void main(List<String> args) async {
 
   final pimlico = createPimlicoClient(
     url: pimlicoUrl,
-    entryPoint: EntryPointAddresses.v08,
+    entryPoint: account.entryPoint,
   );
 
   final paymaster = createPaymasterClient(url: pimlicoUrl);
@@ -122,14 +122,15 @@ void main(List<String> args) async {
     // injects the gas approval in front of YOUR calls.
     //
     // NOTE: an unsupported token makes the helper throw ArgumentError —
-    // check support upfront with pimlico.getTokenQuotes([token]).
+    // check support upfront with pimlico.getTokenQuotes([token]). A token
+    // address with no code on this chain throws StateError from the
+    // allowance read.
 
     final gasPrices = await pimlico.getUserOperationGasPrice();
 
     final result = await prepareUserOperationForErc20Paymaster(
       smartAccountClient: client,
       pimlicoClient: pimlico,
-      publicClient: publicClient,
       token: token,
       calls: [
         encodeErc20Transfer(token: token, to: recipient, amount: amount),
@@ -160,16 +161,16 @@ void main(List<String> args) async {
     // 3. Sign and send — one path for the first and subsequent ops
     // ==============================================================
     //
-    // sendPreparedUserOperationWithAuth branches internally:
-    // - authorization != null (first 7702 op): the bundler receives it as
-    //   the `eip7702Auth` field and the delegation is installed on-chain
-    // - authorization == null (already delegated): standard submission
+    // Pass result.authorization as-is:
+    // - non-null (first 7702 op): the bundler receives it as the
+    //   `eip7702Auth` field and the delegation is installed on-chain
+    // - null (already delegated): standard submission
 
     print('\n--- Signing and Sending ---');
     final signedOp = await client.signUserOperation(result.userOperation);
-    final hash = await client.sendPreparedUserOperationWithAuth(
+    final hash = await client.sendPreparedUserOperation(
       signedOp,
-      result.authorization,
+      authorization: result.authorization,
     );
     print('UserOperation hash: $hash');
 
@@ -207,6 +208,6 @@ void main(List<String> args) async {
   print('  - Sender needs ZERO ETH: gas is paid in the ERC-20 token');
   print('  - One helper call prepares approval + paymaster data');
   print('  - First-time 7702 delegation is handled by the same code path');
-  print('  - Send via sendPreparedUserOperationWithAuth(op, authorization)');
+  print('  - Send via sendPreparedUserOperation(op, authorization: ...)');
   print('='.padRight(60, '='));
 }

@@ -4,6 +4,13 @@ import '../types/address.dart';
 import '../types/hex.dart';
 import '../types/user_operation.dart';
 import 'encoding.dart';
+import 'state_override.dart';
+
+const String _approveSignature = 'approve(address,uint256)';
+const String _allowanceSignature = 'allowance(address,address)';
+const String _balanceOfSignature = 'balanceOf(address)';
+const String _transferSignature = 'transfer(address,uint256)';
+const String _transferFromSignature = 'transferFrom(address,address,uint256)';
 
 /// ERC-20 function selectors for common operations.
 ///
@@ -12,29 +19,23 @@ class Erc20Selectors {
   Erc20Selectors._();
 
   /// approve(address spender, uint256 amount)
-  static final String approve = AbiEncoder.functionSelector(
-    'approve(address,uint256)',
-  );
+  static final String approve = AbiEncoder.functionSelector(_approveSignature);
 
   /// allowance(address owner, address spender)
-  static final String allowance = AbiEncoder.functionSelector(
-    'allowance(address,address)',
-  );
+  static final String allowance =
+      AbiEncoder.functionSelector(_allowanceSignature);
 
   /// balanceOf(address account)
-  static final String balanceOf = AbiEncoder.functionSelector(
-    'balanceOf(address)',
-  );
+  static final String balanceOf =
+      AbiEncoder.functionSelector(_balanceOfSignature);
 
   /// transfer(address to, uint256 amount)
-  static final String transfer = AbiEncoder.functionSelector(
-    'transfer(address,uint256)',
-  );
+  static final String transfer =
+      AbiEncoder.functionSelector(_transferSignature);
 
   /// transferFrom(address from, address to, uint256 amount)
-  static final String transferFrom = AbiEncoder.functionSelector(
-    'transferFrom(address,address,uint256)',
-  );
+  static final String transferFrom =
+      AbiEncoder.functionSelector(_transferFromSignature);
 }
 
 /// Maximum uint256 value for unlimited token approvals.
@@ -65,18 +66,11 @@ Call encodeErc20Approve({
   required EthereumAddress token,
   required EthereumAddress spender,
   required BigInt amount,
-}) {
-  final callData = Hex.concat([
-    Erc20Selectors.approve,
-    AbiEncoder.encodeAddress(spender),
-    AbiEncoder.encodeUint256(amount),
-  ]);
-
-  return Call(
-    to: token,
-    data: callData,
-  );
-}
+}) =>
+    Call(
+      to: token,
+      data: AbiEncoder.encodeFunctionData(_approveSignature, [spender, amount]),
+    );
 
 /// Encodes an ERC-20 transfer(to, amount) call.
 ///
@@ -95,18 +89,11 @@ Call encodeErc20Transfer({
   required EthereumAddress token,
   required EthereumAddress to,
   required BigInt amount,
-}) {
-  final callData = Hex.concat([
-    Erc20Selectors.transfer,
-    AbiEncoder.encodeAddress(to),
-    AbiEncoder.encodeUint256(amount),
-  ]);
-
-  return Call(
-    to: token,
-    data: callData,
-  );
-}
+}) =>
+    Call(
+      to: token,
+      data: AbiEncoder.encodeFunctionData(_transferSignature, [to, amount]),
+    );
 
 /// Encodes an ERC-20 allowance(owner, spender) call for eth_call.
 ///
@@ -131,11 +118,7 @@ String encodeErc20AllowanceCall({
   required EthereumAddress owner,
   required EthereumAddress spender,
 }) =>
-    Hex.concat([
-      Erc20Selectors.allowance,
-      AbiEncoder.encodeAddress(owner),
-      AbiEncoder.encodeAddress(spender),
-    ]);
+    AbiEncoder.encodeFunctionData(_allowanceSignature, [owner, spender]);
 
 /// Encodes an ERC-20 balanceOf(account) call for eth_call.
 ///
@@ -154,10 +137,7 @@ String encodeErc20AllowanceCall({
 String encodeErc20BalanceOfCall({
   required EthereumAddress account,
 }) =>
-    Hex.concat([
-      Erc20Selectors.balanceOf,
-      AbiEncoder.encodeAddress(account),
-    ]);
+    AbiEncoder.encodeFunctionData(_balanceOfSignature, [account]);
 
 /// Decodes a uint256 result from an eth_call response.
 ///
@@ -173,123 +153,12 @@ BigInt decodeUint256Result(String hexResult) {
     return BigInt.zero;
   }
 
-  // Remove 0x prefix if present
   final hex = Hex.strip0x(hexResult);
   if (hex.isEmpty) {
     return BigInt.zero;
   }
 
   return BigInt.parse(hex, radix: 16);
-}
-
-// ============================================================================
-// State Override Types and Utilities
-// ============================================================================
-
-/// A single storage slot override.
-///
-/// Used in [StateOverride] to modify storage values during `eth_call` or
-/// `eth_estimateUserOperationGas` simulations.
-class StateDiff {
-  /// Creates a storage slot override.
-  ///
-  /// - [slot]: The storage slot to override (32-byte hex string)
-  /// - [value]: The value to set at this slot (32-byte hex string)
-  const StateDiff({
-    required this.slot,
-    required this.value,
-  });
-
-  /// The storage slot (32-byte hex string).
-  final String slot;
-
-  /// The value to set at this slot (32-byte hex string).
-  final String value;
-
-  /// Converts to JSON for RPC calls.
-  Map<String, String> toJson() => {slot: value};
-}
-
-/// State override for a single address.
-///
-/// Allows overriding balance, nonce, code, and storage during simulation.
-/// Used with `eth_call` and `eth_estimateUserOperationGas` to test
-/// scenarios without modifying on-chain state.
-///
-/// Example:
-/// ```dart
-/// final override = StateOverride(
-///   address: tokenAddress,
-///   stateDiff: [
-///     StateDiff(slot: balanceSlot, value: newBalanceHex),
-///   ],
-/// );
-/// ```
-class StateOverride {
-  /// Creates a state override for simulation.
-  ///
-  /// - [address]: The address to override state for
-  /// - [balance]: Override the account's ETH balance
-  /// - [nonce]: Override the account's nonce
-  /// - [code]: Override the contract bytecode
-  /// - [stateDiff]: Override specific storage slots
-  const StateOverride({
-    required this.address,
-    this.balance,
-    this.nonce,
-    this.code,
-    this.stateDiff,
-  });
-
-  /// The address to override.
-  final EthereumAddress address;
-
-  /// Override the account balance (in wei).
-  final BigInt? balance;
-
-  /// Override the account nonce.
-  final BigInt? nonce;
-
-  /// Override the contract code.
-  final String? code;
-
-  /// Override specific storage slots.
-  final List<StateDiff>? stateDiff;
-
-  /// Converts to JSON for RPC calls.
-  Map<String, dynamic> toJson() {
-    final json = <String, dynamic>{};
-
-    if (balance != null) {
-      json['balance'] = '0x${balance!.toRadixString(16)}';
-    }
-    if (nonce != null) {
-      json['nonce'] = '0x${nonce!.toRadixString(16)}';
-    }
-    if (code != null) {
-      json['code'] = code;
-    }
-    if (stateDiff != null && stateDiff!.isNotEmpty) {
-      final slots = <String, String>{};
-      for (final diff in stateDiff!) {
-        slots[diff.slot] = diff.value;
-      }
-      json['stateDiff'] = slots;
-    }
-
-    return json;
-  }
-}
-
-/// Converts a list of [StateOverride]s to the JSON format expected by RPC calls.
-///
-/// The format is: `{ address: { balance?, nonce?, code?, stateDiff? } }`
-Map<String, dynamic> stateOverridesToJson(List<StateOverride> overrides) {
-  final result = <String, dynamic>{};
-  for (final override in overrides) {
-    result[override.address.hex] = override.toJson();
-  }
-  return result;
 }
 
 /// Maximum uint256 value for state override amounts.
@@ -350,7 +219,6 @@ List<StateOverride> erc20AllowanceOverride({
   // This is: keccak256(spender . keccak256(owner . slot))
   // where '.' is concatenation
 
-  // First: keccak256(abi.encode(owner, slot))
   final ownerSlotData = Hex.decode(
     Hex.concat([
       AbiEncoder.encodeAddress(owner),
@@ -359,7 +227,6 @@ List<StateOverride> erc20AllowanceOverride({
   );
   final innerHash = keccak256(ownerSlotData);
 
-  // Then: keccak256(abi.encode(spender, innerHash))
   final spenderInnerData = Hex.decode(
     Hex.concat([
       AbiEncoder.encodeAddress(spender),
@@ -403,9 +270,10 @@ List<StateOverride> erc20AllowanceOverride({
 ///   balance: BigInt.from(1000000000), // 1000 USDC
 /// );
 ///
-/// final result = await publicClient.call(
-///   Call(to: usdcAddress, data: encodeErc20BalanceOfCall(account: accountAddress)),
-///   stateOverride: stateOverridesToJson(override),
+/// // Gas estimation sees the overridden balance.
+/// final userOp = await client.prepareUserOperation(
+///   calls: calls,
+///   stateOverride: override,
 /// );
 /// ```
 List<StateOverride> erc20BalanceOverride({
@@ -437,60 +305,6 @@ List<StateOverride> erc20BalanceOverride({
       ],
     ),
   ];
-}
-
-/// Merges multiple state overrides for the same address.
-///
-/// If multiple overrides target the same address, their state diffs are
-/// combined. Later values override earlier ones for the same slot.
-///
-/// Example:
-/// ```dart
-/// final balanceOverride = erc20BalanceOverride(...);
-/// final allowanceOverride = erc20AllowanceOverride(...);
-///
-/// // Combine for a single gas estimation call
-/// final merged = mergeStateOverrides([...balanceOverride, ...allowanceOverride]);
-/// ```
-List<StateOverride> mergeStateOverrides(List<StateOverride> overrides) {
-  final byAddress = <String, List<StateOverride>>{};
-
-  for (final override in overrides) {
-    final key = override.address.hex.toLowerCase();
-    byAddress.putIfAbsent(key, () => []).add(override);
-  }
-
-  return byAddress.entries.map((entry) {
-    final addressOverrides = entry.value;
-    if (addressOverrides.length == 1) {
-      return addressOverrides.first;
-    }
-
-    // Merge all overrides for this address
-    BigInt? balance;
-    BigInt? nonce;
-    String? code;
-    final stateDiffs = <String, StateDiff>{};
-
-    for (final o in addressOverrides) {
-      if (o.balance != null) balance = o.balance;
-      if (o.nonce != null) nonce = o.nonce;
-      if (o.code != null) code = o.code;
-      if (o.stateDiff != null) {
-        for (final diff in o.stateDiff!) {
-          stateDiffs[diff.slot] = diff;
-        }
-      }
-    }
-
-    return StateOverride(
-      address: addressOverrides.first.address,
-      balance: balance,
-      nonce: nonce,
-      code: code,
-      stateDiff: stateDiffs.values.toList(),
-    );
-  }).toList();
 }
 
 /// Creates combined balance and allowance state overrides for ERC-20 paymaster.
@@ -568,7 +382,6 @@ List<StateOverride> erc20PaymasterOverride({
 class Erc20StorageSlots {
   Erc20StorageSlots._();
 
-  // Balance slots
   /// OpenZeppelin ERC-20 balance slot (slot 0).
   static final BigInt openzeppelinBalance = BigInt.zero;
 
@@ -581,7 +394,6 @@ class Erc20StorageSlots {
   /// DAI balance slot (slot 2).
   static final BigInt daiBalance = BigInt.two;
 
-  // Allowance slots
   /// OpenZeppelin ERC-20 allowance slot (slot 1).
   static final BigInt openzeppelinAllowance = BigInt.one;
 

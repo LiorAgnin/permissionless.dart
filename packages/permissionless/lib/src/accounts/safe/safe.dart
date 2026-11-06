@@ -18,13 +18,14 @@
 ///
 /// ## Note on ERC-7579
 ///
-/// Standard Safe does NOT implement ERC-7579. However, Safe can optionally
-/// be configured with ERC-7579 support via the Safe7579 launchpad by
-/// providing `erc7579LaunchpadAddress` in permissionless.js.
-///
-/// This Dart implementation currently supports standard Safe only.
-/// For native ERC-7579 support, consider Kernel v0.3.x or Nexus.
+/// Standard Safe does NOT implement ERC-7579. Passing
+/// `erc7579LaunchpadAddress` deploys the Safe through the Safe7579 launchpad
+/// with the Safe7579 adapter as its module, as permissionless.js does.
 library;
 
 export 'constants.dart';
+export 'multisend.dart';
 export 'safe_account.dart';
+export 'safe_encoding.dart'
+    hide decodeSafeExecuteUserOp, decodeSafeSetupSafe, safe7579InitHash;
+export 'safe_webauthn.dart';

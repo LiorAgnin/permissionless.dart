@@ -156,6 +156,7 @@ void main() {
               },
               maxAttempts: 4,
               delay: const Duration(seconds: 8),
+              retryIf: isAa25,
             );
 
             expect(hash, startsWith('0x'));
@@ -183,12 +184,13 @@ void main() {
             final address = await account!.getAddress();
             final isDeployed = await publicClient!.isDeployed(address);
 
-            // Note: This test assumes a UserOp has been sent previously
-            // It will pass if the account is deployed, skip otherwise
+            // Depends on an earlier UserOp (e.g. the full flow test) having
+            // deployed the account; skips otherwise.
             if (!isDeployed) {
               markTestSkipped(
                 'Account not yet deployed. Run full flow test first.',
               );
+              return;
             }
 
             expect(isDeployed, isTrue);
@@ -232,6 +234,7 @@ void main() {
               },
               maxAttempts: 4,
               delay: const Duration(seconds: 8),
+              retryIf: isAa25,
             );
 
             expect(hash, startsWith('0x'));

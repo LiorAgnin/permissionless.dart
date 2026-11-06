@@ -37,7 +37,10 @@ abstract class AccountOwner {
 
   /// The type of this owner (e.g., 'local' for ECDSA, 'webAuthn' for passkeys).
   ///
-  /// Smart accounts use this to determine how to encode signatures.
+  /// Informational, mirroring viem's `account.type`: no account in this
+  /// library reads it. Accounts pick WebAuthn signature encoding by class, so
+  /// a passkey owner must extend `WebAuthnAccountOwner`; overriding [type]
+  /// alone still gets ECDSA encoding.
   String get type => OwnerType.local;
 
   /// The Ethereum address of this owner.
@@ -47,34 +50,25 @@ abstract class AccountOwner {
   ///
   /// This adds the standard Ethereum prefix before signing:
   /// `"\x19Ethereum Signed Message:\n32" + hash`
-  ///
-  /// Used by: SimpleAccount, Nexus, Biconomy, Light, Trust, Thirdweb, Etherspot
   Future<String> signPersonalMessage(String hash);
 
   /// Signs a hash directly without any prefix.
   ///
   /// This signs the raw hash bytes using ECDSA.
-  ///
-  /// Used by: Kernel
   Future<String> signRawHash(String hash);
 
   /// Signs EIP-712 typed data.
   ///
   /// This computes the EIP-712 hash and signs it directly (no personal prefix).
-  ///
-  /// Used by: Safe, Trust, Light, Thirdweb
   Future<String> signTypedData(TypedData typedData);
 }
 
 /// Private key-based implementation of [AccountOwner].
 ///
-/// This single implementation handles all signing modes, replacing the
-/// previously duplicated PrivateKey*Owner classes.
-///
 /// Example:
 /// ```dart
-/// final owner = PrivateKeyOwner('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80');
-/// print(owner.address); // 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+/// final owner = PrivateKeyOwner('0x<your-private-key>');
+/// print(owner.address); // the EOA address derived from the key
 ///
 /// // For SimpleAccount, Nexus, etc.
 /// final sig = await owner.signPersonalMessage(userOpHash);
@@ -100,70 +94,31 @@ class PrivateKeyOwner implements AccountOwner {
   @override
   EthereumAddress get address => _privateKey.address;
 
-  /// The public key (64 bytes, uncompressed without 04 prefix).
+  /// The uncompressed secp256k1 public key (64 bytes, without the `04`
+  /// prefix; web3dart's `privateKeyBytesToPublic` already drops it).
+  Uint8List get publicKey => privateKeyBytesToPublic(_privateKey.privateKey);
+
+  @override
+  Future<String> signPersonalMessage(String hash) async => Hex.fromBytes(
+        _privateKey.signPersonalMessageToUint8List(Hex.decode(hash)),
+      );
+
+  @override
+  Future<String> signRawHash(String hash) async => _signDigest(hash);
+
+  @override
+  Future<String> signTypedData(TypedData typedData) async =>
+      _signDigest(hashTypedData(typedData));
+
+  /// ECDSA over the 32-byte [digest] as `r ‖ s ‖ v` (65 bytes).
   ///
-  /// Required by TrustAccount for the Barz factory.
-  Uint8List get publicKey {
-    final fullPubKey = privateKeyBytesToPublic(_privateKey.privateKey);
-    // Remove the 04 prefix if present (uncompressed point marker)
-    if (fullPubKey.length == 65 && fullPubKey[0] == 0x04) {
-      return Uint8List.fromList(fullPubKey.sublist(1));
-    }
-    return fullPubKey;
-  }
-
-  @override
-  Future<String> signPersonalMessage(String hash) async {
-    final hashBytes = Hex.decode(hash);
-
-    // Use web3dart's signPersonalMessageToUint8List which:
-    // 1. Adds "\x19Ethereum Signed Message:\n{length}" prefix
-    // 2. Hashes with keccak256
-    // 3. Signs with ECDSA
-    // 4. Returns r + s + v (65 bytes)
-    final signature = _privateKey.signPersonalMessageToUint8List(
-      Uint8List.fromList(hashBytes),
-    );
-
-    return Hex.fromBytes(signature);
-  }
-
-  @override
-  Future<String> signRawHash(String hash) async {
-    final hashBytes = Hex.decode(hash);
-
-    // Sign the hash directly using low-level sign() from web3dart/crypto
-    // This does NOT add any prefix - it signs the raw 32-byte hash
-    final sig = sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
-
-    // Encode as r (32 bytes) + s (32 bytes) + v (1 byte)
-    final r = Hex.fromBigInt(sig.r, byteLength: 32);
-    final s = Hex.fromBigInt(sig.s, byteLength: 32);
-    var v = sig.v;
-    if (v < 27) {
-      v += 27;
-    }
-
-    return Hex.concat([r, s, Hex.fromBigInt(BigInt.from(v), byteLength: 1)]);
-  }
-
-  @override
-  Future<String> signTypedData(TypedData typedData) async {
-    // Compute EIP-712 hash
-    final hash = hashTypedData(typedData);
-    final hashBytes = Hex.decode(hash);
-
-    // Sign the EIP-712 hash directly (no personal message prefix)
-    final sig = sign(Uint8List.fromList(hashBytes), _privateKey.privateKey);
-
-    // Encode as r (32 bytes) + s (32 bytes) + v (1 byte)
-    final r = Hex.fromBigInt(sig.r, byteLength: 32);
-    final s = Hex.fromBigInt(sig.s, byteLength: 32);
-    var v = sig.v;
-    if (v < 27) {
-      v += 27;
-    }
-
-    return Hex.concat([r, s, Hex.fromBigInt(BigInt.from(v), byteLength: 1)]);
+  /// web3dart's `sign` already returns `v` as 27 or 28.
+  String _signDigest(String digest) {
+    final sig = sign(Hex.decode(digest), _privateKey.privateKey);
+    return Hex.concat([
+      Hex.fromBigInt(sig.r, byteLength: 32),
+      Hex.fromBigInt(sig.s, byteLength: 32),
+      Hex.fromBigInt(BigInt.from(sig.v), byteLength: 1),
+    ]);
   }
 }

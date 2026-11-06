@@ -1,8 +1,6 @@
-import '../clients/bundler/types.dart';
-import '../clients/pimlico/pimlico_client.dart';
-import '../clients/public/public_client.dart';
 import '../types/address.dart';
 import '../types/user_operation.dart';
+import '../types/user_operation_gas_estimate.dart';
 
 /// Speed tier for gas price estimation.
 enum GasSpeed {
@@ -83,12 +81,14 @@ class GasMultipliers {
 
   /// Multipliers for WebAuthn/Passkey accounts.
   ///
-  /// P256 signature verification without the RIP-7212 precompile requires
-  /// approximately 800k gas for on-chain ECDSA math. This preset provides
-  /// a 3x buffer on verificationGasLimit to account for this.
+  /// A 3x buffer on verificationGasLimit. Opt-in, and not needed when the
+  /// account's stub signature carries an in-range P-256 r/s (the Kernel and
+  /// Safe WebAuthn stubs do), so the bundler runs the full verifier: for
+  /// Kernel, measured on a local rig, the plain estimate covered the
+  /// Solidity verifier (~450k per op) and the precompile (~120k).
   ///
-  /// Use this preset when the smart account uses WebAuthn/Passkey authentication
-  /// and the chain does NOT have reliable RIP-7212 precompile support.
+  /// Use it only when a bundler underestimates verification for your
+  /// WebAuthn account.
   ///
   /// Example:
   /// ```dart
@@ -96,7 +96,7 @@ class GasMultipliers {
   /// final buffered = estimate.withMultipliers(GasMultipliers.webAuthn);
   /// ```
   static const webAuthn = GasMultipliers(
-    verificationGasLimit: 3, // P256 on-chain verification is ~800k gas
+    verificationGasLimit: 3,
     callGasLimit: 1.2,
     preVerificationGas: 1,
     paymasterVerificationGasLimit: 1.3,
@@ -149,23 +149,23 @@ extension GasEstimateMultipliers on UserOperationGasEstimate {
     return total;
   }
 
-  /// Ensures verificationGasLimit is at least the specified minimum.
+  /// Ensures verificationGasLimit is at least the specified minimum (default
+  /// 900,000).
   ///
-  /// Use this for WebAuthn/Passkey accounts where P256 signature verification
-  /// without the RIP-7212 precompile requires ~800k gas. Bundler estimates
-  /// may underestimate this cost.
-  ///
-  /// The default minimum of 900,000 provides buffer for on-chain P256 math.
-  ///
-  /// Example:
-  /// ```dart
-  /// final estimate = await bundler.estimateUserOperationGas(userOp);
-  /// final adjusted = estimate.withMinimumVerificationGas();
-  /// ```
+  /// `SmartAccountClient` no longer applies this to WebAuthn accounts: it
+  /// compensated for a stub signature the P-256 verifier rejected before its
+  /// curve math, which made bundlers underestimate verification. With the
+  /// permissionless.js stub the bundler estimate covers the verifier, and a
+  /// fixed 900k was below the real estimate for a deploying op (~945k).
+  @Deprecated(
+    'SmartAccountClient no longer floors WebAuthn verification gas; the '
+    'bundler estimate covers it. Pass verificationGasLimit to '
+    'prepareUserOperation for an explicit limit. Will be removed in a '
+    'future major version.',
+  )
   UserOperationGasEstimate withMinimumVerificationGas({
     BigInt? minimum,
   }) {
-    // Default: 900k gas for P256 on-chain verification with buffer
     final minGas = minimum ?? BigInt.from(900000);
 
     if (verificationGasLimit >= minGas) {
@@ -260,77 +260,12 @@ class GasCostEstimate {
       'GasCostEstimate(totalGas: $totalGasLimit, maxCost: $maxGasCost)';
 }
 
-/// Gets fee estimates from a public client.
-///
-/// Combines gasPrice and maxPriorityFeePerGas into a FeeEstimate.
-/// Applies an optional multiplier for safety.
-///
-/// Example:
-/// ```dart
-/// final fees = await estimateFees(publicClient, multiplier: 1.2);
-/// ```
-Future<FeeEstimate> estimateFees(
-  PublicClient public, {
-  double multiplier = 1.1,
-}) async {
-  final feeData = await public.getFeeData();
-
-  var maxFeePerGas = feeData.gasPrice;
-  var maxPriorityFeePerGas = feeData.maxPriorityFeePerGas ?? feeData.gasPrice;
-
-  // Apply multiplier
-  if (multiplier != 1.0) {
-    maxFeePerGas = _applyMultiplier(maxFeePerGas, multiplier);
-    maxPriorityFeePerGas = _applyMultiplier(maxPriorityFeePerGas, multiplier);
-  }
-
-  return FeeEstimate(
-    maxFeePerGas: maxFeePerGas,
-    maxPriorityFeePerGas: maxPriorityFeePerGas,
-  );
-}
-
-/// Gets fee estimates from a Pimlico client.
-///
-/// Uses Pimlico's gas price oracle for more accurate estimates.
-/// Supports speed tiers (slow, standard, fast).
-///
-/// Example:
-/// ```dart
-/// final fees = await estimateFeesFromPimlico(
-///   pimlicoClient,
-///   speed: GasSpeed.fast,
-/// );
-/// ```
-Future<FeeEstimate> estimateFeesFromPimlico(
-  PimlicoClient pimlico, {
-  GasSpeed speed = GasSpeed.standard,
-}) async {
-  final gasPrices = await pimlico.getUserOperationGasPrice();
-
-  final price = switch (speed) {
-    GasSpeed.slow => gasPrices.slow,
-    GasSpeed.standard => gasPrices.standard,
-    GasSpeed.fast => gasPrices.fast,
-  };
-
-  return FeeEstimate(
-    maxFeePerGas: price.maxFeePerGas,
-    maxPriorityFeePerGas: price.maxPriorityFeePerGas,
-  );
-}
-
 /// Applies a multiplier to a BigInt value.
 BigInt _applyMultiplier(BigInt value, double multiplier) {
   if (multiplier == 1.0) return value;
-  // Scale up to avoid precision loss, then scale back down
   final scaled = (value.toDouble() * multiplier * 1000).round();
   return BigInt.from(scaled) ~/ BigInt.from(1000);
 }
-
-// ============================================================================
-// Required Prefund Calculation
-// ============================================================================
 
 /// Calculates the required prefund for a UserOperation (v0.7).
 ///
@@ -360,7 +295,6 @@ BigInt getRequiredPrefund(UserOperationV07 userOperation) {
       userOperation.callGasLimit +
       userOperation.preVerificationGas;
 
-  // Add paymaster gas limits if present
   if (userOperation.paymasterVerificationGasLimit != null) {
     requiredGas += userOperation.paymasterVerificationGasLimit!;
   }
@@ -388,7 +322,6 @@ BigInt getRequiredPrefund(UserOperationV07 userOperation) {
 /// final prefund = getRequiredPrefundV06(userOperationV06);
 /// ```
 BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
-  // Check if paymaster is present (paymasterAndData > 2 chars means it has content beyond '0x')
   final hasPaymaster = userOperation.paymasterAndData.length > 2;
 
   final multiplier = hasPaymaster ? BigInt.from(3) : BigInt.one;
@@ -399,10 +332,6 @@ BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
 
   return requiredGas * userOperation.maxFeePerGas;
 }
-
-// ============================================================================
-// Address Extraction Utilities
-// ============================================================================
 
 /// Extracts an address from `initCode` or `paymasterAndData` fields.
 ///
@@ -430,23 +359,19 @@ BigInt getRequiredPrefundV06(UserOperationV06 userOperation) {
 /// );
 /// ```
 EthereumAddress? getAddressFromInitCodeOrPaymasterAndData(String? data) {
-  // Handle null or empty data
   if (data == null || data.isEmpty || data == '0x') {
     return null;
   }
 
-  // An address needs at least 42 hex characters: '0x' + 40 hex digits (20 bytes)
   if (data.length < 42) {
     return null;
   }
 
-  // Extract the first 20 bytes (40 hex chars + '0x' prefix)
   final addressHex = data.substring(0, 42);
 
   try {
     return EthereumAddress.fromHex(addressHex);
   } catch (_) {
-    // Invalid address format
     return null;
   }
 }

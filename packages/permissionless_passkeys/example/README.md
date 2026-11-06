@@ -5,9 +5,10 @@ A Flutter example app demonstrating WebAuthn passkey authentication for ERC-4337
 ## Features
 
 - Register passkeys using device biometrics (Face ID, Touch ID, Windows Hello)
-- Create Kernel v0.3.x smart accounts with WebAuthn validator
+- Create Kernel v0.3.1 smart accounts with WebAuthn validator
 - Create Safe v1.4.1 smart accounts with WebAuthn shared signer
 - View account info and encoded transactions
+- Send a sponsored or self-funded ETH transfer on Sepolia, signed with the passkey
 - Export credentials as JSON
 - **Riverpod** state management for clean architecture
 
@@ -88,23 +89,22 @@ WebAuthn requires platform-specific configuration. Follow the instructions below
 
 ## Configuration
 
-Update the following values in the example code:
+All app settings are in `lib/config.dart`:
 
-### `lib/providers/credential_provider.dart`
 ```dart
-final config = PassKeyConfig(
-  rpId: 'yourdomain.com',     // Your relying party ID (domain)
-  rpName: 'Your App Name',    // Display name for passkey prompt
-);
+// Relying Party ID used to register and sign passkeys (your domain)
+const passkeyRpId = '28fc478be30e2f.lhr.life';
+
+// Sepolia JSON-RPC URL; replace YOUR_KEY or use any Sepolia endpoint
+const sepoliaRpcUrl = 'https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY';
 ```
 
-### `lib/screens/account_screen.dart`
-```dart
-_webAuthnAccount = createWebAuthnAccount(
-  credential: widget.credential,
-  rpId: 'yourdomain.com',  // Must match registration config
-);
-```
+`passkeyRpId` must also appear in the platform config: `android:host` in
+`android/app/src/main/AndroidManifest.xml`, and `webcredentials:<rpId>` in the
+iOS Associated Domains (`ios/Runner/Runner.entitlements`, empty as checked in).
+
+The Pimlico API key is not in the code: enter it on the Send Transaction
+screen. The app uses Pimlico as bundler and, in sponsored mode, as paymaster.
 
 ## Running the Example
 
@@ -122,9 +122,11 @@ For local development, you can:
 2. **Use a simulator/emulator** - Some platforms allow `localhost` during development
 3. **Deploy to a test domain** - Set up a simple domain for testing
 
-### Using the AASA Server with ngrok
+### Using the AASA Server with a tunnel
 
-The example app is pre-configured to use `9feab7e13674.ngrok.app`. To set this up:
+`lib/config.dart` and the Android manifest use `28fc478be30e2f.lhr.life`, a
+localhost.run tunnel. Free tunnel hosts usually change between sessions, so you
+will normally put your own host in those files first.
 
 ```bash
 # Terminal 1: Start the AASA server
@@ -132,12 +134,12 @@ cd aasa_server
 dart pub get
 dart run bin/server.dart
 
-# Terminal 2: Expose via ngrok (requires reserved subdomain)
-ngrok http 8080 --subdomain=9feab7e13674
+# Terminal 2: Expose port 8080 over HTTPS
+ssh -R 80:localhost:8080 nokey@localhost.run   # or: ngrok http 8080
 
 # Terminal 3: Run the Flutter app
 cd ..
-flutter run -d iphone
+flutter run
 ```
 
 See `aasa_server/README.md` for detailed instructions and troubleshooting.
@@ -159,8 +161,9 @@ See `aasa_server/README.md` for detailed instructions and troubleshooting.
 - Use a different username or clear existing passkeys
 
 ### Account address not computed
-- The example doesn't connect to an RPC endpoint
-- In production, provide a `publicClient` to compute the counterfactual address
+- The Kernel account resolves its address through `sepoliaRpcUrl` in
+  `lib/config.dart`; set a working Sepolia endpoint
+- The Safe account computes its address offline
 - Or deploy the account first and provide the `address` directly
 
 ## Architecture
@@ -170,12 +173,14 @@ This app uses **Riverpod** for state management with a clean separation of conce
 ```
 lib/
 ├── main.dart                # App entry with ProviderScope
+├── config.dart              # rpId and Sepolia RPC URL
 ├── providers/
 │   └── credential_provider.dart  # Credential state management
 ├── screens/
 │   ├── home_screen.dart     # Main navigation (ConsumerWidget)
 │   ├── register_screen.dart # Passkey registration (ConsumerStatefulWidget)
-│   └── account_screen.dart  # Account info & demo encoding
+│   ├── account_screen.dart  # Account info & demo encoding
+│   └── send_transaction_screen.dart  # Send a UserOperation via Pimlico
 └── widgets/
     └── credential_card.dart # Reusable credential display
 ```
@@ -197,5 +202,6 @@ ref.read(credentialProvider.notifier).clearCredential();
 
 - Passkeys are bound to the device and domain (rpId)
 - Private keys never leave the secure enclave
-- The example stores credentials in memory only
+- The example saves the credential (ID and public key, no private key) in
+  `shared_preferences`
 - For production, consider secure storage for credential metadata
