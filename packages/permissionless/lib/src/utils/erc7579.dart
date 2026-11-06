@@ -71,47 +71,57 @@ class Erc7579ExecType {
   static const int tryExec = 0x01;
 }
 
-/// ERC-7579 function selectors.
+/// ERC-7579 `execute(bytes32 mode, bytes executionCalldata)`.
+const String erc7579ExecuteSignature = 'execute(bytes32,bytes)';
+
+/// ERC-7579 `installModule(uint256 moduleTypeId, address module,
+/// bytes initData)`.
+const String erc7579InstallModuleSignature =
+    'installModule(uint256,address,bytes)';
+
+/// ERC-7579 `uninstallModule(uint256 moduleTypeId, address module,
+/// bytes deInitData)`.
+const String erc7579UninstallModuleSignature =
+    'uninstallModule(uint256,address,bytes)';
+
+/// ERC-7579 `isModuleInstalled(uint256 moduleTypeId, address module,
+/// bytes additionalContext)`.
+const String erc7579IsModuleInstalledSignature =
+    'isModuleInstalled(uint256,address,bytes)';
+
+/// ERC-7579 `supportsModule(uint256 moduleTypeId)`.
+const String erc7579SupportsModuleSignature = 'supportsModule(uint256)';
+
+/// ERC-7579 `supportsExecutionMode(bytes32 mode)`.
+const String erc7579SupportsExecutionModeSignature =
+    'supportsExecutionMode(bytes32)';
+
+/// ERC-7579 function selectors: the selectors of the `erc7579*Signature`
+/// constants the encoders send (pinned by the tests).
 class Erc7579Selectors {
   Erc7579Selectors._();
 
-  /// execute(bytes32 mode, bytes executionCalldata)
-  /// `keccak256("execute(bytes32,bytes)")[0:4]` = 0xe9ae5c53
+  /// Selector of [erc7579ExecuteSignature].
   static const String execute = '0xe9ae5c53';
 
-  /// installModule(uint256 moduleTypeId, address module, bytes initData)
-  /// `keccak256("installModule(uint256,address,bytes)")[0:4]` = 0x9517e29f
+  /// Selector of [erc7579InstallModuleSignature].
   static const String installModule = '0x9517e29f';
 
-  /// uninstallModule(uint256 moduleTypeId, address module, bytes deInitData)
-  /// `keccak256("uninstallModule(uint256,address,bytes)")[0:4]` = 0xa71763a8
+  /// Selector of [erc7579UninstallModuleSignature].
   static const String uninstallModule = '0xa71763a8';
 
-  /// isModuleInstalled(uint256 moduleTypeId, address module, bytes additionalContext)
-  /// `keccak256("isModuleInstalled(uint256,address,bytes)")[0:4]` = 0x112d3a7d
+  /// Selector of [erc7579IsModuleInstalledSignature].
   static const String isModuleInstalled = '0x112d3a7d';
 
-  /// supportsModule(uint256 moduleTypeId)
-  /// `keccak256("supportsModule(uint256)")[0:4]` = 0xf2dc691d
+  /// Selector of [erc7579SupportsModuleSignature].
   static const String supportsModule = '0xf2dc691d';
 
-  /// accountId()
-  /// `keccak256("accountId()")[0:4]` = 0x9cfd7cff
+  /// `accountId()`; the call data is just this selector.
   static const String accountId = '0x9cfd7cff';
 
-  /// supportsExecutionMode(bytes32 mode)
-  /// `keccak256("supportsExecutionMode(bytes32)")[0:4]` = 0xd03c7914
+  /// Selector of [erc7579SupportsExecutionModeSignature].
   static const String supportsExecutionMode = '0xd03c7914';
 }
-
-const String _executeSignature = 'execute(bytes32,bytes)';
-const String _installModuleSignature = 'installModule(uint256,address,bytes)';
-const String _uninstallModuleSignature =
-    'uninstallModule(uint256,address,bytes)';
-const String _isModuleInstalledSignature =
-    'isModuleInstalled(uint256,address,bytes)';
-const String _supportsModuleSignature = 'supportsModule(uint256)';
-const String _supportsExecutionModeSignature = 'supportsExecutionMode(bytes32)';
 
 /// ERC-7579 batch execution calldata: `abi.encode(Execution[])`.
 const List<String> _executionsAbi = ['(address,uint256,bytes)[]'];
@@ -342,7 +352,7 @@ String encode7579ExecuteDelegateCall(Call call) => _encodeExecute(
     );
 
 String _encodeExecute(Erc7579CallKind callType, String executionData) =>
-    AbiEncoder.encodeFunctionData(_executeSignature, [
+    AbiEncoder.encodeFunctionData(erc7579ExecuteSignature, [
       ExecutionMode(type: callType).encode(),
       executionData,
     ]);
@@ -368,7 +378,7 @@ String encode7579InstallModule({
   String initData = '0x',
 }) =>
     AbiEncoder.encodeFunctionData(
-      _installModuleSignature,
+      erc7579InstallModuleSignature,
       [moduleType.id, module, initData],
     );
 
@@ -393,7 +403,7 @@ String encode7579UninstallModule({
   String deInitData = '0x',
 }) =>
     AbiEncoder.encodeFunctionData(
-      _uninstallModuleSignature,
+      erc7579UninstallModuleSignature,
       [moduleType.id, module, deInitData],
     );
 
@@ -419,7 +429,7 @@ String encode7579IsModuleInstalled({
   String additionalContext = '0x',
 }) =>
     AbiEncoder.encodeFunctionData(
-      _isModuleInstalledSignature,
+      erc7579IsModuleInstalledSignature,
       [moduleType.id, module, additionalContext],
     );
 
@@ -437,7 +447,10 @@ String encode7579IsModuleInstalled({
 /// final supportsHooks = decode7579BoolResult(result);
 /// ```
 String encode7579SupportsModule(Erc7579ModuleType moduleType) =>
-    AbiEncoder.encodeFunctionData(_supportsModuleSignature, [moduleType.id]);
+    AbiEncoder.encodeFunctionData(
+      erc7579SupportsModuleSignature,
+      [moduleType.id],
+    );
 
 /// Encodes an ERC-7579 supportsExecutionMode call for use with eth_call.
 ///
@@ -458,7 +471,7 @@ String encode7579SupportsModule(Erc7579ModuleType moduleType) =>
 /// ```
 String encode7579SupportsExecutionMode(ExecutionMode mode) =>
     AbiEncoder.encodeFunctionData(
-      _supportsExecutionModeSignature,
+      erc7579SupportsExecutionModeSignature,
       [mode.encode()],
     );
 
@@ -668,7 +681,7 @@ Decoded7579Calls decode7579Calls(String callData) {
   if (Hex.byteLength(callData) < 68) {
     throw ArgumentError('Call data too short for ERC-7579 execute');
   }
-  final args = AbiEncoder.decodeFunctionData(_executeSignature, callData);
+  final args = AbiEncoder.decodeFunctionData(erc7579ExecuteSignature, callData);
   final modeBytes = args[0] as Uint8List;
   final executionData = Hex.fromBytes(args[1] as Uint8List);
 
