@@ -652,8 +652,10 @@ Safe, Kernel, Light, Simple and Thirdweb also have one file per version
 Most examples send real UserOperations on a testnet. The two WebAuthn
 examples stop before signing, since that needs a real authenticator (see
 `permissionless_passkeys`). All of them read
-`PIMLICO_API_KEY` (required) and `TEST_PRIVATE_KEY` from the environment or
-from a `.env` file in this package or the repo root. Run one:
+`PIMLICO_API_KEY` and `TEST_PRIVATE_KEY` from the environment or from a
+`.env` file in this package or the repo root. Both are required; there is no
+built-in key. Use a throwaway key funded on Sepolia, never a well-known one
+such as Hardhat/Anvil account 0. Run one:
 
 ```bash
 dart run example/safe_example.dart
