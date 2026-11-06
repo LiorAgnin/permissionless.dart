@@ -24,7 +24,8 @@
 ///   ),
 /// );
 ///
-/// // 3. Use with a smart account (Kernel v0.3.x or Safe)
+/// // 3. Use as the owner of a smart account: Kernel v0.3.0-beta, v0.3.1 or
+/// //    v0.3.3 (v0.2.x and v0.3.2 have no WebAuthn validator), or Safe
 /// // Note: Smart account integration with WebAuthn owners is
 /// // handled by the permissionless package.
 /// ```
