@@ -363,5 +363,47 @@ void main() {
         expect(signature.toLowerCase(), equals(jsSignTypedData));
       });
     });
+    group('EntryPoint versions', () {
+      // permissionless.js toThirdwebSmartAccount supports EntryPoint 0.6 and
+      // 0.7 only (THIRDWEB_ADDRESSES has no "0.8" entry).
+      test('v0.6 resolves the v0.6 factory and EntryPoint', () async {
+        final account = createThirdwebSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.one,
+          entryPointVersion: EntryPointVersion.v06,
+          address: mockAddress,
+        );
+        expect(account.entryPoint, equals(EntryPointAddresses.v06));
+        expect(
+          (await account.getFactoryData())!.factory,
+          equals(ThirdwebAddresses.factoryV06),
+        );
+      });
+
+      test('v0.7 resolves the v0.7 factory and EntryPoint', () async {
+        final account = createThirdwebSmartAccount(
+          owner: PrivateKeyOwner(testPrivateKey),
+          chainId: BigInt.one,
+          address: mockAddress,
+        );
+        expect(account.entryPoint, equals(EntryPointAddresses.v07));
+        expect(
+          (await account.getFactoryData())!.factory,
+          equals(ThirdwebAddresses.factoryV07),
+        );
+      });
+
+      test('rejects EntryPoint v0.8 at construction', () {
+        expect(
+          () => createThirdwebSmartAccount(
+            owner: PrivateKeyOwner(testPrivateKey),
+            chainId: BigInt.one,
+            entryPointVersion: EntryPointVersion.v08,
+            address: mockAddress,
+          ),
+          throwsArgumentError,
+        );
+      });
+    });
   });
 }

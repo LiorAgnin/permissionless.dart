@@ -28,7 +28,8 @@ class ThirdwebSmartAccountConfig {
   /// - [salt]: Salt for deterministic address generation. Treated as a UTF-8
   ///   string (matching permissionless.js `toHex(salt)`), not as hex. Empty or
   ///   the historical default `"0x"` produce empty salt bytes.
-  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7)
+  /// - [entryPointVersion]: EntryPoint version (defaults to v0.7); v0.8
+  ///   throws [ArgumentError]
   /// - [nonceKey]: Custom nonce key for parallel transaction support
   /// - [entryPointAddress]: Override the canonical EntryPoint address
   /// - [publicClient]: For RPC-based address computation (recommended)
@@ -37,13 +38,27 @@ class ThirdwebSmartAccountConfig {
     required this.owner,
     required this.chainId,
     this.salt = '0x',
-    this.entryPointVersion = EntryPointVersion.v07,
+    EntryPointVersion entryPointVersion = EntryPointVersion.v07,
     this.customFactoryAddress,
     this.nonceKey,
     this.entryPointAddress,
     this.publicClient,
     this.address,
-  });
+  }) : entryPointVersion = _supportedEntryPointVersion(entryPointVersion);
+
+  // permissionless.js ships Thirdweb factories for EntryPoint 0.6 and 0.7 only.
+  static EntryPointVersion _supportedEntryPointVersion(
+    EntryPointVersion version,
+  ) {
+    if (version == EntryPointVersion.v08) {
+      throw ArgumentError.value(
+        version,
+        'entryPointVersion',
+        'Thirdweb accounts support EntryPoint v0.6 and v0.7 only',
+      );
+    }
+    return version;
+  }
 
   /// The owner of this Thirdweb account.
   final AccountOwner owner;
@@ -96,9 +111,9 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   /// of calling this constructor directly.
   ThirdwebSmartAccount(this._config)
       : _factoryAddress = _config.customFactoryAddress ??
-            (_config.entryPointVersion == EntryPointVersion.v07
-                ? ThirdwebAddresses.factoryV07
-                : ThirdwebAddresses.factoryV06);
+            (_config.entryPointVersion == EntryPointVersion.v06
+                ? ThirdwebAddresses.factoryV06
+                : ThirdwebAddresses.factoryV07);
 
   final ThirdwebSmartAccountConfig _config;
   final EthereumAddress _factoryAddress;
@@ -118,9 +133,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
   @override
   EthereumAddress get entryPoint =>
       _config.entryPointAddress ??
-      (_config.entryPointVersion == EntryPointVersion.v07
-          ? EntryPointAddresses.v07
-          : EntryPointAddresses.v06);
+      EntryPointAddresses.fromVersion(_config.entryPointVersion);
 
   /// The nonce key for parallel transaction support.
   @override
