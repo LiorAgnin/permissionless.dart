@@ -6,7 +6,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -176,13 +175,7 @@ class NexusSmartAccount implements SmartAccount, EntryPointVersioned {
 
   /// Gets the init code for deploying this Nexus account.
   @override
-  Future<String> getInitCode() async {
-    final factoryData = await getFactoryData();
-    return packUserOperationInitCode(
-      factory: factoryData?.factory,
-      factoryData: factoryData?.factoryData,
-    );
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override

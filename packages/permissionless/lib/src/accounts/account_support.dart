@@ -1,11 +1,24 @@
 import '../clients/public/public_client.dart';
 import '../types/address.dart';
+import '../types/eip7702.dart';
 import '../types/user_operation.dart';
 
 /// 65-byte ECDSA-shaped dummy signature accepted by bundler simulation
 /// (permissionless.js `getDummySignature` for ECDSA owners).
 const String ecdsaStubSignature =
     '0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c';
+
+/// The v0.6 `initCode` (`factory ‖ factoryData`) for an account's
+/// [factoryData], or `0x` when it has no factory.
+Future<String> initCodeFromFactory(
+  Future<({EthereumAddress factory, String factoryData})?> factoryData,
+) async {
+  final data = await factoryData;
+  return packUserOperationInitCode(
+    factory: data?.factory,
+    factoryData: data?.factoryData,
+  );
+}
 
 /// The counterfactual address of a factory-deployed account.
 ///

@@ -5,7 +5,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/encoding.dart';
@@ -163,10 +162,7 @@ class ThirdwebSmartAccount
 
   /// Gets the init code for deploying this Thirdweb account.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _createAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override

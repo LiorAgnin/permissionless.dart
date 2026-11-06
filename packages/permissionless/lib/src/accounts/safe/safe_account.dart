@@ -534,10 +534,7 @@ class SafeSmartAccount
   ///
   /// This is used in the UserOperation when the account doesn't exist yet.
   @override
-  Future<String> getInitCode() async {
-    final (:factory, :factoryData) = (await getFactoryData())!;
-    return Hex.concat([factory.hex, factoryData]);
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation v0.7.
   @override

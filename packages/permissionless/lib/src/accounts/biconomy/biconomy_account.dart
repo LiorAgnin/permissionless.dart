@@ -6,7 +6,6 @@ import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -14,6 +13,7 @@ import '../../utils/encoding.dart';
 import '../../utils/message_hash.dart';
 import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
+import '../account_support.dart';
 import 'constants.dart';
 
 /// Configuration for creating a Biconomy smart account.
@@ -186,10 +186,7 @@ class BiconomySmartAccount implements SmartAccountV06, EntryPointVersioned {
 
   /// Gets the init code for deploying this Biconomy account.
   @override
-  Future<String> getInitCode() async => packUserOperationInitCode(
-        factory: _factoryAddress,
-        factoryData: _deployCounterFactualAccountData(),
-      );
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   /// Gets the factory address and data for UserOperation.
   @override

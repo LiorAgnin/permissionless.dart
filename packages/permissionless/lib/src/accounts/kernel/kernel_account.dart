@@ -3,7 +3,6 @@ import '../../clients/public/rip7212.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
 import '../../types/address.dart';
-import '../../types/eip7702.dart';
 import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
@@ -195,13 +194,7 @@ class KernelSmartAccount implements SmartAccountV06, EntryPointVersioned {
       );
 
   @override
-  Future<String> getInitCode() async {
-    final factoryData = await getFactoryData();
-    return packUserOperationInitCode(
-      factory: factoryData?.factory,
-      factoryData: factoryData?.factoryData,
-    );
-  }
+  Future<String> getInitCode() => initCodeFromFactory(getFactoryData());
 
   @override
   Future<({EthereumAddress factory, String factoryData})?> getFactoryData() =>
