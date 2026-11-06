@@ -1042,6 +1042,46 @@ void main() {
           equals(await offline.getAddress()),
         );
       });
+
+      // SafeProxyFactory v1.5.0 (0x14F2…5e7b) returns this from
+      // proxyCreationCode() on Ethereum, Sepolia and Base; it differs from
+      // the v1.4.1 proxy, so the offline fallback must follow the version.
+      const v150ProxyCreationCode =
+          '0x608060405234801561001057600080fd5b506040516101b63803806101b68339'
+          '818101604052602081101561003357600080fd5b810190808051906020019092'
+          '9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff'
+          'ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3'
+          '79a0000000000000000000000000000000000000000000000000000000008152'
+          '6004018080602001828103825260228152602001806101946022913960400191'
+          '505060405180910390fd5b806000806101000a81548173ffffffffffffffffff'
+          'ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff'
+          'ffffffffff16021790555050607b806101196000396000f3fe60806040526000'
+          '5463a619486e60003560e01c14156024578060601b606c5260206060f35b3660'
+          '008037600080366000845af43d6000803e806040573d6000fd5b3d6000f3fea2'
+          '646970667358221220e61834ebd2d8cd909d362bf67c47ef58fd665df38e6dd0'
+          '36ce65611101d072e964736f6c63430007060033496e76616c69642073696e67'
+          '6c65746f6e20616464726573732070726f7669646564';
+
+      test('v1.5.0 offline address uses the v1.5.0 proxy creation code',
+          () async {
+        final owner = PrivateKeyOwner(testPrivateKey);
+        final offline = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          version: SafeVersion.v1_5_0,
+        );
+        final fromFactory = createSafeSmartAccount(
+          owners: [owner],
+          chainId: BigInt.one,
+          version: SafeVersion.v1_5_0,
+          publicClient: publicClientReturning(v150ProxyCreationCode),
+        );
+
+        expect(
+          await offline.getAddress(),
+          equals(await fromFactory.getAddress()),
+        );
+      });
     });
   });
 

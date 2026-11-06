@@ -20,10 +20,45 @@ import '../webauthn_owner.dart';
 import '../webauthn_utils.dart';
 import 'constants.dart';
 
-/// Safe proxy creation code for CREATE2 address calculation.
-/// This is the standard Safe proxy bytecode used by SafeProxyFactory.
-const String _proxyCreationCode =
-    '0x608060405234801561001057600080fd5b506040516101e63803806101e68339818101604052602081101561003357600080fd5b8101908080519060200190929190505050600073ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004018080602001828103825260228152602001806101c46022913960400191505060405180910390fd5b806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505060ab806101196000396000f3fe608060405273ffffffffffffffffffffffffffffffffffffffff600054167fa619486e0000000000000000000000000000000000000000000000000000000060003514156050578060005260206000f35b3660008037600080366000845af43d6000803e60008114156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c63430007060033496e76616c69642073696e676c65746f6e20616464726573732070726f7669646564';
+/// `SafeProxyFactory.proxyCreationCode()` per Safe version, used for the
+/// CREATE2 address when no public client is configured or the call fails.
+///
+/// Read from the canonical factories (v1.4.1 0x4e1D…ec67, v1.5.0 0x14F2…5e7b)
+/// on Ethereum, Sepolia and Base; the two versions' proxies differ.
+const Map<SafeVersion, String> _proxyCreationCodes = {
+  SafeVersion.v1_4_1:
+      '0x608060405234801561001057600080fd5b506040516101e63803806101e68339'
+          '818101604052602081101561003357600080fd5b810190808051906020019092'
+          '9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff'
+          'ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3'
+          '79a0000000000000000000000000000000000000000000000000000000008152'
+          '6004018080602001828103825260228152602001806101c46022913960400191'
+          '505060405180910390fd5b806000806101000a81548173ffffffffffffffffff'
+          'ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff'
+          'ffffffffff1602179055505060ab806101196000396000f3fe608060405273ff'
+          'ffffffffffffffffffffffffffffffffffffff600054167fa619486e00000000'
+          '0000000000000000000000000000000000000000000000006000351415605057'
+          '8060005260206000f35b3660008037600080366000845af43d6000803e600081'
+          '14156070573d6000fd5b3d6000f3fea264697066735822122003d1488ee65e08'
+          'fa41e58e888a9865554c535f2c77126a82cb4c0f917f31441364736f6c634300'
+          '07060033496e76616c69642073696e676c65746f6e2061646472657373207072'
+          '6f7669646564',
+  SafeVersion.v1_5_0:
+      '0x608060405234801561001057600080fd5b506040516101b63803806101b68339'
+          '818101604052602081101561003357600080fd5b810190808051906020019092'
+          '9190505050600073ffffffffffffffffffffffffffffffffffffffff168173ff'
+          'ffffffffffffffffffffffffffffffffffffff1614156100ca576040517f08c3'
+          '79a0000000000000000000000000000000000000000000000000000000008152'
+          '6004018080602001828103825260228152602001806101946022913960400191'
+          '505060405180910390fd5b806000806101000a81548173ffffffffffffffffff'
+          'ffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffff'
+          'ffffffffff16021790555050607b806101196000396000f3fe60806040526000'
+          '5463a619486e60003560e01c14156024578060601b606c5260206060f35b3660'
+          '008037600080366000845af43d6000803e806040573d6000fd5b3d6000f3fea2'
+          '646970667358221220e61834ebd2d8cd909d362bf67c47ef58fd665df38e6dd0'
+          '36ce65611101d072e964736f6c63430007060033496e76616c69642073696e67'
+          '6c65746f6e20616464726573732070726f7669646564',
+};
 
 /// Configuration parameters for creating a Safe smart account.
 class SafeSmartAccountConfig {
@@ -305,8 +340,8 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   ///
   /// When a [SafeSmartAccountConfig.publicClient] is configured, reads
   /// `proxyCreationCode()` from the configured SafeProxyFactory (matching
-  /// permissionless.js). Falls back to the verified Safe v1.4.1 constant
-  /// when no client is available or the RPC call fails.
+  /// permissionless.js). Falls back to the canonical code for the configured
+  /// [SafeVersion] when no client is available or the RPC call fails.
   Future<String> _getProxyCreationCode() async {
     if (_cachedProxyCreationCode != null) {
       return _cachedProxyCreationCode!;
@@ -331,8 +366,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
       }
     }
 
-    _cachedProxyCreationCode = _proxyCreationCode;
-    return _proxyCreationCode;
+    return _cachedProxyCreationCode = _proxyCreationCodes[_config.version]!;
   }
 
   /// Decodes a single ABI-encoded `bytes` return value from `eth_call`.
