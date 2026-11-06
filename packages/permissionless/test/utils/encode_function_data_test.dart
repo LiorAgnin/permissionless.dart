@@ -367,4 +367,35 @@ void main() {
       );
     });
   });
+
+  // Widths viem rejects (its integerRegex / bytesRegex). web3dart fails these
+  // with an assert or a bare Exception, and silently accepts bytes0.
+  group('invalid type width', () {
+    for (final (type, value) in [
+      ('uint7', BigInt.one),
+      ('int264', BigInt.one),
+      ('bytes33', '0x${'00' * 33}'),
+      ('bytes0', '0x'),
+      ('uint7[]', [BigInt.one]),
+      ('(address,bytes33)', ['0x${'00' * 20}', '0x${'00' * 33}']),
+    ]) {
+      test('$type throws ArgumentError', () {
+        expect(
+          () => AbiEncoder.encodeParameters([type], [value]),
+          throwsArgumentError,
+          reason: 'encodeParameters',
+        );
+        expect(
+          () => AbiEncoder.encodeFunctionData('f($type)', [value]),
+          throwsArgumentError,
+          reason: 'encodeFunctionData',
+        );
+        expect(
+          () => AbiEncoder.decodeParameters([type], '0x${'00' * 64}'),
+          throwsArgumentError,
+          reason: 'decodeParameters',
+        );
+      });
+    }
+  });
 }

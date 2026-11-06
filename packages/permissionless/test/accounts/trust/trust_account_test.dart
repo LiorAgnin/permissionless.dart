@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 /// Unit tests for Trust (Barz) smart account (EP v0.6).
@@ -239,6 +240,30 @@ void main() {
         final signature = await account.signTypedData(sampleTypedData);
         expect(signature.toLowerCase(), equals(jsSignTypedData));
       });
+    });
+  });
+
+  group('TrustSelectors', () {
+    // cast sig 'createAccount(address,bytes,uint256)'
+    test('createAccount matches cast sig', () {
+      expect(TrustSelectors.createAccount, equals('0x296601cd'));
+    });
+
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (TrustSelectors.execute, executeSignature),
+        (
+          TrustSelectors.executeBatch,
+          ExecuteBatchAbi.addressesValuesAndBytes.signature
+        ),
+        (TrustSelectors.createAccount, trustCreateAccountSignature),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 }

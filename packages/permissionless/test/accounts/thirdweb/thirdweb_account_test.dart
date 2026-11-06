@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 /// Unit tests for Thirdweb smart account.
@@ -371,6 +372,32 @@ void main() {
           throwsArgumentError,
         );
       });
+    });
+  });
+
+  group('ThirdwebSelectors', () {
+    // cast sig 'createAccount(address,bytes)'
+    test('createAccount matches cast sig', () {
+      expect(ThirdwebSelectors.createAccount, equals('0xd8fd8f44'));
+    });
+
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (ThirdwebSelectors.execute, executeSignature),
+        (
+          ThirdwebSelectors.executeBatch,
+          ExecuteBatchAbi.addressesValuesAndBytes.signature
+        ),
+        (ThirdwebSelectors.createAccount, thirdwebCreateAccountSignature),
+        // No encoder sends getAddress (cast sig: 0x8878ed33).
+        (ThirdwebSelectors.getAddress, 'getAddress(address,bytes)'),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 }

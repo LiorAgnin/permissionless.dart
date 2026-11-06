@@ -4,6 +4,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/kernel/kernel_abi.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -495,39 +497,29 @@ void main() {
   });
 
   group('KernelSelectors', () {
-    // Expected values: `cast sig '<signature>'` (Foundry 1.5.1).
-    test('executeV2 is Kernel execute(address,uint256,bytes,uint8)', () {
-      // Not SimpleAccount's execute(address,uint256,bytes) = 0xb61d27f6
+    // cast sig 'execute(address,uint256,bytes,uint8)'; not SimpleAccount's
+    // execute(address,uint256,bytes) = 0xb61d27f6.
+    test('executeV2 matches cast sig', () {
       expect(KernelSelectors.executeV2, equals('0x51945447'));
     });
 
-    test('executeBatchV2 is Kernel executeBatch((address,uint256,bytes)[])',
-        () {
-      // Not SimpleAccount's executeBatch(address[],uint256[],bytes[]) = 0x47e1da2a
-      expect(KernelSelectors.executeBatchV2, equals('0x34fcd5be'));
-    });
-
-    test('executeV3 is ERC-7579 execute(bytes32,bytes)', () {
-      expect(KernelSelectors.executeV3, equals('0xe9ae5c53'));
-    });
-
-    test('factory and initialize selectors match cast sig', () {
-      const expected = {
-        // cast sig 'createAccount(address,bytes,uint256)'
-        KernelSelectors.createAccountV2: '0x296601cd',
-        // cast sig 'createAccount(bytes,bytes32)'
-        KernelSelectors.createAccountV3: '0xea6d13ac',
-        // cast sig 'deployWithFactory(address,bytes,bytes32)'
-        KernelSelectors.deployWithFactory: '0xc5265d5d',
-        // cast sig 'initialize(address,bytes)'
-        KernelSelectors.initializeV2: '0xd1f57894',
-        // cast sig 'initialize(bytes21,address,bytes,bytes)'
-        KernelSelectors.initializeV3Beta: '0x12af322c',
-        // cast sig 'initialize(bytes21,address,bytes,bytes,bytes[])'
-        KernelSelectors.initializeV3: '0x3c3b752b',
-      };
-      for (final MapEntry(key: selector, value: literal) in expected.entries) {
-        expect(selector, equals(literal));
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (KernelSelectors.executeV2, kernelV2ExecuteSignature),
+        (KernelSelectors.executeBatchV2, ExecuteBatchAbi.callTuples.signature),
+        (KernelSelectors.executeV3, erc7579ExecuteSignature),
+        (KernelSelectors.createAccountV2, kernelV2CreateAccountSignature),
+        (KernelSelectors.createAccountV3, kernelV3CreateAccountSignature),
+        (KernelSelectors.deployWithFactory, kernelDeployWithFactorySignature),
+        (KernelSelectors.initializeV2, kernelV2InitializeSignature),
+        (KernelSelectors.initializeV3Beta, kernelV3BetaInitializeSignature),
+        (KernelSelectors.initializeV3, kernelV3InitializeSignature),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
       }
     });
   });

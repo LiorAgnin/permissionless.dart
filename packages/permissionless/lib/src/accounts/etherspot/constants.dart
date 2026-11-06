@@ -1,4 +1,5 @@
 import '../../types/address.dart';
+import '../../utils/erc7579.dart';
 import '../account_support.dart';
 
 /// Etherspot ModularEtherspotWallet contract addresses.
@@ -28,6 +29,21 @@ class EtherspotAddresses {
   );
 }
 
+/// ModularEtherspotWalletFactory `createAccount(bytes32 salt,
+/// bytes initCode)`.
+const String etherspotCreateAccountSignature = 'createAccount(bytes32,bytes)';
+
+/// Bootstrap `initMSA(BootstrapConfig[] validators,
+/// BootstrapConfig[] executors, BootstrapConfig hook,
+/// BootstrapConfig[] fallbacks)` with
+/// `BootstrapConfig = (address module, bytes data)`.
+const String etherspotInitMsaSignature =
+    'initMSA((address,bytes)[],(address,bytes)[],(address,bytes),'
+    '(address,bytes)[])';
+
+/// Module `onInstall(bytes data)`.
+const String etherspotOnInstallSignature = 'onInstall(bytes)';
+
 /// Function selectors for Etherspot contracts.
 class EtherspotSelectors {
   EtherspotSelectors._();
@@ -48,7 +64,7 @@ class EtherspotSelectors {
 
   /// ModularEtherspotWallet: execute(bytes32 mode, bytes executionCalldata)
   /// Same as ERC-7579 standard.
-  static const String execute = '0xe9ae5c53';
+  static const String execute = Erc7579Selectors.execute;
 }
 
 /// Dummy ECDSA signature for gas estimation.

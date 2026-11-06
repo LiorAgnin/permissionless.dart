@@ -161,6 +161,16 @@ void main() {
       expect(status.statusCode, equals(100));
     });
 
+    test('parseCallsStatusCode accepts hex status strings', () {
+      for (final raw in ['0xc8', '0XC8']) {
+        expect(
+          CallsStatus.parseCallsStatusCode(raw),
+          equals((status: CallsStatusType.success, statusCode: 200)),
+          reason: raw,
+        );
+      }
+    });
+
     test('toJson produces correct output', () {
       final status = CallsStatus(
         id: '0x1234',

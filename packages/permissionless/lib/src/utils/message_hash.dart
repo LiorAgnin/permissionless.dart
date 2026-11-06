@@ -5,34 +5,42 @@ import 'package:web3dart/web3dart.dart';
 
 import '../types/hex.dart';
 import '../types/typed_data.dart';
+import 'abi_type.dart';
 import 'encoding.dart';
 
-/// Computes the EIP-191 personal message hash.
+/// Computes the EIP-191 personal message hash of UTF-8 text.
 ///
 /// Format: keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)
+/// where `len` counts UTF-8 bytes.
 ///
-/// This is the standard format used by `personal_sign` in wallets.
+/// This is the standard format used by `personal_sign` in wallets. For a
+/// byte message (viem `hashMessage({ raw })`) use [hashMessageBytes].
 ///
 /// Example:
 /// ```dart
 /// final hash = hashMessage('Hello, World!');
 /// // Returns the keccak256 hash of the prefixed message
 /// ```
-String hashMessage(String message) {
-  final messageBytes = utf8.encode(message);
-  final prefix = '\x19Ethereum Signed Message:\n${messageBytes.length}';
-  final prefixBytes = utf8.encode(prefix);
+String hashMessage(String message) => hashMessageBytes(utf8.encode(message));
 
-  final combined = Uint8List(prefixBytes.length + messageBytes.length)
-    ..setRange(0, prefixBytes.length, prefixBytes)
-    ..setRange(
-      prefixBytes.length,
-      prefixBytes.length + messageBytes.length,
-      messageBytes,
+/// Computes the EIP-191 personal message hash of raw bytes (viem
+/// `hashMessage({ raw })`).
+///
+/// The length in the prefix is the byte count of [message], so signing a
+/// 32-byte hash this way prefixes `32`, not the length of its hex string.
+///
+/// Example:
+/// ```dart
+/// final hash = hashMessageBytes(Hex.decode(userOpHash));
+/// ```
+String hashMessageBytes(List<int> message) => Hex.fromBytes(
+      keccak256(
+        Uint8List.fromList([
+          ...utf8.encode('\x19Ethereum Signed Message:\n${message.length}'),
+          ...message,
+        ]),
+      ),
     );
-
-  return Hex.fromBytes(keccak256(combined));
-}
 
 /// Computes the EIP-712 typed data hash.
 ///
@@ -214,15 +222,6 @@ String _encodeValue(
   return _encodePrimitive(type, value);
 }
 
-// The atomic types viem accepts (its bytesRegex / integerRegex). Checked here
-// because web3dart throws a bare Exception for widths like uint7 / bytes33 and
-// silently accepts bytes0.
-final _atomicType = RegExp(
-  '^(address|bool|bytes([1-9]|[12][0-9]|3[0-2])|u?int(8|16|24|32|40|48|56|64'
-  '|72|80|88|96|104|112|120|128|136|144|152|160|168|176|184|192|200|208|216'
-  r'|224|232|240|248|256)?)$',
-);
-
 /// Encodes a non-struct, non-array value.
 ///
 /// `bytes` and `string` are hashed; every atomic type is encoded as
@@ -236,7 +235,9 @@ String _encodePrimitive(String type, dynamic value) {
   if (type == 'string') {
     return _hashString(value as String);
   }
-  final match = _atomicType.firstMatch(type);
+  // Checked here, not left to AbiEncoder: EIP-712 has no tuple or fixed-size
+  // array field types, which abi.encode would accept.
+  final match = atomicAbiType.firstMatch(type);
   if (match == null) {
     throw ArgumentError('Unsupported type: $type');
   }

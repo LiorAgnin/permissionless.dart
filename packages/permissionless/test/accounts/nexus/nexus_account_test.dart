@@ -153,12 +153,26 @@ void main() {
   });
 
   group('NexusSelectors', () {
-    test('createAccount selector is correct', () {
+    // cast sig 'createAccount(address,uint256,address[],uint8)'
+    test('createAccount matches cast sig', () {
       expect(NexusSelectors.createAccount, equals('0x0d51f0b7'));
     });
 
-    test('computeAccountAddress selector is correct', () {
-      expect(NexusSelectors.computeAccountAddress, equals('0x322cc8ca'));
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (NexusSelectors.createAccount, nexusCreateAccountSignature),
+        // No encoder sends computeAccountAddress (cast sig: 0x322cc8ca).
+        (
+          NexusSelectors.computeAccountAddress,
+          'computeAccountAddress(address,uint256,address[],uint8)'
+        ),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 

@@ -131,10 +131,8 @@ class CallsStatus {
       if (upper == 'PENDING') {
         return (status: CallsStatusType.pending, statusCode: 100);
       }
-      final asInt = int.tryParse(raw) ??
-          (raw.startsWith('0x') || raw.startsWith('0X')
-              ? int.tryParse(raw.substring(2), radix: 16)
-              : null);
+      // Without a radix, int.tryParse also reads 0x/0X hex.
+      final asInt = int.tryParse(raw);
       if (asInt != null) {
         return _mapNumericStatusCode(asInt);
       }

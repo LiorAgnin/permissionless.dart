@@ -170,7 +170,7 @@ class ThirdwebSmartAccount implements SmartAccount, SmartAccountV06 {
           (factory: _factoryAddress, factoryData: _createAccountData());
 
   String _createAccountData() => AbiEncoder.encodeFunctionData(
-        'createAccount(address,bytes)',
+        thirdwebCreateAccountSignature,
         [_config.owner.address, _saltToBytes(_config.salt)],
       );
 

@@ -144,6 +144,26 @@ void main() {
       expect(Erc7579Selectors.supportsExecutionMode, '0xd03c7914');
     });
 
+    test('Erc7579Selectors are the selectors of the signatures encoded', () {
+      for (final (selector, signature) in [
+        (Erc7579Selectors.execute, erc7579ExecuteSignature),
+        (Erc7579Selectors.installModule, erc7579InstallModuleSignature),
+        (Erc7579Selectors.uninstallModule, erc7579UninstallModuleSignature),
+        (Erc7579Selectors.isModuleInstalled, erc7579IsModuleInstalledSignature),
+        (Erc7579Selectors.supportsModule, erc7579SupportsModuleSignature),
+        (
+          Erc7579Selectors.supportsExecutionMode,
+          erc7579SupportsExecutionModeSignature,
+        ),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
+    });
+
     // Expected calldata: cast calldata '<fn>(uint256,address,bytes)' \
     //   <typeId> 0x1234567890123456789012345678901234567890 <bytes>
     group('module management calldata (cast)', () {

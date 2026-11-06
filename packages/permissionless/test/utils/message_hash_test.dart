@@ -40,6 +40,45 @@ void main() {
     }
   });
 
+  // Expected values from viem 2.21.55 `hashMessage({ raw })`:
+  //   /Users/liorag/.claude/jobs/037f9518/tmp/u3/viem/hash_message_raw.ts
+  //   bun run /Users/liorag/.claude/jobs/037f9518/tmp/u3/viem/hash_message_raw.ts
+  // Cross-checked: cast keccak 0x19457468657265756d205369676e6564204d6573736167653a0a34deadbeef
+  // (`cast hash-message` can't produce these: it hashes 0x-hex input as text.)
+  group('hashMessageBytes (EIP-191 over raw bytes)', () {
+    for (final (label, raw, hash) in [
+      (
+        'empty',
+        '0x',
+        '0x5f35dce98ba4fba25530a026ed80b2cecdaa31091ba4958b99b52ea1d068adad',
+      ),
+      (
+        'deadbeef',
+        '0xdeadbeef',
+        '0xd1c7f1a06a4f9a535077e50ad23244ce2c6ae443fcd412965226f3df5d28eaaa',
+      ),
+      (
+        'bytes of "hello" (same hash as the text)',
+        '0x68656c6c6f',
+        '0x50b2c43fd39106bafbba0da34fc430e1f91e3c96ea2acee2bc34119f92b37750',
+      ),
+      (
+        '32-byte hash (prefix length 32, not 66)',
+        '0x5f35dce98ba4fba25530a026ed80b2cecdaa31091ba4958b99b52ea1d068adad',
+        '0xbbdacc15244a82efab46c7a46c9019410f061a0bff24103471b9dd84e9918703',
+      ),
+      (
+        '0xff * 100 (3-digit length prefix)',
+        '0x${'ff' * 100}',
+        '0x5d2999f8e84b3168224e7e0fbce85763e2ef86e9843e3db2080755be4759e4d1',
+      ),
+    ]) {
+      test(label, () {
+        expect(hashMessageBytes(Hex.decode(raw)), equals(hash));
+      });
+    }
+  });
+
   group('hashStruct', () {
     test('throws for unknown type', () {
       expect(

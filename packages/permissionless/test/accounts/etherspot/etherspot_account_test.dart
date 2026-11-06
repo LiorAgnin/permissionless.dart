@@ -130,21 +130,24 @@ void main() {
   });
 
   group('EtherspotSelectors', () {
-    // Expected values: `cast sig '<signature>'` (Foundry 1.5.1).
-    test('createAccount selector is correct', () {
-      // cast sig 'createAccount(bytes32,bytes)'
+    // cast sig 'createAccount(bytes32,bytes)'
+    test('createAccount matches cast sig', () {
       expect(EtherspotSelectors.createAccount, equals('0xf8a59370'));
     });
 
-    test('initMSA selector is correct', () {
-      // cast sig 'initMSA((address,bytes)[],(address,bytes)[],
-      //   (address,bytes),(address,bytes)[])'
-      expect(EtherspotSelectors.initMSA, equals('0x642219af'));
-    });
-
-    test('execute selector is correct', () {
-      // cast sig 'execute(bytes32,bytes)'
-      expect(EtherspotSelectors.execute, equals('0xe9ae5c53'));
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (EtherspotSelectors.createAccount, etherspotCreateAccountSignature),
+        (EtherspotSelectors.initMSA, etherspotInitMsaSignature),
+        (EtherspotSelectors.onInstall, etherspotOnInstallSignature),
+        (EtherspotSelectors.execute, erc7579ExecuteSignature),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 

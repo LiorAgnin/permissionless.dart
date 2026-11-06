@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:permissionless/permissionless.dart'
@@ -10,9 +9,9 @@ import 'package:permissionless/permissionless.dart'
         TypedDataDomain,
         TypedDataField,
         hashMessage,
+        hashMessageBytes,
         hashTypedData;
 import 'package:web3_signers/web3_signers.dart';
-import 'package:web3dart/web3dart.dart' show keccak256;
 
 import '../types/webauthn_credential.dart';
 import 'webauthn_account.dart';
@@ -195,7 +194,7 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
   Future<WebAuthnSignReturnType> signMessage({required dynamic message}) {
     final hash = switch (message) {
       String() => hashMessage(message),
-      List<int>() => _hashRawMessage(message),
+      List<int>() => hashMessageBytes(message),
       _ => throw ArgumentError.value(
         message,
         'message',
@@ -244,16 +243,6 @@ class _WebAuthnAccountImpl extends WebAuthnAccount {
     return signer.signAsync(challenge);
   }
 }
-
-/// EIP-191 hash of raw bytes; core `hashMessage` only accepts UTF-8 text.
-String _hashRawMessage(List<int> message) => Hex.fromBytes(
-  keccak256(
-    Uint8List.fromList([
-      ...utf8.encode('\x19Ethereum Signed Message:\n${message.length}'),
-      ...message,
-    ]),
-  ),
-);
 
 TypedDataDomain _typedDataDomain(Map<String, dynamic> domain) {
   final chainId = domain['chainId'];

@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -496,24 +497,37 @@ void main() {
   });
 
   group('SimpleAccountSelectors', () {
-    test('has correct execute selector', () {
-      expect(SimpleAccountSelectors.execute, equals('0xb61d27f6'));
-    });
-
-    test('has correct executeBatch v0.6 selector', () {
-      expect(SimpleAccountSelectors.executeBatchV06, equals('0x18dfb3c7'));
-    });
-
-    test('has correct executeBatch v0.7 selector', () {
-      expect(SimpleAccountSelectors.executeBatch, equals('0x47e1da2a'));
-    });
-
-    test('has correct executeBatch v0.8 selector', () {
-      expect(SimpleAccountSelectors.executeBatchV08, equals('0x34fcd5be'));
-    });
-
-    test('has correct createAccount selector', () {
+    // cast sig 'createAccount(address,uint256)'
+    test('createAccount matches cast sig', () {
       expect(SimpleAccountSelectors.createAccount, equals('0x5fbfb9cf'));
+    });
+
+    test('are the selectors of the signatures the account encodes', () {
+      for (final (selector, signature) in [
+        (SimpleAccountSelectors.execute, executeSignature),
+        (
+          SimpleAccountSelectors.executeBatchV06,
+          ExecuteBatchAbi.addressesAndBytes.signature
+        ),
+        (
+          SimpleAccountSelectors.executeBatch,
+          ExecuteBatchAbi.addressesValuesAndBytes.signature
+        ),
+        (
+          SimpleAccountSelectors.executeBatchV08,
+          ExecuteBatchAbi.callTuples.signature
+        ),
+        (
+          SimpleAccountSelectors.createAccount,
+          simpleAccountCreateAccountSignature
+        ),
+      ]) {
+        expect(
+          selector,
+          AbiEncoder.functionSelector(signature),
+          reason: signature,
+        );
+      }
     });
   });
 }
