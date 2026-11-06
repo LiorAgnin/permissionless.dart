@@ -4,25 +4,13 @@ import 'package:test/test.dart';
 void main() {
   group('MultiSend', () {
     group('encodeMultiSend', () {
-      test('encodes single call', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1234567890123456789012345678901234567890',
-            ),
-            value: BigInt.from(1000),
-            data: '0x',
-          ),
-        ];
-
-        final encoded = encodeMultiSend(calls);
-        expect(encoded.startsWith('0x'), isTrue);
-        // Should start with multiSend selector
-        expect(encoded.substring(0, 10).toLowerCase(), equals('0x8d80ff0a'));
-      });
-
-      test('encodes multiple calls', () {
-        final calls = [
+      // Each transaction is packed as (uint8 operation, address to,
+      // uint256 value, uint256 dataLength, bytes data):
+      //   TX=$(cast abi-encode --packed \
+      //     'f(uint8,address,uint256,uint256,bytes)' <op> <to> <value> <len> <data>)
+      //   cast calldata 'multiSend(bytes)' <TX1><TX2>
+      test('packs every call into multiSend(bytes)', () {
+        final encoded = encodeMultiSend([
           Call(
             to: EthereumAddress.fromHex(
               '0x1111111111111111111111111111111111111111',
@@ -37,10 +25,54 @@ void main() {
             value: BigInt.from(2000),
             data: '0xabcd',
           ),
-        ];
+        ]);
 
-        final encoded = encodeMultiSend(calls);
-        expect(encoded.startsWith('0x'), isTrue);
+        expect(
+          encoded,
+          equals(
+            '0x8d80ff0a'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '00000000000000000000000000000000000000000000000000000000000000ac'
+            '00'
+            '1111111111111111111111111111111111111111'
+            '00000000000000000000000000000000000000000000000000000000000003e8'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '00'
+            '2222222222222222222222222222222222222222'
+            '00000000000000000000000000000000000000000000000000000000000007d0'
+            '0000000000000000000000000000000000000000000000000000000000000002'
+            'abcd'
+            '0000000000000000000000000000000000000000',
+          ),
+        );
+      });
+
+      test('writes operation byte 1 for delegatecall', () {
+        final encoded = encodeMultiSend(
+          [
+            Call(
+              to: EthereumAddress.fromHex(
+                '0x2222222222222222222222222222222222222222',
+              ),
+              data: '0xabcd',
+            ),
+          ],
+          defaultOperation: OperationType.delegateCall,
+        );
+
+        expect(
+          encoded,
+          equals(
+            '0x8d80ff0a'
+            '0000000000000000000000000000000000000000000000000000000000000020'
+            '0000000000000000000000000000000000000000000000000000000000000057'
+            '01'
+            '2222222222222222222222222222222222222222'
+            '0000000000000000000000000000000000000000000000000000000000000000'
+            '0000000000000000000000000000000000000000000000000000000000000002'
+            'abcd000000000000000000',
+          ),
+        );
       });
 
       test('throws on empty calls', () {
@@ -48,21 +80,6 @@ void main() {
           () => encodeMultiSend([]),
           throwsArgumentError,
         );
-      });
-
-      test('handles call with data', () {
-        final calls = [
-          Call(
-            to: EthereumAddress.fromHex(
-              '0x1234567890123456789012345678901234567890',
-            ),
-            value: BigInt.zero,
-            data: '0xa9059cbb', // transfer selector
-          ),
-        ];
-
-        final encoded = encodeMultiSend(calls);
-        expect(encoded.contains('a9059cbb'), isTrue);
       });
     });
 
