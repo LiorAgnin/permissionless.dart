@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:permissionless/permissionless.dart';
 import 'package:test/test.dart';
+import 'package:web3dart/web3dart.dart' show keccak256;
 
 /// Minimal test-local double for [WebAuthnAccountOwner].
 ///
@@ -1591,6 +1592,93 @@ void main() {
         expect(encoded.startsWith('0xd9ed0e8f'), isTrue);
         // Should be longer due to full InitData struct
         expect(encoded.length > 500, isTrue);
+      });
+
+      const setupSafeSignature = 'setupSafe((address,address[],uint256,'
+          'address,bytes,address,(address,bytes)[],bytes))';
+
+      // permissionless.js get7579LaunchPadInitData maps WebAuthn owners to
+      // safeWebAuthnSharedSignerAddress, as standard mode does.
+      test('lists a WebAuthn owner as the shared signer', () {
+        final webAuthnOwner =
+            _TestWebAuthnOwner(BigInt.one, BigInt.two, Uint8List(1));
+        final account = createSafeSmartAccount(
+          owners: [PrivateKeyOwner(testPrivateKey), webAuthnOwner],
+          chainId: BigInt.one,
+          address: mockAddress,
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+        );
+
+        final encoded = account.encodeCallsForDeployment([
+          Call(to: mockAddress, value: BigInt.zero, data: '0x'),
+        ]);
+        final initData =
+            AbiEncoder.decodeFunctionData(setupSafeSignature, encoded)[0]
+                as List;
+        final owners = (initData[1] as List).cast<EthereumAddress>();
+
+        expect(
+          owners,
+          contains(
+            SafeVersionAddresses.getAddresses(
+              SafeVersion.v1_4_1,
+              EntryPointVersion.v07,
+            )!
+                .webAuthnSharedSignerAddress,
+          ),
+        );
+        expect(owners, isNot(contains(webAuthnOwner.address)));
+      });
+
+      test('preValidationSetup initHash commits to the setupSafe InitData',
+          () async {
+        final account = createSafeSmartAccount(
+          owners: [
+            PrivateKeyOwner(testPrivateKey),
+            _TestWebAuthnOwner(BigInt.one, BigInt.two, Uint8List(1)),
+          ],
+          chainId: BigInt.one,
+          address: mockAddress,
+          erc7579LaunchpadAddress: Safe7579Addresses.erc7579LaunchpadAddress,
+          validators: [
+            Safe7579ModuleInit(module: mockAddress, initData: '0x1234'),
+          ],
+          executors: [Safe7579ModuleInit(module: mockAddress)],
+          attesters: [Safe7579Addresses.rhinestoneAttester],
+          attestersThreshold: 1,
+        );
+
+        final factoryData = (await account.getFactoryData())!.factoryData;
+        final initializer = AbiEncoder.decodeFunctionData(
+          'createProxyWithNonce(address,bytes,uint256)',
+          factoryData,
+        )[1] as Uint8List;
+        final initHash = AbiEncoder.decodeFunctionData(
+          'preValidationSetup(bytes32,address,bytes)',
+          Hex.fromBytes(initializer),
+        )[0] as Uint8List;
+
+        final initData = AbiEncoder.decodeFunctionData(
+          setupSafeSignature,
+          account.encodeCallsForDeployment([
+            Call(to: mockAddress, value: BigInt.zero, data: '0x'),
+          ]),
+        )[0] as List;
+        // abi.encode(InitData minus callData) is the calldata of any
+        // function with those parameters, minus its selector.
+        final encodedInitData = Hex.slice(
+          AbiEncoder.encodeFunctionData(
+            'f(address,address[],uint256,address,bytes,address,'
+            '(address,bytes)[])',
+            initData.sublist(0, 7),
+          ),
+          4,
+        );
+
+        expect(
+          Hex.fromBytes(initHash),
+          equals(Hex.fromBytes(keccak256(Hex.decode(encodedInitData)))),
+        );
       });
     });
 

@@ -541,7 +541,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
   /// - address safe7579
   /// - (address, bytes)[] validators
   String _computeInitHash() {
-    final ownerAddresses = _config.owners.map((o) => o.address).toList();
+    final ownerAddresses = _config.owners.map(_signerAddress).toList();
     final initSafe7579Data = _encodeInitSafe7579();
 
     // Convert validators to tuple format
@@ -833,7 +833,7 @@ class SafeSmartAccount implements SmartAccount, SmartAccountV06 {
 
   /// Encodes the setupSafe call for first-time ERC-7579 deployment.
   String _encodeSetupSafe(String userCallData) {
-    final ownerAddresses = _config.owners.map((o) => o.address).toList();
+    final ownerAddresses = _config.owners.map(_signerAddress).toList();
     final initSafe7579Data = _encodeInitSafe7579();
 
     // Convert validators to tuple format
