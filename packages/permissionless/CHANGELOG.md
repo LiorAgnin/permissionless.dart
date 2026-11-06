@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-A structural refactor of the package plus 46 behaviour fixes
-([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)), and a
-round of follow-ups on top. The refactor turned up each bug, and each fix
+A structural refactor of the package plus the behaviour fixes it turned up
+([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)). Each fix
 landed with a test that failed first. Nothing exported was removed or renamed,
 so calling code keeps compiling. Some things can still break you, all under
 **Changed**:
@@ -77,18 +76,18 @@ so calling code keeps compiling. Some things can still break you, all under
     `prepareUserOperationV06`. They now take every parameter
     `prepareUserOperationV06` takes except `skipFinalPaymasterData`, which a
     sent operation can't use. A supplied gas limit skips the bundler estimate
-    for that field ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+    for that field ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
   - `SmartAccountClient.prepareUserOperationV06`:
     `stateOverride`, sent with `eth_estimateUserOperationGas`, and
     `skipFinalPaymasterData`, which keeps the stub `paymasterAndData` and skips
-    `pm_getPaymasterData`. Both work as they do in `prepareUserOperation` ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+    `pm_getPaymasterData`. Both work as they do in `prepareUserOperation` ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 - **`PaymasterStubData.fromJson` and
   `PaymasterData.fromJson` accept the ERC-7677 v0.6 response**
   `{ paymasterAndData, sponsor?, isFinal? }`. They split `paymasterAndData`
   into `paymaster` (the first 20 bytes) and `paymasterData` (the rest), so
   `withPaymasterStubV06` and `withPaymasterDataV06` rebuild the same bytes. A
   value shorter than an address throws `FormatException`. Responses that carry
-  `paymaster` parse as before ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  `paymaster` parse as before ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 
 ### Changed
 
@@ -105,7 +104,7 @@ so calling code keeps compiling. Some things can still break you, all under
   as in viem and the v0.7 path.** This affects EntryPoint v0.6 accounts that
   pass a `paymaster` to `createSmartAccountClient`: Simple, Light, Thirdweb or
   Safe on v0.6, Kernel v0.2, Biconomy and Trust. v0.7/v0.8 accounts, and v0.6
-  accounts without a paymaster, see no change ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  accounts without a paymaster, see no change ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
   - `prepareUserOperationV06`, and the v0.6 send methods through it, no longer
     call `pm_sponsorUserOperation`. They call `pm_getPaymasterStubData`, then
     `eth_estimateUserOperationGas` on the bundler if a gas field is missing,
@@ -129,7 +128,7 @@ so calling code keeps compiling. Some things can still break you, all under
   estimate is now realistic because the Kernel WebAuthn stub was fixed (see
   **Fixed**). To keep a minimum, pass `verificationGasLimit` or use custom
   `gasMultipliers`. The `GasMultipliers.webAuthn` preset is still there and
-  is opt-in ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  is opt-in ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 - **Two Safe setups get a different counterfactual address.** Both old
   addresses were wrong
   ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
@@ -166,7 +165,7 @@ so calling code keeps compiling. Some things can still break you, all under
     without a verifier. Kernel already checks `webAuthnValidator` the same way.
     One config that used to work now throws: a pre-set `address` of an
     already-deployed Safe with a WebAuthn owner and custom addresses that
-    have a shared signer but no verifier, in standard mode ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+    have a shared signer but no verifier, in standard mode ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 - **Encoders range-check their inputs and throw `ArgumentError`**, as viem
   does ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
   - `AbiEncoder` rejects out-of-range `uintN`/`intN` values and type widths
@@ -197,7 +196,7 @@ so calling code keeps compiling. Some things can still break you, all under
     no `exchangeRateNativeToUsd`. It used to report a cost of $0.
 - **Top-level ERC-7579 queries and ERC-20 reads
   throw `StateError` when the call returns no data (`0x`)**, as viem's
-  `readContract` does ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)):
+  `readContract` does ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)):
   - `isModuleInstalled`, `supportsModule`, `getAccountId` and
     `getInstalledModulesOfType` used to return `false`, `''` or `[]`. An
     account returns `0x` when it has no code on that chain, for example
@@ -231,7 +230,7 @@ so calling code keeps compiling. Some things can still break you, all under
   `executeBatch(address[],bytes[])` has no value field. There is no runtime
   change, matching permissionless.js. To send value, use a single call or
   EntryPoint v0.7/v0.8. Every other account and version carries value per
-  call ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  call ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 
 ### Deprecated
 
@@ -253,7 +252,7 @@ All of these still work. All but the last come from
 - `Hex.encode`. Use `Hex.fromBytes`.
 - `UserOperationGasEstimate.withMinimumVerificationGas`.
   `SmartAccountClient` no longer calls it. For an explicit limit, pass
-  `verificationGasLimit` to `prepareUserOperation` ([#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  `verificationGasLimit` to `prepareUserOperation` ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 
 ### Fixed
 
@@ -272,7 +271,7 @@ All of these still work. All but the last come from
   120,000. permissionless.js behaves the same; the cost is a larger required
   prefund. In 0.5.0 the stub could also price the precompile path for the
   first operation on a chain whose node lacked it, then send the Solidity
-  encoding ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90), [#91](https://github.com/LiorAgnin/permissionless.dart/pull/91)).
+  encoding ([#90](https://github.com/LiorAgnin/permissionless.dart/pull/90)).
 
 - **`SimpleSmartAccount.signMessage` and
   `Eip7702SimpleSmartAccount.signMessage` applied the EIP-191 prefix twice.**
