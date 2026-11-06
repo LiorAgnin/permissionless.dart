@@ -73,7 +73,8 @@ class SafeSmartAccountConfig {
   /// - [saltNonce]: Salt for deterministic address generation
   /// - [chainId]: Chain ID for signature domain
   ///
-  /// Throws [ArgumentError] if no owners provided or threshold is invalid.
+  /// Throws [ArgumentError] if no owners provided, threshold is invalid, or
+  /// more than one owner is a [WebAuthnAccountOwner].
   SafeSmartAccountConfig({
     required this.owners,
     BigInt? threshold,
@@ -104,6 +105,16 @@ class SafeSmartAccountConfig {
     }
     if (this.threshold <= BigInt.zero) {
       throw ArgumentError('Threshold must be positive');
+    }
+    // Every WebAuthn owner is listed as the shared signer's address, which
+    // Safe setup rejects as a duplicate owner (GS203/GS204), and the shared
+    // signer stores one P-256 key per Safe. permissionless.js accepts such a
+    // config and derives an address that can never be deployed.
+    if (owners.whereType<WebAuthnAccountOwner>().length > 1) {
+      throw ArgumentError(
+        'A Safe supports at most one WebAuthn owner: '
+        'SafeWebAuthnSharedSigner holds a single P-256 key per Safe',
+      );
     }
   }
 
@@ -439,30 +450,29 @@ class SafeSmartAccount
       ),
     ];
 
-    // Each WebAuthn owner's key is stored in the Safe's storage by
+    // The WebAuthn owner's key is stored in the Safe's storage by
     // delegatecalling the shared signer's configure().
-    final webAuthnOwners = _config.owners.whereType<WebAuthnAccountOwner>();
-    if (webAuthnOwners.isNotEmpty) {
+    final webAuthnOwner =
+        _config.owners.whereType<WebAuthnAccountOwner>().firstOrNull;
+    if (webAuthnOwner != null) {
       final p256Verifier = _addresses.safeP256VerifierAddress;
       if (p256Verifier == null) {
         throw StateError(
           'WebAuthn owners require safeP256VerifierAddress.',
         );
       }
-      for (final webAuthnOwner in webAuthnOwners) {
-        setupCalls.add(
-          MultiSendCall(
-            to: _signerAddress(webAuthnOwner),
-            value: BigInt.zero,
-            data: encodeWebAuthnSignerConfigure(
-              x: webAuthnOwner.x,
-              y: webAuthnOwner.y,
-              p256VerifierAddress: p256Verifier.hex,
-            ),
-            operation: OperationType.delegateCall,
+      setupCalls.add(
+        MultiSendCall(
+          to: _signerAddress(webAuthnOwner),
+          value: BigInt.zero,
+          data: encodeWebAuthnSignerConfigure(
+            x: webAuthnOwner.x,
+            y: webAuthnOwner.y,
+            p256VerifierAddress: p256Verifier.hex,
           ),
-        );
-      }
+          operation: OperationType.delegateCall,
+        ),
+      );
     }
 
     // A single setup call may skip MultiSend (permissionless.js@0.3.5
@@ -767,16 +777,13 @@ class SafeSmartAccount
     );
   }
 
-  /// Guards matching permissionless.js Safe signMessage/signTypedData.
+  /// permissionless.js checks the 7579 / v1.5.0 incompatibility only in
+  /// signMessage/signTypedData, not when deploying or signing UserOperations.
   ///
-  /// permissionless.js checks the 7579 / v1.5.0 incompatibility only here,
-  /// not when deploying or signing UserOperations.
+  /// Its other guard there (fewer local owners than the threshold) cannot
+  /// fail here: every owner signs locally and the config rejects a threshold
+  /// above the owner count.
   void _assertCanSignMessage() {
-    if (_config.owners.length < _config.threshold.toInt()) {
-      throw StateError(
-        'Owners length mismatch, currently not supported',
-      );
-    }
     if (isErc7579Enabled && _config.version == SafeVersion.v1_5_0) {
       throw StateError('Safe 7579 & version 1.5.0 are not compatible');
     }

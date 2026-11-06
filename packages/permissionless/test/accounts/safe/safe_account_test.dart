@@ -158,6 +158,29 @@ void main() {
         expect(account.version, equals(SafeVersion.v1_5_0));
       });
 
+      // Every WebAuthn owner is listed as the one shared signer address, so
+      // two of them make setup() revert (OwnerManager GS203/GS204), and
+      // SafeWebAuthnSharedSigner keeps a single P-256 key per Safe.
+      test('throws ArgumentError for more than one WebAuthn owner', () {
+        expect(
+          () => createSafeSmartAccount(
+            owners: [
+              _TestWebAuthnOwner(BigInt.one, BigInt.two, Uint8List(1)),
+              _TestWebAuthnOwner(BigInt.from(3), BigInt.from(4), Uint8List(2)),
+            ],
+            chainId: BigInt.one,
+            address: mockAddress,
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('one WebAuthn owner'),
+            ),
+          ),
+        );
+      });
+
       test('throws for unsupported version combination', () {
         final owner = PrivateKeyOwner(testPrivateKey);
         // Safe 1.5.0 doesn't support EntryPoint v0.6
