@@ -897,5 +897,26 @@ void main() {
         equals(Erc7579Selectors.execute.toLowerCase()),
       );
     });
+
+    test('factory and initialize selectors match their signatures', () {
+      final expected = {
+        KernelSelectors.createAccountV2: 'createAccount(address,bytes,uint256)',
+        KernelSelectors.createAccountV3: 'createAccount(bytes,bytes32)',
+        KernelSelectors.deployWithFactory:
+            'deployWithFactory(address,bytes,bytes32)',
+        KernelSelectors.initializeV2: 'initialize(address,bytes)',
+        KernelSelectors.initializeV3Beta:
+            'initialize(bytes21,address,bytes,bytes)',
+        KernelSelectors.initializeV3:
+            'initialize(bytes21,address,bytes,bytes,bytes[])',
+      };
+      expected.forEach((selector, signature) {
+        expect(
+          selector,
+          equals(AbiEncoder.functionSelector(signature)),
+          reason: signature,
+        );
+      });
+    });
   });
 }

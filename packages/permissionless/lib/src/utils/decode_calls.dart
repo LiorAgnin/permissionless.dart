@@ -83,21 +83,6 @@ class CallDataDecoder {
     ];
   }
 
-  /// Decodes Kernel v0.2.x `execute(address,uint256,bytes,uint8)`.
-  static List<Call> decodeKernelV2Execute(String callData) {
-    final args = AbiEncoder.decodeFunctionData(
-      'execute(address,uint256,bytes,uint8)',
-      callData,
-    );
-    return [
-      Call(
-        to: args[0] as EthereumAddress,
-        value: args[1] as BigInt,
-        data: _bytesToHex(args[2] as Uint8List),
-      ),
-    ];
-  }
-
   /// Decodes Biconomy `execute_ncC(address,uint256,bytes)`.
   static List<Call> decodeBiconomyExecute(String callData) {
     final args = AbiEncoder.decodeFunctionData(
