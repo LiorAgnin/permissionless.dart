@@ -65,8 +65,7 @@ class PaymasterClient {
     PaymasterContext? context,
     Eip7702Authorization? authorization,
   }) async {
-    // viem always sends 4 positional params (context may be null) and ensures
-    // gas fields default to 0x0 when missing.
+    // viem always sends 4 positional params (context may be null).
     final params = <dynamic>[
       userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,
@@ -92,8 +91,7 @@ class PaymasterClient {
     PaymasterContext? context,
     Eip7702Authorization? authorization,
   }) async {
-    // viem always sends 4 positional params (context may be null) and ensures
-    // gas fields default to 0x0 when missing.
+    // viem always sends 4 positional params (context may be null).
     final params = <dynamic>[
       userOperationRequestJson(userOp, authorization: authorization),
       entryPoint.hex,

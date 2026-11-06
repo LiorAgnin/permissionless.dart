@@ -109,12 +109,9 @@ class SponsorUserOperationResult {
   /// Handles both v0.6 format (combined `paymasterAndData`) and v0.7 format
   /// (separate `paymaster` and `paymasterData` fields).
   factory SponsorUserOperationResult.fromJson(Map<String, dynamic> json) {
-    // Handle v0.6 format (combined paymasterAndData)
     if (json.containsKey('paymasterAndData')) {
       final paymasterAndData = json['paymasterAndData'] as String;
-      // Extract paymaster (first 20 bytes = 40 hex chars after 0x)
       final paymaster = '0x${paymasterAndData.substring(2, 42)}';
-      // Extract data (rest)
       final paymasterData = '0x${paymasterAndData.substring(42)}';
 
       return SponsorUserOperationResult(
@@ -126,7 +123,6 @@ class SponsorUserOperationResult {
       );
     }
 
-    // Handle v0.7 format (separate paymaster and paymasterData)
     return SponsorUserOperationResult(
       paymaster: EthereumAddress.fromHex(json['paymaster'] as String),
       paymasterData: json['paymasterData'] as String,

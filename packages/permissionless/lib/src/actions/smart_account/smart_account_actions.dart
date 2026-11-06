@@ -245,10 +245,9 @@ extension SmartAccountActions on SmartAccountClient {
         );
       }
     } catch (_) {
-      // Receipt not found - operation is still pending
+      // permissionless.js reports any lookup failure as pending, too.
     }
 
-    // Default to pending status
     return CallsStatus(
       id: id,
       version: '1.0',

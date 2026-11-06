@@ -127,24 +127,13 @@ class PimlicoClient extends BundlerClient {
     while (DateTime.now().isBefore(deadline)) {
       final status = await getUserOperationStatus(userOpHash);
 
-      // Return if we've reached a terminal state
-      if (status.status == 'included' ||
-          status.status == 'rejected' ||
-          status.status == 'reverted' ||
-          status.status == 'failed') {
-        return status;
-      }
+      if (status.status == 'included' || status.isFailed) return status;
 
       await Future<void>.delayed(pollingInterval);
     }
 
-    // Return the last status even if not terminal
     return getUserOperationStatus(userOpHash);
   }
-
-  // ================================================================
-  // ERC-20 Paymaster Methods
-  // ================================================================
 
   /// Gets token quotes for ERC-20 paymaster gas payment.
   ///
@@ -270,10 +259,6 @@ class PimlicoClient extends BundlerClient {
       costInUsd: costInUsd,
     );
   }
-
-  // ================================================================
-  // Sponsorship Policy Methods
-  // ================================================================
 
   /// Validates sponsorship policy IDs for a UserOperation.
   ///

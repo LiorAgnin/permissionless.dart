@@ -149,19 +149,13 @@ class SmartAccountClient {
     final address = await eip7702.getAddress();
     final code = (await publicClient.getCode(address)).toLowerCase();
 
-    // Active EIP-7702 delegation: 0xef0100 || address (20 bytes)
-    if (code.length >= 48 && code.startsWith('0xef0100')) {
-      final delegated = '0x${code.substring(8, 48)}';
-      final expected = eip7702.accountLogicAddress.hex.toLowerCase();
-      if (delegated == expected) {
-        return null; // already delegated to the right implementation
-      }
-      // Wrong implementation — re-delegate below
-    } else if (code != '0x' && code.isNotEmpty) {
-      // Has non-7702 code; still try authorization (bundler may reject)
-    } else {
-      // No code — need first-time authorization
-    }
+    // An active EIP-7702 delegation is `0xef0100 ‖ implementation`. Any other
+    // code (none, a different implementation, or non-7702 code) gets a fresh
+    // authorization; the bundler rejects it if the EOA cannot be delegated.
+    final isDelegatedHere = code.length >= 48 &&
+        code.startsWith('0xef0100') &&
+        '0x${code.substring(8, 48)}' == eip7702.accountLogicAddress.hex;
+    if (isDelegatedHere) return null;
 
     final eoaNonce = await publicClient.getTransactionCount(address);
     return eip7702.getAuthorization(nonce: eoaNonce);

@@ -282,10 +282,6 @@ extension Erc7579Actions on SmartAccountClient {
     );
   }
 
-  // ================================================================
-  // Account Capability Queries
-  // ================================================================
-
   /// Checks if the account supports a specific execution mode.
   ///
   /// ERC-7579 accounts may support different execution modes:

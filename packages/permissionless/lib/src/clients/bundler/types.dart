@@ -396,5 +396,3 @@ class BundlerHttpError extends BundlerRpcError {
   /// The HTTP status code (same as [code]).
   int get statusCode => code;
 }
-
-// Helper to parse hex or decimal int

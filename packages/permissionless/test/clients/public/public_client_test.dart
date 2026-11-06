@@ -454,7 +454,7 @@ void main() {
 
         expect(
           () => client.getSenderAddress(
-            initCode: '0xinvalid',
+            initCode: '0x1234',
             entryPoint: EntryPointAddresses.v07,
           ),
           throwsA(isA<PublicRpcError>()),

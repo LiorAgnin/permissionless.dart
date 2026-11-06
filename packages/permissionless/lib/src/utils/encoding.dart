@@ -111,6 +111,13 @@ class AbiEncoder {
     return Hex.fromBytes(function.encodeCall(converted));
   }
 
+  /// ABI-encodes [values] as the tuple [types] (Solidity `abi.encode`, viem
+  /// `encodeAbiParameters`), e.g. constructor arguments or struct hashes.
+  ///
+  /// Accepts the same argument forms as [encodeFunctionData].
+  static String encodeParameters(List<String> types, List<dynamic> values) =>
+      Hex.slice(encodeFunctionData('f(${types.join(',')})', values), 4);
+
   /// Decodes function calldata produced by [encodeFunctionData] (or equivalent).
   ///
   /// [functionSignature] uses the same form as [encodeFunctionData], e.g.
