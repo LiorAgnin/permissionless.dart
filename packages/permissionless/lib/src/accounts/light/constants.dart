@@ -59,6 +59,10 @@ class LightAccountFactoryAddresses {
   }
 }
 
+/// LightAccountFactory `createAccount(address owner, uint256 salt)`.
+const String lightAccountCreateAccountSignature =
+    'createAccount(address,uint256)';
+
 /// Light Account function selectors.
 class LightAccountSelectors {
   LightAccountSelectors._();

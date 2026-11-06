@@ -188,7 +188,7 @@ class NexusSmartAccount implements SmartAccount {
       getFactoryData() async => (
             factory: _factoryAddress,
             factoryData: AbiEncoder.encodeFunctionData(
-              'createAccount(address,uint256,address[],uint8)',
+              nexusCreateAccountSignature,
               [
                 _config.owner.address,
                 _config.index,

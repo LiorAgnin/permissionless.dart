@@ -1,4 +1,5 @@
 import 'package:permissionless/permissionless.dart';
+import 'package:permissionless/src/accounts/standard_execute.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -66,19 +67,29 @@ void main() {
     });
 
     group('LightAccountSelectors', () {
-      test('execute selector is correct', () {
-        // keccak256("execute(address,uint256,bytes)")[0:4] = 0xb61d27f6
-        expect(LightAccountSelectors.execute, equals('0xb61d27f6'));
-      });
-
-      test('executeBatch selector is correct', () {
-        // keccak256("executeBatch(address[],uint256[],bytes[])")[0:4] = 0x47e1da2a
-        expect(LightAccountSelectors.executeBatch, equals('0x47e1da2a'));
-      });
-
-      test('createAccount selector is correct', () {
-        // keccak256("createAccount(address,uint256)")[0:4] = 0x5fbfb9cf
+      // cast sig 'createAccount(address,uint256)'
+      test('createAccount matches cast sig', () {
         expect(LightAccountSelectors.createAccount, equals('0x5fbfb9cf'));
+      });
+
+      test('are the selectors of the signatures the account encodes', () {
+        for (final (selector, signature) in [
+          (LightAccountSelectors.execute, executeSignature),
+          (
+            LightAccountSelectors.executeBatch,
+            ExecuteBatchAbi.addressesValuesAndBytes.signature
+          ),
+          (
+            LightAccountSelectors.createAccount,
+            lightAccountCreateAccountSignature
+          ),
+        ]) {
+          expect(
+            selector,
+            AbiEncoder.functionSelector(signature),
+            reason: signature,
+          );
+        }
       });
     });
 

@@ -171,7 +171,7 @@ class EtherspotSmartAccount implements SmartAccount {
       getFactoryData() async => (
             factory: factory,
             factoryData: AbiEncoder.encodeFunctionData(
-              'createAccount(bytes32,bytes)',
+              etherspotCreateAccountSignature,
               [Hex.fromBigInt(index, byteLength: 32), _encodeInitCode()],
             ),
           );
@@ -187,10 +187,10 @@ class EtherspotSmartAccount implements SmartAccount {
   /// installs the ECDSA validator and zero-address executor, hook and
   /// fallback, each with `onInstall(0x)`.
   String _encodeInitMSA() {
-    final onInstall = AbiEncoder.encodeFunctionData('onInstall(bytes)', ['0x']);
+    final onInstall =
+        AbiEncoder.encodeFunctionData(etherspotOnInstallSignature, ['0x']);
     return AbiEncoder.encodeFunctionData(
-      'initMSA((address,bytes)[],(address,bytes)[],(address,bytes),'
-      '(address,bytes)[])',
+      etherspotInitMsaSignature,
       [
         [
           [ecdsaValidator, onInstall],

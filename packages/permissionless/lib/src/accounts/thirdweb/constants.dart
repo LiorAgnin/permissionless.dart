@@ -15,6 +15,9 @@ class ThirdwebAddresses {
       EthereumAddress.fromHex('0x4be0ddfebca9a5a4a617dee4dece99e7c862dceb');
 }
 
+/// Thirdweb AccountFactory `createAccount(address _admin, bytes _salt)`.
+const String thirdwebCreateAccountSignature = 'createAccount(address,bytes)';
+
 /// Thirdweb function selectors.
 class ThirdwebSelectors {
   ThirdwebSelectors._();

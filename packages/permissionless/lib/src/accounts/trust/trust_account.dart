@@ -155,7 +155,7 @@ class TrustSmartAccount implements SmartAccountV06 {
   /// `_owner` is the 20-byte owner address (not the public key the Barz docs
   /// describe), matching permissionless.js.
   String _createAccountData() => AbiEncoder.encodeFunctionData(
-        'createAccount(address,bytes,uint256)',
+        trustCreateAccountSignature,
         [_verificationFacetAddress, _config.owner.address.hex, _config.index],
       );
 

@@ -15,6 +15,11 @@ class TrustAddresses {
       EthereumAddress.fromHex('0x81b9E3689390C7e74cF526594A105Dea21a8cdD5');
 }
 
+/// Barz factory `createAccount(address _verificationFacet, bytes _owner,
+/// uint256 _salt)`.
+const String trustCreateAccountSignature =
+    'createAccount(address,bytes,uint256)';
+
 /// Trust function selectors.
 class TrustSelectors {
   TrustSelectors._();

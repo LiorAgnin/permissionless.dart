@@ -182,7 +182,7 @@ class LightSmartAccount implements SmartAccount, SmartAccountV06 {
           (factory: _factoryAddress, factoryData: _createAccountData());
 
   String _createAccountData() => AbiEncoder.encodeFunctionData(
-        'createAccount(address,uint256)',
+        lightAccountCreateAccountSignature,
         [_config.owner.address, _config.salt],
       );
 
