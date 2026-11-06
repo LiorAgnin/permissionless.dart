@@ -944,4 +944,87 @@ void main() {
       expect(account.nonceKey, equals(BigInt.zero));
     });
   });
+
+  group('prepareUserOperationV06', () {
+    test('reads the nonce from the v0.6 EntryPoint when none is given',
+        () async {
+      final ethCalls = <Map<String, dynamic>>[];
+      final publicClient = PublicClient(
+        rpcClient: JsonRpcClient(
+          url: Uri.parse('http://localhost:8545'),
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            final result = switch (body['method'] as String) {
+              'eth_getCode' => '0x6080604052',
+              'eth_call' => () {
+                  ethCalls.add(
+                    (body['params'] as List).first as Map<String, dynamic>,
+                  );
+                  return '0x${'0' * 63}7';
+                }(),
+              'eth_gasPrice' => '0x3b9aca00',
+              'eth_maxPriorityFeePerGas' => '0x5f5e100',
+              _ => null,
+            };
+            return http.Response(
+              jsonEncode(
+                {'jsonrpc': '2.0', 'id': body['id'], 'result': result},
+              ),
+              200,
+            );
+          }),
+        ),
+      );
+      final account = createSimpleSmartAccount(
+        owner: PrivateKeyOwner(
+          '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80',
+        ),
+        chainId: BigInt.one,
+        entryPointVersion: EntryPointVersion.v06,
+        address: EthereumAddress.fromHex(
+          '0x1234567890123456789012345678901234567890',
+        ),
+      );
+      final client = SmartAccountClient(
+        account: account,
+        bundler: createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v06,
+          httpClient: MockClient((request) async {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return http.Response(
+              jsonEncode({
+                'jsonrpc': '2.0',
+                'id': body['id'],
+                'result': {
+                  'preVerificationGas': '0x5208',
+                  'verificationGasLimit': '0x186a0',
+                  'callGasLimit': '0x186a0',
+                },
+              }),
+              200,
+            );
+          }),
+        ),
+        publicClient: publicClient,
+      );
+
+      final userOp = await client.prepareUserOperationV06(
+        calls: [
+          Call(
+            to: EthereumAddress.fromHex(
+              '0x2222222222222222222222222222222222222222',
+            ),
+            value: BigInt.one,
+          ),
+        ],
+      );
+
+      expect(userOp.nonce, BigInt.from(7));
+      expect(
+        ethCalls.single['to'].toString().toLowerCase(),
+        EntryPointAddresses.v06.hex,
+      );
+    });
+  });
 }

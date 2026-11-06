@@ -292,29 +292,16 @@ class SmartAccountClient {
     List<StateOverride>? stateOverride,
     bool skipFinalPaymasterData = false,
   }) async {
-    if (calls == null && callData == null) {
-      throw ArgumentError(
-        'Either calls or callData must be provided',
-      );
-    }
+    _requireCalls(calls, callData);
 
     final resolvedContext = paymasterContext ?? this.paymasterContext;
     sender ??= await account.getAddress();
 
-    // Check if we need EIP-7702 authorization
     final authorization = await _createAuthorizationIfNeeded();
     final needsAuth = authorization != null;
 
-    // Check if account is already deployed (requires publicClient)
     final isDeployed = await publicClient.isDeployed(sender);
-
-    // Auto-fetch nonce if not provided
-    final accountNonce = nonce ??
-        await publicClient.getAccountNonce(
-          sender,
-          account.entryPoint,
-          nonceKey: account.nonceKey,
-        );
+    final accountNonce = await _resolveNonce(sender, nonce);
 
     // Resolve factory: honor overrides, else derive
     var resolvedFactory = factory;
@@ -447,6 +434,22 @@ class SmartAccountClient {
       authorization: authorization,
     );
   }
+
+  static void _requireCalls(List<Call>? calls, String? callData) {
+    if (calls == null && callData == null) {
+      throw ArgumentError('Either calls or callData must be provided');
+    }
+  }
+
+  /// The caller's [nonce], else the EntryPoint's next nonce for [sender] on
+  /// the account's nonce key.
+  Future<BigInt> _resolveNonce(EthereumAddress sender, BigInt? nonce) async =>
+      nonce ??
+      await publicClient.getAccountNonce(
+        sender,
+        account.entryPoint,
+        nonceKey: account.nonceKey,
+      );
 
   /// Resolves max fee fields using caller values, the client hook, or a
   /// 2×-buffered [PublicClient.getFeeData] fallback (viem parity).
@@ -677,19 +680,14 @@ class SmartAccountClient {
     PaymasterContext? paymasterContext,
     EthereumAddress? sender,
   }) async {
-    if (calls == null && callData == null) {
-      throw ArgumentError(
-        'Either calls or callData must be provided',
-      );
-    }
+    _requireCalls(calls, callData);
 
     final resolvedContext = paymasterContext ?? this.paymasterContext;
     sender ??= await account.getAddress();
 
-    // Check if account is already deployed (requires publicClient)
     final isDeployed = await publicClient.isDeployed(sender);
+    final accountNonce = await _resolveNonce(sender, nonce);
 
-    // Resolve initCode: honor override, else derive when undeployed
     final resolvedInitCode =
         initCode ?? (isDeployed ? '0x' : await account.getInitCode());
 
@@ -703,7 +701,7 @@ class SmartAccountClient {
     // Build initial UserOperation with stub signature (or caller override)
     var userOp = UserOperationV06(
       sender: sender,
-      nonce: nonce ?? BigInt.zero,
+      nonce: accountNonce,
       initCode: resolvedInitCode,
       callData: resolvedCallData,
       callGasLimit: callGasLimit ?? BigInt.zero,
