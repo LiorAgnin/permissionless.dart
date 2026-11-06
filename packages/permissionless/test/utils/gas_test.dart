@@ -91,6 +91,48 @@ void main() {
     });
   });
 
+  // Deprecated (no longer used by SmartAccountClient), kept until removal.
+  group('UserOperationGasEstimate.withMinimumVerificationGas', () {
+    final estimate = UserOperationGasEstimate(
+      preVerificationGas: BigInt.from(50000),
+      verificationGasLimit: BigInt.from(135476),
+      callGasLimit: BigInt.from(45619),
+    );
+
+    test('raises verificationGasLimit to 900k by default', () {
+      // ignore: deprecated_member_use_from_same_package
+      final floored = estimate.withMinimumVerificationGas();
+
+      expect(floored.verificationGasLimit, equals(BigInt.from(900000)));
+      expect(floored.preVerificationGas, equals(estimate.preVerificationGas));
+      expect(floored.callGasLimit, equals(estimate.callGasLimit));
+    });
+
+    test('keeps a verificationGasLimit already at or above the minimum', () {
+      final high = UserOperationGasEstimate(
+        preVerificationGas: BigInt.from(50000),
+        verificationGasLimit: BigInt.from(945021),
+        callGasLimit: BigInt.from(45619),
+      );
+
+      expect(
+        // ignore: deprecated_member_use_from_same_package
+        high.withMinimumVerificationGas().verificationGasLimit,
+        equals(BigInt.from(945021)),
+      );
+    });
+
+    test('uses a custom minimum', () {
+      expect(
+        estimate
+            // ignore: deprecated_member_use_from_same_package
+            .withMinimumVerificationGas(minimum: BigInt.from(200000))
+            .verificationGasLimit,
+        equals(BigInt.from(200000)),
+      );
+    });
+  });
+
   group('UserOperationGasEstimate.totalGasLimit', () {
     test('sums basic gas limits', () {
       final estimate = UserOperationGasEstimate(

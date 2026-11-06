@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -245,6 +246,40 @@ void main() {
           equals(mockAddress.hex),
         );
         expect(params[1], equals(EntryPointAddresses.v07.hex));
+      });
+
+      // WebAuthn accounts get the same 1.1x buffer as every other account,
+      // as in permissionless.js: no fixed verification-gas floor. The stub
+      // signature (in-range r/s) makes the bundler price the real P-256
+      // verifier; on a no-precompile anvil rig Alto then estimated 573k for
+      // an op that used ~455k.
+      test('does not raise a WebAuthn account estimate to a 900k floor',
+          () async {
+        final bundler = createBundlerClient(
+          url: 'http://localhost:3000/rpc',
+          entryPoint: EntryPointAddresses.v07,
+          httpClient: createBundlerMock(),
+        );
+        final client = SmartAccountClient(
+          account: createKernelSmartAccount(
+            owner: _StubWebAuthnOwner(),
+            chainId: BigInt.from(1),
+            version: KernelVersion.v0_3_1,
+            address: mockAddress,
+          ),
+          bundler: bundler,
+          publicClient: createPublicClientMock(),
+        );
+
+        final userOp = await client.prepareUserOperation(
+          callData: '0x',
+          maxFeePerGas: BigInt.from(1000000000),
+          maxPriorityFeePerGas: BigInt.from(1000000000),
+        );
+
+        // Estimate 0x186a0 = 100000, buffered 1.1x.
+        expect(userOp.verificationGasLimit, equals(BigInt.from(110000)));
+        expect(userOp.callGasLimit, equals(BigInt.from(110000)));
       });
 
       test('applies paymaster stub and final data when paymaster provided',
@@ -1901,4 +1936,20 @@ void main() {
       expect(sentOp['initCode'], equals('0x${'99' * 20}f00d'));
     });
   });
+}
+
+/// A WebAuthn owner for paths that never sign (gas preparation only).
+class _StubWebAuthnOwner extends WebAuthnAccountOwner {
+  @override
+  BigInt get x => BigInt.one;
+
+  @override
+  BigInt get y => BigInt.two;
+
+  @override
+  Uint8List get credentialId => Uint8List.fromList([1, 2, 3]);
+
+  @override
+  Future<P256SignatureData> signP256(String hash) =>
+      throw UnsupportedError('not signed in this test');
 }

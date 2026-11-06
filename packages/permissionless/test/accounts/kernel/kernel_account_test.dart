@@ -486,6 +486,45 @@ void main() {
       );
     });
 
+    // permissionless.js 0.5.2 toKernelSmartAccount(v0.3.1, WebAuthn owner)
+    // .getStubSignature(), printed by (from a scratch dir with
+    // `bun add permissionless@0.5.2 viem@2.44.4`):
+    //   bun -e 'import {toKernelSmartAccount} from "permissionless/accounts";
+    //     import {createClient,http} from "viem";
+    //     import {entryPoint07Address,toWebAuthnAccount} from "viem/account-abstraction";
+    //     const a = await toKernelSmartAccount({client: createClient(
+    //       {transport: http("http://127.0.0.1:1")}),
+    //       owners: [toWebAuthnAccount({credential: {id: "x", publicKey: "0x"+"11".repeat(64)}})],
+    //       version: "0.3.1", entryPoint: {address: entryPoint07Address, version: "0.7"},
+    //       address: "0x1234567890123456789012345678901234567890"});
+    //     console.log(await a.getStubSignature())'
+    // r and s are inside the P-256 curve order, so a bundler's simulation runs
+    // the full verifier instead of an early reject, and usePrecompiled is
+    // false, so it prices the Solidity verifier.
+    test('stub is the permissionless.js WebAuthn stub', () {
+      const jsStub =
+          '0x00000000000000000000000000000000000000000000000000000000000000'
+          'c000000000000000000000000000000000000000000000000000000000000001'
+          '2000000000000000000000000000000000000000000000000000000000000000'
+          '01635bc6d0f68ff895cae8a288ecf7542a6a9cd555df784b73e1e2ea7e9104b1'
+          'db15e9015d280cb19527881c625fee43fd3a405d5b0d199a8c8e6589a7381209'
+          'e400000000000000000000000000000000000000000000000000000000000000'
+          '0000000000000000000000000000000000000000000000000000000000000000'
+          '2549960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97'
+          '631d000000000000000000000000000000000000000000000000000000000000'
+          '0000000000000000000000000000000000000000000000000000000000000000'
+          'f47b2274797065223a22776562617574686e2e676574222c226368616c6c656e'
+          '6765223a22746278584e465339585f3442797231634d77714b724947422d5f33'
+          '30613051685a36793775634d30424f45222c226f726967696e223a2268747470'
+          '3a2f2f6c6f63616c686f73743a33303030222c2263726f73734f726967696e22'
+          '3a66616c73652c20226f746865725f6b6579735f63616e5f62655f6164646564'
+          '5f68657265223a22646f206e6f7420636f6d7061726520636c69656e74446174'
+          '614a534f4e20616761696e737420612074656d706c6174652e20536565206874'
+          '7470733a2f2f676f6f2e676c2f796162506578227d0000000000000000000000'
+          '00';
+      expect(account().getStubSignature(), equals(jsStub));
+    });
+
     // The first user operation is estimated before anything is signed. The
     // stub must cover the Solidity-verifier path the account may submit.
     test('stub estimates the Solidity verifier before any signature', () {

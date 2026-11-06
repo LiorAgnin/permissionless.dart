@@ -898,8 +898,8 @@ class SmartAccountClient {
 
   /// Applies gas estimates to a UserOperation with multipliers.
   ///
-  /// For WebAuthn accounts, automatically applies minimum verification gas
-  /// to account for expensive P256 on-chain signature verification (~800k gas).
+  /// WebAuthn accounts get no extra floor (as in permissionless.js): their
+  /// stub signatures make the bundler price the real P-256 verifier.
   ///
   /// User-supplied gas fields ([preserveCallGasLimit] etc.) are kept and not
   /// overwritten by the estimate (viem `??` merge semantics).
@@ -910,14 +910,7 @@ class SmartAccountClient {
     BigInt? preserveVerificationGasLimit,
     BigInt? preservePreVerificationGas,
   }) {
-    var buffered = estimate.withMultipliers(gasMultipliers);
-
-    // WebAuthn accounts require higher verification gas for P256 on-chain math
-    // when the RIP-7212 precompile is not available (~800k gas).
-    if (account.isWebAuthn) {
-      buffered = buffered.withMinimumVerificationGas();
-    }
-
+    final buffered = estimate.withMultipliers(gasMultipliers);
     return userOp.copyWith(
       preVerificationGas:
           preservePreVerificationGas ?? buffered.preVerificationGas,

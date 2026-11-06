@@ -121,9 +121,8 @@ abstract class SmartAccount {
 
   /// Whether this account uses WebAuthn/Passkey authentication.
   ///
-  /// WebAuthn accounts require P256 signature verification which costs
-  /// approximately 800k gas on-chain without the RIP-7212 precompile.
-  /// This flag enables automatic gas adjustments in SmartAccountClient.
+  /// WebAuthn accounts verify a P-256 signature on chain: ~450k gas per op
+  /// with the Solidity verifier, ~120k with a P-256 precompile.
   ///
   /// Override to return true in account implementations that use
   /// WebAuthn owners (passkeys).

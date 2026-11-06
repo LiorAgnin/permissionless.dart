@@ -161,7 +161,7 @@ void main() async {
     );
 
     print('Verification Gas Limit: ${userOp.verificationGasLimit}');
-    print('(Should be ~900k+ for WebAuthn P256 verification)');
+    print('(Bundler estimate, priced from the WebAuthn stub signature)');
 
     // Note: signUserOperation will fail with UnimplementedError
     // because ExampleWebAuthnOwner.signP256 is not implemented.
@@ -185,7 +185,7 @@ void main() async {
   print('Key points:');
   print('  - WebAuthn owners use P256 (secp256r1) signatures');
   print('  - account.isWebAuthn returns true for WebAuthn owners');
-  print('  - SDK auto-applies 900k min verification gas for P256');
+  print('  - Verification gas comes from the bundler estimate');
   print('  - Use permissionless_passkeys for full WebAuthn support');
   print('='.padRight(60, '='));
 

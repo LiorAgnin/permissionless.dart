@@ -81,12 +81,14 @@ class GasMultipliers {
 
   /// Multipliers for WebAuthn/Passkey accounts.
   ///
-  /// P256 signature verification without the RIP-7212 precompile requires
-  /// approximately 800k gas for on-chain ECDSA math. This preset provides
-  /// a 3x buffer on verificationGasLimit to account for this.
+  /// A 3x buffer on verificationGasLimit. Opt-in, and not needed when the
+  /// account's stub signature carries an in-range P-256 r/s (the Kernel and
+  /// Safe WebAuthn stubs do), so the bundler runs the full verifier: for
+  /// Kernel, measured on a local rig, the plain estimate covered the
+  /// Solidity verifier (~450k per op) and the precompile (~120k).
   ///
-  /// Use this preset when the smart account uses WebAuthn/Passkey authentication
-  /// and the chain does NOT have reliable RIP-7212 precompile support.
+  /// Use it only when a bundler underestimates verification for your
+  /// WebAuthn account.
   ///
   /// Example:
   /// ```dart
@@ -94,7 +96,7 @@ class GasMultipliers {
   /// final buffered = estimate.withMultipliers(GasMultipliers.webAuthn);
   /// ```
   static const webAuthn = GasMultipliers(
-    verificationGasLimit: 3, // P256 on-chain verification is ~800k gas
+    verificationGasLimit: 3,
     callGasLimit: 1.2,
     preVerificationGas: 1,
     paymasterVerificationGasLimit: 1.3,
@@ -147,19 +149,20 @@ extension GasEstimateMultipliers on UserOperationGasEstimate {
     return total;
   }
 
-  /// Ensures verificationGasLimit is at least the specified minimum.
+  /// Ensures verificationGasLimit is at least the specified minimum (default
+  /// 900,000).
   ///
-  /// Use this for WebAuthn/Passkey accounts where P256 signature verification
-  /// without the RIP-7212 precompile requires ~800k gas. Bundler estimates
-  /// may underestimate this cost.
-  ///
-  /// The default minimum of 900,000 provides buffer for on-chain P256 math.
-  ///
-  /// Example:
-  /// ```dart
-  /// final estimate = await bundler.estimateUserOperationGas(userOp);
-  /// final adjusted = estimate.withMinimumVerificationGas();
-  /// ```
+  /// `SmartAccountClient` no longer applies this to WebAuthn accounts: it
+  /// compensated for a stub signature the P-256 verifier rejected before its
+  /// curve math, which made bundlers underestimate verification. With the
+  /// permissionless.js stub the bundler estimate covers the verifier, and a
+  /// fixed 900k was below the real estimate for a deploying op (~945k).
+  @Deprecated(
+    'SmartAccountClient no longer floors WebAuthn verification gas; the '
+    'bundler estimate covers it. Pass verificationGasLimit to '
+    'prepareUserOperation for an explicit limit. Will be removed in a '
+    'future major version.',
+  )
   UserOperationGasEstimate withMinimumVerificationGas({
     BigInt? minimum,
   }) {

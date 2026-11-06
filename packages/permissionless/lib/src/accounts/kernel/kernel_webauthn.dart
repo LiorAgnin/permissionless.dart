@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:web3dart/web3dart.dart' show keccak256;
 
+import '../../types/hex.dart';
 import '../../utils/encoding.dart';
 import '../webauthn_owner.dart';
 
@@ -52,8 +53,10 @@ String encodeKernelWebAuthnSignature(
 
 /// Returns a dummy Kernel WebAuthn signature for gas estimation.
 ///
-/// This returns a properly formatted but invalid signature with the correct
-/// byte length for bundler gas estimation.
+/// The values are permissionless.js `toKernelSmartAccount.getStubSignature`'s.
+/// r and s lie inside the P-256 curve order, so a bundler's simulation runs
+/// the verifier's full curve math before the signature fails; an
+/// out-of-range r would be rejected early and make the estimate far too low.
 ///
 /// Keep [usePrecompiled] false for estimation unless the account will
 /// definitely sign with the RIP-7212 precompile: the Solidity verifier costs
@@ -62,18 +65,20 @@ String getDummyKernelWebAuthnSignature({bool usePrecompiled = false}) =>
     encodeKernelWebAuthnSignature(
       P256SignatureData(
         r: BigInt.parse(
-          'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-          radix: 16,
+          '44941127272049826721201904734628716258498742255959991581049806490182030242267',
         ),
         s: BigInt.parse(
-          '7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0',
-          radix: 16,
+          '9910254599581058084911561569808925251374718953855182016200087235935345969636',
         ),
-        // Typical authenticator data length.
-        authenticatorData: Uint8List(37),
-        clientDataJSON:
-            '{"type":"webauthn.get","challenge":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA","origin":"https://example.com"}',
-        challengeIndex: 0,
+        authenticatorData: Hex.decode(
+          '0x49960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97631d00000000',
+        ),
+        clientDataJSON: '{"type":"webauthn.get",'
+            '"challenge":"tbxXNFS9X_4Byr1cMwqKrIGB-_30a0QhZ6y7ucM0BOE",'
+            '"origin":"http://localhost:3000","crossOrigin":false, '
+            '"other_keys_can_be_added_here":"do not compare clientDataJSON '
+            'against a template. See https://goo.gl/yabPex"}',
+        challengeIndex: 23,
         typeIndex: 1,
       ),
       usePrecompiled: usePrecompiled,
