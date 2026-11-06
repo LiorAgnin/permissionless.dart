@@ -1,8 +1,3 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:web3dart/web3dart.dart' show keccak256;
-
 import '../../clients/public/public_client.dart';
 import '../../clients/smart_account/smart_account_interface.dart';
 import '../../constants/entry_point.dart';
@@ -12,6 +7,7 @@ import '../../types/hex.dart';
 import '../../types/typed_data.dart';
 import '../../types/user_operation.dart';
 import '../../utils/erc7579.dart';
+import '../../utils/message_hash.dart';
 import '../../utils/user_operation_hash.dart';
 import '../account_owner.dart';
 import '../account_support.dart';
@@ -395,13 +391,8 @@ class _Eip7702KernelAccountOwner extends AccountOwner {
   Future<String> signRawHash(String hash) => _owner.signHash(hash);
 
   @override
-  Future<String> signPersonalMessage(String hash) {
-    final bytes = Hex.decode(hash);
-    final prefix = utf8.encode('\x19Ethereum Signed Message:\n${bytes.length}');
-    return _owner.signHash(
-      Hex.fromBytes(keccak256(Uint8List.fromList([...prefix, ...bytes]))),
-    );
-  }
+  Future<String> signPersonalMessage(String hash) =>
+      _owner.signHash(hashMessageBytes(Hex.decode(hash)));
 }
 
 /// Creates an EIP-7702 Kernel smart account.

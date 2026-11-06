@@ -7,32 +7,39 @@ import '../types/hex.dart';
 import '../types/typed_data.dart';
 import 'encoding.dart';
 
-/// Computes the EIP-191 personal message hash.
+/// Computes the EIP-191 personal message hash of UTF-8 text.
 ///
 /// Format: keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)
+/// where `len` counts UTF-8 bytes.
 ///
-/// This is the standard format used by `personal_sign` in wallets.
+/// This is the standard format used by `personal_sign` in wallets. For a
+/// byte message (viem `hashMessage({ raw })`) use [hashMessageBytes].
 ///
 /// Example:
 /// ```dart
 /// final hash = hashMessage('Hello, World!');
 /// // Returns the keccak256 hash of the prefixed message
 /// ```
-String hashMessage(String message) {
-  final messageBytes = utf8.encode(message);
-  final prefix = '\x19Ethereum Signed Message:\n${messageBytes.length}';
-  final prefixBytes = utf8.encode(prefix);
+String hashMessage(String message) => hashMessageBytes(utf8.encode(message));
 
-  final combined = Uint8List(prefixBytes.length + messageBytes.length)
-    ..setRange(0, prefixBytes.length, prefixBytes)
-    ..setRange(
-      prefixBytes.length,
-      prefixBytes.length + messageBytes.length,
-      messageBytes,
+/// Computes the EIP-191 personal message hash of raw bytes (viem
+/// `hashMessage({ raw })`).
+///
+/// The length in the prefix is the byte count of [message], so signing a
+/// 32-byte hash this way prefixes `32`, not the length of its hex string.
+///
+/// Example:
+/// ```dart
+/// final hash = hashMessageBytes(Hex.decode(userOpHash));
+/// ```
+String hashMessageBytes(List<int> message) => Hex.fromBytes(
+      keccak256(
+        Uint8List.fromList([
+          ...utf8.encode('\x19Ethereum Signed Message:\n${message.length}'),
+          ...message,
+        ]),
+      ),
     );
-
-  return Hex.fromBytes(keccak256(combined));
-}
 
 /// Computes the EIP-712 typed data hash.
 ///
